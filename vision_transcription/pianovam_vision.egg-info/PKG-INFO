@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: pianovam-vision
+Version: 0.1.0
+Summary: Video-only piano transcription on the PianoVAM dataset
+Requires-Python: >=3.9

@@ -1,0 +1,72 @@
+# Default configuration for PianoVAM visual (video-only) piano transcription.
+# Override any field on the command line, e.g.:
+#   python -m pianovam_vision.train --config configs/default.yaml data.root=/path/to/PianoVAM_v1.0
+
+data:
+  # Root of the downloaded dataset (contains Video/ TSV/ MIDI/ metadata_v2.json).
+  root: /raid_storage/data_achatzigiannis/PianoVAM_v1.0
+  metadata: metadata_v2.json          # relative to root
+  video_dir: Video
+  tsv_dir: TSV
+  midi_dir: MIDI
+  video_ext: .mp4
+  # Splits (from metadata_v2.json) to use for each phase.
+  train_splits: [train, ext-train]
+  valid_splits: [valid]
+  test_splits:  [test]
+  # special(blurry) and special(4hands) are excluded by default.
+
+keyboard:
+  # Output size of the rectified keyboard strip (after perspective warp).
+  # Real keyboard aspect (88 keys) is ~8:1, so keep width >> height.
+  warp_width: 896
+  warp_height: 112
+  grayscale: false                    # if true, model input is 1 channel
+
+labels:
+  fps: 30.0                           # target label/inference frame rate (video is 60 fps)
+  pitch_min: 21                       # A0
+  pitch_max: 108                      # C8  -> 88 keys
+  offset_field: key_offset            # key_offset = physical key release (visual GT)
+  onset_window_frames: 2              # number of frames the onset target stays "on"
+  min_note_frames: 1                  # notes shorter than this are extended to 1 frame
+
+model:
+  encoder_channels: [32, 64, 128, 192]   # per-frame CNN stem widths
+  feature_dim: 256
+  gru_hidden: 256
+  gru_layers: 2
+  dropout: 0.2
+  use_velocity: false                 # velocity head stub (off now, enable later)
+
+train:
+  clip_len: 64                        # frames per training clip (~2.1s at 30 fps)
+  clip_hop: 32                        # stride between clips when enumerating
+  batch_size: 4
+  num_workers: 4
+  max_open_readers: 3        # max decord video readers held open per worker (caps RAM)
+  max_cached_targets: 16     # max per-recording target rolls cached per worker
+  epochs: 60
+  lr: 0.0006
+  weight_decay: 0.0001
+  amp: true                           # mixed precision
+  grad_clip: 3.0
+  onset_pos_weight: 8.0               # BCE positive weighting (onsets are sparse)
+  frame_pos_weight: 2.0
+  velocity_loss_weight: 1.0
+  log_every: 20
+  eval_every_epochs: 1
+  seed: 1234
+  out_dir: runs/exp1
+  # Cap frames decoded per recording for a quick smoke run (0 = no cap).
+  max_frames_per_record: 0
+
+decode:
+  onset_threshold: 0.5
+  frame_threshold: 0.5
+  default_velocity: 80                # constant velocity written to MIDI
+  min_duration_s: 0.03               # drop notes shorter than this after decoding
+
+infer:
+  window_frames: 512                  # sliding-window length for long videos
+  window_hop: 448                     # overlap = window_frames - window_hop
