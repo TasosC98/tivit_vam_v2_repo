@@ -44,6 +44,8 @@ class ClipDataset(Dataset):
         self.warp_w = kb["warp_width"]
         self.warp_h = kb["warp_height"]
         self.grayscale = kb["grayscale"]
+        self.decode_height = kb.get("decode_height", 0)
+        self.read_chunk = kb.get("read_chunk", 8)
 
         lab = cfg["labels"]
         self.fps = lab["fps"]
@@ -92,7 +94,7 @@ class ClipDataset(Dataset):
         vp = rec.video_path(self.root, self.video_dir, self.video_ext)
         return WarpedVideo(
             vp, rec.corners, self.warp_w, self.warp_h, self.grayscale,
-            self.fps, self.max_frames,
+            self.fps, self.max_frames, self.decode_height, self.read_chunk,
         )
 
     def _get_reader(self, ri: int) -> WarpedVideo:

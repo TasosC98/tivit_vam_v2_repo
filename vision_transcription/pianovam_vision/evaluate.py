@@ -49,6 +49,7 @@ def main() -> None:
             rec.video_path(root, cfg["data"]["video_dir"], cfg["data"]["video_ext"]),
             rec.corners, kb["warp_width"], kb["warp_height"], kb["grayscale"],
             lab["fps"], cfg["train"].get("max_frames_per_record", 0),
+            kb.get("decode_height", 0), kb.get("read_chunk", 8),
         )
         est = transcribe(model, reader, cfg, device)
         ref = read_tsv(rec.tsv_path(root, cfg["data"]["tsv_dir"]), lab["offset_field"])

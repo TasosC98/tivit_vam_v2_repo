@@ -22,6 +22,8 @@ keyboard:
   warp_width: 896
   warp_height: 112
   grayscale: false                    # if true, model input is 1 channel
+  decode_height: 540                  # decode video at this height (0 = full 1080p); cuts RAM ~4x
+  read_chunk: 8                       # frames decoded at once (caps peak memory)
 
 labels:
   fps: 30.0                           # target label/inference frame rate (video is 60 fps)
