@@ -16,11 +16,13 @@ from . import N_KEYS
 
 
 def conv_block(cin: int, cout: int) -> nn.Sequential:
+    # Downsample on the FIRST conv so the (memory-heavy) second conv runs at the
+    # reduced resolution. This keeps activation memory small for big B*T batches.
     return nn.Sequential(
-        nn.Conv2d(cin, cout, 3, stride=1, padding=1, bias=False),
+        nn.Conv2d(cin, cout, 3, stride=2, padding=1, bias=False),  # downsample
         nn.BatchNorm2d(cout),
         nn.ReLU(inplace=True),
-        nn.Conv2d(cout, cout, 3, stride=2, padding=1, bias=False),  # downsample
+        nn.Conv2d(cout, cout, 3, stride=1, padding=1, bias=False),
         nn.BatchNorm2d(cout),
         nn.ReLU(inplace=True),
     )

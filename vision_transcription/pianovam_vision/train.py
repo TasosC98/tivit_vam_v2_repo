@@ -6,10 +6,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import time
 from pathlib import Path
 from typing import Any, Dict
+
+# Reduce CUDA fragmentation OOMs (must be set before torch initialises CUDA).
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 import numpy as np
 import torch
