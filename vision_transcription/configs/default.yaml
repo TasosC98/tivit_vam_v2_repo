@@ -4,7 +4,7 @@
 
 data:
   # Root of the downloaded dataset (contains Video/ TSV/ MIDI/ metadata_v2.json).
-  root: /raid_storage/data_achatzigiannis/PianoVAM_v1.0
+  root: /home/mkoziri/datasets/PianoVAM_v1.0
   metadata: metadata_v2.json          # relative to root
   video_dir: Video
   tsv_dir: TSV
