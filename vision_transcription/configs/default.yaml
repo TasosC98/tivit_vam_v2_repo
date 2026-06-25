@@ -37,6 +37,9 @@ data:
   train_splits: [train, ext-train]
   valid_splits: [valid]
   test_splits:  [test]
+  # record_times to drop entirely from every split. All files are present for
+  # all recordings, but this mp4 is corrupt and fails to decode (EOF error).
+  exclude_records: ["2024-09-05_21-37-08"]
   # special(blurry) and special(4hands) are excluded by default.
 
 keyboard:

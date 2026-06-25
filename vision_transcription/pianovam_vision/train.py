@@ -44,6 +44,12 @@ def make_loaders(cfg: Dict[str, Any]):
     train_recs = filter_by_split(recs, cfg["data"]["train_splits"])
     valid_recs = filter_by_split(recs, cfg["data"]["valid_splits"])
 
+    excl = set(cfg["data"].get("exclude_records", []) or [])
+    if excl:
+        train_recs = [r for r in train_recs if r.record_time not in excl]
+        valid_recs = [r for r in valid_recs if r.record_time not in excl]
+        print(f"excluding {len(excl)} record(s): {sorted(excl)}")
+
     train_ds = ClipDataset(cfg, train_recs, train=True)
     valid_ds = ClipDataset(cfg, valid_recs, train=False)
     print(f"train recordings={len(train_recs)} clips={len(train_ds)} | "
