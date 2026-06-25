@@ -14,6 +14,9 @@ from typing import Any, Dict
 
 # Reduce CUDA fragmentation OOMs (must be set before torch initialises CUDA).
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+# Some PianoVAM .mp4 files are slow to seek near EOF; raise decord's retry limit
+# so reading the last frames of those videos doesn't crash the run.
+os.environ.setdefault("DECORD_EOF_RETRY_MAX", "40960")
 
 import numpy as np
 import torch
@@ -112,8 +115,19 @@ def main() -> None:
     cfg = load_config(args.config, args.overrides)
     t = cfg["train"]
     set_seed(t["seed"])
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"device={device}")
+
+    # Device comes from the config (usually set by the active server profile):
+    # 'auto' -> cuda if present else cpu; 'cpu'/'cuda' force it.
+    dev = t.get("device", "auto")
+    if dev == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    else:
+        device = dev
+    if device == "cuda" and not torch.cuda.is_available():
+        print("WARNING: train.device=cuda but CUDA is unavailable; using cpu")
+        device = "cpu"
+    profile = cfg.get("_active_profile")
+    print(f"device={device}" + (f" | profile={profile}" if profile else ""))
 
     out_dir = Path(t["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)

@@ -2,6 +2,29 @@
 # Override any field on the command line, e.g.:
 #   python -m pianovam_vision.train --config configs/default.yaml data.root=/path/to/PianoVAM_v1.0
 
+# ---------------------------------------------------------------------------
+# Server profile. Lets the SAME config work on every machine by swapping
+# machine-specific values (dataset path, device). Choose the active profile,
+# highest priority first:
+#   1. CLI override:      profile=dib
+#   2. Environment var:   export PIANOVAM_SERVER=dib
+#   3. 'auto' (below):    matched against the machine hostname
+# The chosen profile's `overrides:` are applied first; any explicit CLI
+# override (e.g. data.root=...) still wins over them.
+# ---------------------------------------------------------------------------
+profile: auto
+profiles:
+  dit:                         # CPU server
+    hostname: vdcloud          # auto-selected when hostname contains this
+    overrides:
+      data.root: /home/mkoziri/datasets/PianoVAM_v1.0
+      train.device: cpu
+  dib:                         # GPU server
+    hostname: gondor
+    overrides:
+      data.root: /raid_storage/data_achatzigiannis/PianoVAM_v1.0
+      train.device: cuda
+
 data:
   # Root of the downloaded dataset (contains Video/ TSV/ MIDI/ metadata_v2.json).
   root: /home/mkoziri/datasets/PianoVAM_v1.0
@@ -34,12 +57,19 @@ labels:
   min_note_frames: 1                  # notes shorter than this are extended to 1 frame
 
 model:
+  arch: strip                # 'strip' = one global descriptor per frame (default);
+                             # 'tiled' = one ROI feature per key (see tiled.* below)
   encoder_channels: [32, 64, 128, 192]   # per-frame CNN stem widths
   feature_dim: 256
   gru_hidden: 256
   gru_layers: 2
   dropout: 0.2
   use_velocity: false                 # velocity head stub (off now, enable later)
+  # Tiled / ROI architecture (used only when arch: tiled). The keyboard strip
+  # is split width-wise into one ROI per key, so each key gets its own feature
+  # and its own (weight-shared) temporal stream -> better per-pitch localisation.
+  tile_feature_dim: 64       # per-key embedding width out of the CNN
+  tile_gru_hidden: 128       # temporal hidden per key (kept smaller; runs 88x)
 
 train:
   clip_len: 32                        # frames per training clip (~1.1s at 30 fps)
@@ -60,6 +90,8 @@ train:
   eval_every_epochs: 1
   seed: 1234
   out_dir: runs/exp1
+  device: auto               # 'auto' (cuda if available else cpu), 'cpu', or 'cuda';
+                             # usually set by the active server profile above
   # Cap frames decoded per recording for a quick smoke run (0 = no cap).
   max_frames_per_record: 0
 
