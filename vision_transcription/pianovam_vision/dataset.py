@@ -65,6 +65,9 @@ class ClipDataset(Dataset):
         self._readers: "OrderedDict[str, WarpedVideo]" = OrderedDict()
         self._targets: "OrderedDict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]" = OrderedDict()
 
+        # Records whose video could not be decoded (logged once, then skipped).
+        self._bad_records: set[str] = set()
+
         # Determine frame counts once (cheap header read) and build clip index.
         self._num_frames: Dict[str, int] = {}
         self.clips: List[Tuple[int, int]] = []
@@ -73,8 +76,14 @@ class ClipDataset(Dataset):
     # ------------------------------------------------------------------ index
     def _build_index(self) -> None:
         for ri, rec in enumerate(self.recs):
-            reader = self._open_reader(rec)
-            n = len(reader)
+            try:
+                reader = self._open_reader(rec)
+                n = len(reader)
+            except Exception as e:  # corrupt/undecodable video -> exclude it
+                self._bad_records.add(rec.record_time)
+                print(f"[dataset] WARNING: excluding {rec.record_time} "
+                      f"(cannot open video): {e}")
+                continue
             self._num_frames[rec.record_time] = n
             # Drop the reader created in the main process; workers reopen.
             self._readers.pop(rec.record_time, None)
@@ -132,6 +141,26 @@ class ClipDataset(Dataset):
         return len(self.clips)
 
     def __getitem__(self, i: int) -> Dict[str, torch.Tensor]:
+        # A few videos fail to decode intermittently (slow EOF seeks / corrupt
+        # files). Rather than crash a multi-hour run, skip a failed clip and
+        # substitute another random one.
+        last_err = None
+        for _ in range(8):
+            try:
+                return self._load_clip(i)
+            except Exception as e:
+                last_err = e
+                ri = self.clips[i][0]
+                rt = self.recs[ri].record_time
+                if rt not in self._bad_records:
+                    self._bad_records.add(rt)
+                    print(f"[dataset] WARNING: skipping unreadable clip from "
+                          f"{rt}: {e}")
+                self._readers.pop(rt, None)  # drop possibly-broken reader
+                i = int(np.random.randint(0, len(self.clips)))
+        raise RuntimeError(f"too many unreadable clips; last error: {last_err}")
+
+    def _load_clip(self, i: int) -> Dict[str, torch.Tensor]:
         ri, start = self.clips[i]
         rec = self.recs[ri]
         n = self._num_frames[rec.record_time]
