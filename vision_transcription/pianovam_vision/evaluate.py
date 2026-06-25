@@ -32,12 +32,22 @@ def main() -> None:
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
 
-    cfg = load_config(args.config, args.overrides)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    ckpt = torch.load(args.checkpoint, map_location=device)
+    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    # Build from the checkpoint's OWN config so architecture/keyboard settings
+    # (arch, warp_width, ...) always match the trained weights. CLI overrides
+    # still apply on top (e.g. train.max_frames_per_record=0 for full videos).
+    if isinstance(ckpt, dict) and "cfg" in ckpt:
+        from .config import apply_overrides
+        cfg = apply_overrides(ckpt["cfg"], args.overrides) if args.overrides \
+            else ckpt["cfg"]
+    else:
+        cfg = load_config(args.config, args.overrides)
+
     model = build_model(cfg).to(device)
     model.load_state_dict(ckpt["model"])
+    model.eval()
 
     root = Path(cfg["data"]["root"])
     recs = filter_by_split(load_recordings(root / cfg["data"]["metadata"]), [args.split])
