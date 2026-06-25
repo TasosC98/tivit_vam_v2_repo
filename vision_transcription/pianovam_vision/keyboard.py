@@ -11,7 +11,7 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-from . import N_KEYS, PITCH_MIN
+from . import N_KEYS, PITCH_MIN, PITCH_MAX
 
 
 def perspective_matrix(corners: np.ndarray, width: int, height: int) -> np.ndarray:
