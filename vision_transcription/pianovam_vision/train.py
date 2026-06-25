@@ -115,6 +115,9 @@ def evaluate(model, loader, cfg, device) -> Dict[str, float]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
+    ap.add_argument("--resume", default=None,
+                    help="checkpoint to resume from, or 'auto' for "
+                         "<out_dir>/last.pt if it exists")
     ap.add_argument("overrides", nargs="*", help="dotted overrides key=value")
     args = ap.parse_args()
 
@@ -151,7 +154,24 @@ def main() -> None:
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
     best_f1 = -1.0
-    for epoch in range(t["epochs"]):
+    start_epoch = 0
+    resume_path = args.resume
+    if resume_path == "auto":
+        cand = out_dir / "last.pt"
+        resume_path = str(cand) if cand.exists() else None
+    if resume_path:
+        ck = torch.load(resume_path, map_location=device, weights_only=False)
+        model.load_state_dict(ck["model"])
+        if "optimizer" in ck:
+            opt.load_state_dict(ck["optimizer"])
+        if "scaler" in ck:
+            scaler.load_state_dict(ck["scaler"])
+        best_f1 = ck.get("best_f1", ck.get("metrics", {}).get("frame_f1", -1.0))
+        start_epoch = int(ck.get("epoch", -1)) + 1
+        print(f"resumed from {resume_path}: continuing at epoch {start_epoch} "
+              f"(best_f1={best_f1:.4f})")
+
+    for epoch in range(start_epoch, t["epochs"]):
         model.train()
         running = 0.0
         pbar = tqdm(train_loader, desc=f"epoch {epoch}")
@@ -174,11 +194,16 @@ def main() -> None:
         if (epoch + 1) % t["eval_every_epochs"] == 0:
             metrics = evaluate(model, valid_loader, cfg, device)
             print(f"[epoch {epoch}] valid {metrics}")
-            ckpt = {"model": model.state_dict(), "cfg": cfg,
-                    "epoch": epoch, "metrics": metrics}
-            torch.save(ckpt, out_dir / "last.pt")
-            if metrics["frame_f1"] > best_f1:
+            is_best = metrics["frame_f1"] > best_f1
+            if is_best:
                 best_f1 = metrics["frame_f1"]
+            # Save optimizer/scaler/best_f1 too so --resume continues cleanly.
+            ckpt = {"model": model.state_dict(), "cfg": cfg,
+                    "epoch": epoch, "metrics": metrics,
+                    "optimizer": opt.state_dict(), "scaler": scaler.state_dict(),
+                    "best_f1": best_f1}
+            torch.save(ckpt, out_dir / "last.pt")
+            if is_best:
                 torch.save(ckpt, out_dir / "best.pt")
                 print(f"  -> new best frame_f1={best_f1:.4f} (saved best.pt)")
 

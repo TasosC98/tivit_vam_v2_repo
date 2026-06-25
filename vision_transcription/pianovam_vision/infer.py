@@ -41,9 +41,10 @@ def parse_corners(s: str) -> np.ndarray:
 
 
 @torch.no_grad()
-def transcribe(
-    model, reader: WarpedVideo, cfg: Dict[str, Any], device: str
-) -> List[Note]:
+def predict_rolls(model, reader: WarpedVideo, cfg: Dict[str, Any], device: str):
+    """Run the model over a video and return averaged probability rolls
+    (onset_p, frame_p, vel_p) of shape (T, 88). Decoding/thresholding is left to
+    the caller, so the same rolls can be re-thresholded cheaply (calibration)."""
     model.eval()
     n = len(reader)
     K = 88
@@ -72,10 +73,14 @@ def transcribe(
         count[s:e] += 1.0
 
     count = np.clip(count, 1.0, None)
-    onset_p = onset_acc / count
-    frame_p = frame_acc / count
-    vel_p = (vel_acc / count) if has_vel else None
+    return onset_acc / count, frame_acc / count, (vel_acc / count) if has_vel else None
 
+
+@torch.no_grad()
+def transcribe(
+    model, reader: WarpedVideo, cfg: Dict[str, Any], device: str
+) -> List[Note]:
+    onset_p, frame_p, vel_p = predict_rolls(model, reader, cfg, device)
     d = cfg["decode"]
     return decode_notes(
         onset_p, frame_p, fps=cfg["labels"]["fps"],
@@ -96,10 +101,17 @@ def main() -> None:
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
 
-    cfg = load_config(args.config, args.overrides)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    ckpt = torch.load(args.checkpoint, map_location=device)
+    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    # Build from the checkpoint's own config so arch/keyboard match the weights.
+    if isinstance(ckpt, dict) and "cfg" in ckpt:
+        from .config import apply_overrides
+        cfg = apply_overrides(ckpt["cfg"], args.overrides) if args.overrides \
+            else ckpt["cfg"]
+    else:
+        cfg = load_config(args.config, args.overrides)
+
     model = build_model(cfg).to(device)
     model.load_state_dict(ckpt["model"])
 
