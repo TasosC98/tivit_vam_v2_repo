@@ -31,6 +31,13 @@ export OMP_NUM_THREADS="${OMP_NUM_THREADS:-4}"
 OUT="runs/${NAME}"
 mkdir -p "${OUT}"
 
+# Refuse to launch a duplicate if this experiment is already running.
+if [ -f "${OUT}/run.pid" ] && kill -0 "$(cat "${OUT}/run.pid")" 2>/dev/null; then
+  echo "ERROR: '${NAME}' is already running (pid $(cat "${OUT}/run.pid")). " \
+       "Stop it first:  kill \$(cat ${OUT}/run.pid)" >&2
+  exit 1
+fi
+
 RESUME=""
 if [ -f "${OUT}/last.pt" ]; then
   RESUME="--resume auto"
