@@ -71,8 +71,14 @@ def main() -> None:
         )
         onset_p, frame_p, _ = predict_rolls(model, reader, cfg, device)
         ref = read_tsv(rec.tsv_path(root, cfg["data"]["tsv_dir"]), lab["offset_field"])
+        # The rolls cover only the first len(onset_p) frames (max_frames_per_record
+        # may cap the video). Restrict the reference to that same time window, or
+        # F1 is meaningless (a 20 s prediction vs a 10 min reference).
+        t_max = len(onset_p) / fps
+        ref = [n for n in ref if n.onset < t_max]
         cache.append((onset_p, frame_p, ref))
-        print(f"  predicted rolls for {rec.record_time} ({len(onset_p)} frames)")
+        print(f"  predicted rolls for {rec.record_time} "
+              f"({len(onset_p)} frames, {len(ref)} ref notes in window)")
 
     onset_grid = [float(x) for x in args.onset_grid.split(",")]
     frame_grid = [float(x) for x in args.frame_grid.split(",")]

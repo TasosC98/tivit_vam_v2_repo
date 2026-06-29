@@ -14,9 +14,10 @@ from typing import Any, Dict
 
 # Reduce CUDA fragmentation OOMs (must be set before torch initialises CUDA).
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-# Some PianoVAM .mp4 files are slow to seek near EOF; raise decord's retry limit
-# so reading the last frames of those videos doesn't crash the run.
-os.environ.setdefault("DECORD_EOF_RETRY_MAX", "40960")
+# Some PianoVAM .mp4 files seek slowly near EOF. Keep decord's retry limit LOW so
+# a bad frame fails *fast* and the dataset's skip-a-clip logic handles it, instead
+# of decord spinning through tens of thousands of retries (which looks like a hang).
+os.environ.setdefault("DECORD_EOF_RETRY_MAX", "2048")
 
 import numpy as np
 import torch

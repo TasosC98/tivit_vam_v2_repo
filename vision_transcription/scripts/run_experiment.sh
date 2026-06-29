@@ -25,7 +25,7 @@ ARCH="${2:?arch must be 'strip' or 'tiled'}"
 shift 2
 
 CONFIG="${CONFIG:-configs/default.yaml}"
-export DECORD_EOF_RETRY_MAX="${DECORD_EOF_RETRY_MAX:-40960}"
+export DECORD_EOF_RETRY_MAX="${DECORD_EOF_RETRY_MAX:-2048}"   # low = fail fast + skip bad frame
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-4}"
 
 OUT="runs/${NAME}"
