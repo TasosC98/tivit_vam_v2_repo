@@ -32,6 +32,7 @@ data:
   video_dir: Video
   tsv_dir: TSV
   midi_dir: MIDI
+  handskeleton_dir: Handskeleton       # MediaPipe per-frame hand landmarks
   video_ext: .mp4
   # Splits (from metadata_v2.json) to use for each phase.
   train_splits: [train, ext-train]

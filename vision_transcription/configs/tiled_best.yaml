@@ -24,6 +24,7 @@ data:
   video_dir: Video
   tsv_dir: TSV
   midi_dir: MIDI
+  handskeleton_dir: Handskeleton
   video_ext: .mp4
   train_splits: [train, ext-train]
   valid_splits: [valid]
