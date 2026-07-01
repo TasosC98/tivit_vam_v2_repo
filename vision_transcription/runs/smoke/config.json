@@ -20,7 +20,9 @@
   "keyboard": {
     "warp_width": 896,
     "warp_height": 112,
-    "grayscale": false
+    "grayscale": false,
+    "decode_height": 360,
+    "read_chunk": 8
   },
   "labels": {
     "fps": 30.0,
@@ -44,10 +46,12 @@
     "use_velocity": false
   },
   "train": {
-    "clip_len": 64,
-    "clip_hop": 32,
-    "batch_size": 4,
-    "num_workers": 8,
+    "clip_len": 32,
+    "clip_hop": 16,
+    "batch_size": 2,
+    "num_workers": 0,
+    "max_open_readers": 1,
+    "max_cached_targets": 4,
     "epochs": 2,
     "lr": 0.0006,
     "weight_decay": 0.0001,
@@ -60,7 +64,7 @@
     "eval_every_epochs": 1,
     "seed": 1234,
     "out_dir": "runs/smoke",
-    "max_frames_per_record": 600
+    "max_frames_per_record": 300
   },
   "decode": {
     "onset_threshold": 0.5,
