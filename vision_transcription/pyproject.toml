@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pianovam-vision"
+version = "0.1.0"
+description = "Video-only piano transcription on the PianoVAM dataset"
+requires-python = ">=3.9"
+
+[tool.setuptools]
+packages = ["pianovam_vision"]

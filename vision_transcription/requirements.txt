@@ -1,0 +1,21 @@
+# Core
+numpy>=1.24
+pyyaml>=6.0
+tqdm>=4.65
+
+# Video / image
+decord>=0.6.0          # fast random-access video decoding (Linux/CUDA wheels available)
+opencv-python>=4.8     # perspective warp
+
+# Deep learning (install the CUDA build that matches your server, e.g. cu121)
+torch>=2.1
+torchvision>=0.16
+
+# MIDI I/O + evaluation
+pretty_midi>=0.2.10
+mido>=1.3
+mir_eval>=0.7
+
+# Optional convenience
+pandas>=2.0
+scipy>=1.10

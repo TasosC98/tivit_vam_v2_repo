@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtualenvs
+.venv/
+venv/
+
+# Experiment outputs (checkpoints/logs/images are large; keep them off git)
+runs/
+out/
+preview/
+preview_keys/
+preview_hands/
+*.pt
+*.mid
