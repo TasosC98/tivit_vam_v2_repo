@@ -8,6 +8,11 @@ __pycache__/
 .venv/
 venv/
 
-# Experiment outputs (checkpoints/logs are large; keep them off git)
+# Experiment outputs (checkpoints/logs/images are large; keep them off git)
 runs/
+out/
 preview/
+preview_keys/
+preview_hands/
+*.pt
+*.mid
