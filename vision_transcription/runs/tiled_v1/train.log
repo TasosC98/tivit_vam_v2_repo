@@ -1,0 +1,40 @@
+device=cuda | profile=dib
+train recordings=81 clips=2997 | valid recordings=9 clips=171
+model params: 1.30M
+epoch 0:   0%|          | 0/374 [00:00<?, ?it/s]epoch 0:   0%|          | 0/374 [00:12<?, ?it/s, loss=1.3600]epoch 0:   0%|          | 1/374 [00:12<1:19:02, 12.71s/it, loss=1.3600]epoch 0:   1%|          | 2/374 [00:27<1:24:39, 13.66s/it, loss=1.3600]epoch 0:   1%|          | 3/374 [00:44<1:34:01, 15.21s/it, loss=1.3600]epoch 0:   1%|          | 4/374 [00:55<1:24:25, 13.69s/it, loss=1.3600]epoch 0:   1%|▏         | 5/374 [01:09<1:24:46, 13.78s/it, loss=1.3600]epoch 0:   2%|▏         | 6/374 [01:20<1:19:17, 12.93s/it, loss=1.3600]epoch 0:   2%|▏         | 7/374 [01:36<1:23:57, 13.73s/it, loss=1.3600]epoch 0:   2%|▏         | 8/374 [01:51<1:27:23, 14.33s/it, loss=1.3600]epoch 0:   2%|▏         | 9/374 [02:01<1:18:56, 12.98s/it, loss=1.3600]epoch 0:   3%|▎         | 10/374 [02:22<1:34:06, 15.51s/it, loss=1.3600]epoch 0:   3%|▎         | 11/374 [02:32<1:23:16, 13.76s/it, loss=1.3600]epoch 0:   3%|▎         | 12/374 [02:44<1:20:10, 13.29s/it, loss=1.3600]epoch 0:   3%|▎         | 13/374 [02:58<1:21:18, 13.51s/it, loss=1.3600]epoch 0:   4%|▎         | 14/374 [03:09<1:16:33, 12.76s/it, loss=1.3600]epoch 0:   4%|▍         | 15/374 [03:20<1:11:38, 11.97s/it, loss=1.3600]epoch 0:   4%|▍         | 16/374 [03:35<1:18:34, 13.17s/it, loss=1.3600]epoch 0:   5%|▍         | 17/374 [03:45<1:11:42, 12.05s/it, loss=1.3600]epoch 0:   5%|▍         | 18/374 [03:57<1:11:09, 11.99s/it, loss=1.3600]epoch 0:   5%|▌         | 19/374 [04:12<1:16:19, 12.90s/it, loss=1.3600]epoch 0:   5%|▌         | 20/374 [04:29<1:24:29, 14.32s/it, loss=1.3600]epoch 0:   5%|▌         | 20/374 [04:45<1:24:29, 14.32s/it, loss=0.4744]epoch 0:   6%|▌         | 21/374 [04:45<1:27:17, 14.84s/it, loss=0.4744]epoch 0:   6%|▌         | 22/374 [05:00<1:25:42, 14.61s/it, loss=0.4744]epoch 0:   6%|▌         | 23/374 [05:10<1:18:24, 13.40s/it, loss=0.4744]epoch 0:   6%|▋         | 24/374 [05:29<1:28:05, 15.10s/it, loss=0.4744]epoch 0:   7%|▋         | 25/374 [05:41<1:22:07, 14.12s/it, loss=0.4744]epoch 0:   7%|▋         | 26/374 [05:53<1:17:35, 13.38s/it, loss=0.4744]epoch 0:   7%|▋         | 27/374 [06:02<1:10:15, 12.15s/it, loss=0.4744]epoch 0:   7%|▋         | 28/374 [06:14<1:09:25, 12.04s/it, loss=0.4744]epoch 0:   8%|▊         | 29/374 [06:28<1:13:43, 12.82s/it, loss=0.4744]epoch 0:   8%|▊         | 30/374 [06:42<1:14:37, 13.02s/it, loss=0.4744]epoch 0:   8%|▊         | 31/374 [06:54<1:12:31, 12.69s/it, loss=0.4744]epoch 0:   9%|▊         | 32/374 [07:08<1:15:37, 13.27s/it, loss=0.4744]epoch 0:   9%|▊         | 32/374 [07:19<1:18:13, 13.72s/it, loss=0.4744]
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/pianovam_vision/train.py", line 183, in <module>
+    main()
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/pianovam_vision/train.py", line 152, in main
+    for step, batch in enumerate(pbar):
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/.venv/lib/python3.10/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 708, in __next__
+    data = self._next_data()
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 764, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/.venv/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 52, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/.venv/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 52, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/pianovam_vision/dataset.py", line 147, in __getitem__
+    reader = self._get_reader(ri)
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/pianovam_vision/dataset.py", line 104, in _get_reader
+    r = self._open_reader(rec)
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/pianovam_vision/dataset.py", line 95, in _open_reader
+    return WarpedVideo(
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/pianovam_vision/video.py", line 39, in __init__
+    nat_h, nat_w = probe[0].shape[:2]
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/.venv/lib/python3.10/site-packages/decord/video_reader.py", line 105, in __getitem__
+    return self.next()
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/.venv/lib/python3.10/site-packages/decord/video_reader.py", line 117, in next
+    arr = _CAPI_VideoReaderNextFrame(self._handle)
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/.venv/lib/python3.10/site-packages/decord/_ffi/_ctypes/function.py", line 173, in __call__
+    check_call(_LIB.DECORDFuncCall(
+  File "/home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/.venv/lib/python3.10/site-packages/decord/_ffi/base.py", line 78, in check_call
+    raise DECORDError(err_str)
+decord._ffi.base.DECORDError: [18:52:39] /github/workspace/src/video/video_reader.cc:444: [/raid_storage/data_achatzigiannis/PianoVAM_v1.0/Video/2024-09-05_21-37-08.mp4]Unable to handle EOF because it takes too long to retrieve last few frames and `DECORD_EOF_RETRY_MAX=40960`. You may override the limit by `export DECORD_EOF_RETRY_MAX=20480` for example to allow more EOF retry attempts, exit...

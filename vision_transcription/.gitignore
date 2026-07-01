@@ -11,3 +11,4 @@ venv/
 # Experiment outputs (checkpoints/logs are large; keep them off git)
 runs/
 preview/
+preview_keys/
