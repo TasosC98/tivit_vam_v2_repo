@@ -37,7 +37,6 @@ class ClipDataset(Dataset):
 
         self.root = Path(cfg["data"]["root"])
         self.video_dir = cfg["data"]["video_dir"]
-        self.tsv_dir = cfg["data"]["tsv_dir"]
         self.video_ext = cfg["data"]["video_ext"]
 
         kb = cfg["keyboard"]
@@ -84,6 +83,13 @@ class ClipDataset(Dataset):
                 print(f"[dataset] WARNING: excluding {rec.record_time} "
                       f"(cannot open video): {e}")
                 continue
+            # Skip recordings whose label file is absent (common for PianoYT,
+            # where some YouTube videos/MIDIs are missing from the download).
+            if not label_utils.reference_path(rec, self.cfg).exists():
+                self._bad_records.add(rec.record_time)
+                print(f"[dataset] WARNING: excluding {rec.record_time} "
+                      f"(no label file)")
+                continue
             self._num_frames[rec.record_time] = n
             # Drop the reader created in the main process; workers reopen.
             self._readers.pop(rec.record_time, None)
@@ -122,9 +128,7 @@ class ClipDataset(Dataset):
         rec = self.recs[ri]
         t = self._targets.get(rec.record_time)
         if t is None:
-            notes = label_utils.read_tsv(
-                rec.tsv_path(self.root, self.tsv_dir), self.offset_field
-            )
+            notes = label_utils.read_reference(rec, self.cfg)
             t = label_utils.build_target_rolls(
                 notes, self._num_frames[rec.record_time], self.fps,
                 self.onset_window, self.min_note_frames,

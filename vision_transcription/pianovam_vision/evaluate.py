@@ -15,8 +15,8 @@ import torch
 
 from .config import load_config
 from .infer import transcribe
-from .labels import build_target_rolls, read_tsv
-from .metadata import filter_by_split, load_recordings
+from .labels import build_target_rolls, read_reference
+from .metadata import filter_by_split, recordings_from_cfg
 from .metrics import frame_prf, note_scores
 from .midi_io import write_midi
 from .model import build_model
@@ -50,7 +50,7 @@ def main() -> None:
     model.eval()
 
     root = Path(cfg["data"]["root"])
-    recs = filter_by_split(load_recordings(root / cfg["data"]["metadata"]), [args.split])
+    recs = filter_by_split(recordings_from_cfg(cfg), [args.split])
     kb, lab = cfg["keyboard"], cfg["labels"]
 
     agg: Dict[str, List[float]] = defaultdict(list)
@@ -62,7 +62,7 @@ def main() -> None:
             kb.get("decode_height", 0), kb.get("read_chunk", 8),
         )
         est = transcribe(model, reader, cfg, device)
-        ref = read_tsv(rec.tsv_path(root, cfg["data"]["tsv_dir"]), lab["offset_field"])
+        ref = read_reference(rec, cfg)
         scores = note_scores(ref, est)
 
         # Frame-level (pitch-time grid) F1: rasterise both note sets to rolls.

@@ -20,8 +20,8 @@ import torch
 from .config import apply_overrides, load_config
 from .decode import decode_notes
 from .infer import predict_rolls
-from .labels import read_tsv
-from .metadata import filter_by_split, load_recordings
+from .labels import read_reference
+from .metadata import filter_by_split, recordings_from_cfg
 from .metrics import note_scores
 from .model import build_model
 from .video import WarpedVideo
@@ -53,8 +53,7 @@ def main() -> None:
     model.eval()
 
     root = Path(cfg["data"]["root"])
-    recs = filter_by_split(load_recordings(root / cfg["data"]["metadata"]),
-                           [args.split])
+    recs = filter_by_split(recordings_from_cfg(cfg), [args.split])
     excl = set(cfg["data"].get("exclude_records", []) or [])
     recs = [r for r in recs if r.record_time not in excl]
     kb, lab = cfg["keyboard"], cfg["labels"]
@@ -70,7 +69,7 @@ def main() -> None:
             kb.get("decode_height", 0), kb.get("read_chunk", 8),
         )
         onset_p, frame_p, _ = predict_rolls(model, reader, cfg, device)
-        ref = read_tsv(rec.tsv_path(root, cfg["data"]["tsv_dir"]), lab["offset_field"])
+        ref = read_reference(rec, cfg)
         # The rolls cover only the first len(onset_p) frames (max_frames_per_record
         # may cap the video). Restrict the reference to that same time window, or
         # F1 is meaningless (a 20 s prediction vs a 10 min reference).

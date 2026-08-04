@@ -9,7 +9,8 @@ from collections import Counter
 from pathlib import Path
 
 from .config import load_config
-from .metadata import load_recordings
+from .labels import reference_path
+from .metadata import recordings_from_cfg
 
 
 def main() -> None:
@@ -25,23 +26,27 @@ def main() -> None:
         print(f"[FATAL] metadata not found: {meta}")
         return
 
-    recs = load_recordings(meta)
-    print(f"metadata: {meta}  ({len(recs)} recordings)")
+    recs = recordings_from_cfg(cfg)
+    print(f"metadata: {meta}  ({len(recs)} recordings, "
+          f"format={cfg['data'].get('format', 'pianovam')})")
     print("split counts:", dict(Counter(r.split for r in recs)))
 
-    missing = 0
+    missing = missing_video = missing_label = 0
     for r in recs:
         vp = r.video_path(root, cfg["data"]["video_dir"], cfg["data"]["video_ext"])
-        tp = r.tsv_path(root, cfg["data"]["tsv_dir"])
-        mp = r.midi_path(root, cfg["data"]["midi_dir"])
-        miss = [str(p) for p in (vp, tp) if not p.exists()]
+        lp = reference_path(r, cfg)
+        miss = [str(p) for p in (vp, lp) if not p.exists()]
         if miss:
             missing += 1
+            missing_video += not vp.exists()
+            missing_label += not lp.exists()
             print(f"  [missing] {r.record_time} ({r.split}): {miss}")
     if missing == 0:
-        print("OK: all video+tsv files for every recording are present.")
+        print("OK: all video+label files for every recording are present.")
     else:
-        print(f"{missing} recording(s) have missing files (see above).")
+        print(f"{missing} recording(s) have missing files "
+              f"({missing_video} video, {missing_label} label). "
+              f"These are skipped automatically at train/eval time.")
 
 
 if __name__ == "__main__":

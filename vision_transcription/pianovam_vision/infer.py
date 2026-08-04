@@ -24,7 +24,7 @@ import torch
 from .config import load_config
 from .decode import decode_notes
 from .labels import Note
-from .metadata import index_by_record_time, load_recordings
+from .metadata import index_by_record_time, recordings_from_cfg
 from .midi_io import write_midi
 from .model import build_model
 from .video import WarpedVideo
@@ -117,7 +117,7 @@ def main() -> None:
 
     root = Path(cfg["data"]["root"])
     if args.record_time:
-        recs = index_by_record_time(load_recordings(root / cfg["data"]["metadata"]))
+        recs = index_by_record_time(recordings_from_cfg(cfg))
         rec = recs[args.record_time]
         video_path = rec.video_path(root, cfg["data"]["video_dir"], cfg["data"]["video_ext"])
         corners = rec.corners

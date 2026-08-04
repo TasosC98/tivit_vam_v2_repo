@@ -28,8 +28,8 @@ from .keyboard import (
     is_white_key, key_geometry, note_name, perspective_matrix, pitch_to_x,
     warp_frame, white_key_pitches,
 )
-from .labels import read_tsv
-from .metadata import load_recordings
+from .labels import read_reference
+from .metadata import recordings_from_cfg
 
 
 def annotate(strip_bgr, width: int, height: int, active=None) -> None:
@@ -125,7 +125,7 @@ def main() -> None:
 
     cfg = load_config(args.config, args.overrides)
     root = Path(cfg["data"]["root"])
-    recs = load_recordings(root / cfg["data"]["metadata"])
+    recs = recordings_from_cfg(cfg)
     excl = set(cfg["data"].get("exclude_records", []) or [])
 
     if args.record_time:
@@ -146,8 +146,7 @@ def main() -> None:
             notes = None
             t = args.time
             if show_active:
-                notes = read_tsv(r.tsv_path(root, cfg["data"]["tsv_dir"]),
-                                 cfg["labels"]["offset_field"])
+                notes = read_reference(r, cfg)
                 if args.busiest:
                     t = peak_polyphony_time(notes, args.time)
 

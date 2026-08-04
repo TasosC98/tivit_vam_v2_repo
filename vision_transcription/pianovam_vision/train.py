@@ -27,7 +27,7 @@ from tqdm import tqdm
 
 from .config import load_config
 from .dataset import ClipDataset
-from .metadata import filter_by_split, load_recordings
+from .metadata import filter_by_split, recordings_from_cfg
 from .metrics import frame_prf
 from .model import build_model
 
@@ -40,8 +40,7 @@ def set_seed(seed: int) -> None:
 
 
 def make_loaders(cfg: Dict[str, Any]):
-    root = Path(cfg["data"]["root"])
-    recs = load_recordings(root / cfg["data"]["metadata"])
+    recs = recordings_from_cfg(cfg)
     train_recs = filter_by_split(recs, cfg["data"]["train_splits"])
     valid_recs = filter_by_split(recs, cfg["data"]["valid_splits"])
 

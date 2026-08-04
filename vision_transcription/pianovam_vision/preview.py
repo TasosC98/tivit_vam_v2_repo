@@ -18,8 +18,8 @@ import numpy as np
 
 from .config import load_config
 from .keyboard import perspective_matrix, pitch_to_column, warp_frame
-from .labels import read_tsv
-from .metadata import index_by_record_time, load_recordings
+from .labels import read_reference
+from .metadata import index_by_record_time, recordings_from_cfg
 
 
 def main() -> None:
@@ -40,7 +40,7 @@ def main() -> None:
 
     cfg = load_config(args.config, args.overrides)
     root = Path(cfg["data"]["root"])
-    recs = index_by_record_time(load_recordings(root / cfg["data"]["metadata"]))
+    recs = index_by_record_time(recordings_from_cfg(cfg))
     rec = recs[args.record_time]
 
     vp = rec.video_path(root, cfg["data"]["video_dir"], cfg["data"]["video_ext"])
@@ -48,7 +48,7 @@ def main() -> None:
     native_fps = float(vr.get_avg_fps()) or 60.0
 
     # Notes first, so --snap_to_onset can pick a moment that definitely has a key down.
-    notes = read_tsv(rec.tsv_path(root, cfg["data"]["tsv_dir"]), cfg["labels"]["offset_field"])
+    notes = read_reference(rec, cfg)
     t = args.time
     if args.snap_to_onset and notes:
         t = min(notes, key=lambda n: abs(n.onset - args.time)).onset

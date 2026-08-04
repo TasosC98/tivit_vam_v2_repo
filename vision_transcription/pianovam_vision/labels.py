@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List
 
 import numpy as np
 
@@ -48,6 +48,45 @@ def read_tsv(
             notes.append(Note(onset, offset, pitch, vel))
     notes.sort(key=lambda n: (n.onset, n.pitch))
     return notes
+
+
+def read_midi(path: str | Path) -> List[Note]:
+    """Read a MIDI file (PianoYT ground truth) into a list of Note.
+
+    PianoYT labels come as MIDI (extracted by Onsets-and-Frames from the audio),
+    so there is only note-on/note-off -- the offset is the MIDI note-off time.
+    NOTE: these offsets include sustain-pedal tails, which a camera cannot see,
+    so onset+pitch is the fair metric for a visual model (offset F1 will be low).
+    """
+    import pretty_midi  # imported lazily so the package imports without pretty_midi
+
+    pm = pretty_midi.PrettyMIDI(str(path))
+    notes: List[Note] = []
+    for inst in pm.instruments:
+        if inst.is_drum:
+            continue
+        for n in inst.notes:
+            offset = n.end if n.end >= n.start else n.start
+            notes.append(Note(float(n.start), float(offset), int(n.pitch), int(n.velocity)))
+    notes.sort(key=lambda n: (n.onset, n.pitch))
+    return notes
+
+
+def reference_path(rec, cfg: Dict[str, Any]) -> Path:
+    """Path to a recording's ground-truth label file, per ``data.format``."""
+    d = cfg["data"]
+    root = Path(d["root"])
+    if d.get("format", "pianovam") == "pianoyt":
+        return rec.label_path(root, d["midi_dir"])
+    return rec.tsv_path(root, d["tsv_dir"])
+
+
+def read_reference(rec, cfg: Dict[str, Any]) -> List[Note]:
+    """Read a recording's ground-truth notes (TSV for PianoVAM, MIDI for PianoYT)."""
+    path = reference_path(rec, cfg)
+    if cfg["data"].get("format", "pianovam") == "pianoyt":
+        return read_midi(path)
+    return read_tsv(path, cfg["labels"]["offset_field"])
 
 
 def build_target_rolls(
