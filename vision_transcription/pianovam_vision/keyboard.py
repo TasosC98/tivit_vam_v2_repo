@@ -8,7 +8,6 @@ helpers below are mainly for cropping/visualisation/debugging.
 """
 from __future__ import annotations
 
-import cv2
 import numpy as np
 
 from . import N_KEYS, PITCH_MIN, PITCH_MAX
@@ -16,6 +15,8 @@ from . import N_KEYS, PITCH_MIN, PITCH_MAX
 
 def perspective_matrix(corners: np.ndarray, width: int, height: int) -> np.ndarray:
     """Matrix that maps the keyboard quad [LT, RT, RB, LB] -> [W x H] rect."""
+    import cv2  # lazy: keeps the module importable (helpers, tests) without OpenCV
+
     dst = np.array(
         [[0, 0], [width, 0], [width, height], [0, height]], dtype=np.float32
     )
@@ -29,6 +30,8 @@ def warp_frame(
 
     Returns uint8 array of shape (height, width, C) with C=1 if grayscale.
     """
+    import cv2  # lazy (see perspective_matrix)
+
     out = cv2.warpPerspective(
         frame, matrix, (width, height), flags=cv2.INTER_LINEAR
     )

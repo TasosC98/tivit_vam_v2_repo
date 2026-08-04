@@ -14,6 +14,33 @@ import numpy as np
 from . import keyboard
 
 
+def plan_frame_sampling(
+    native_len: int, native_fps: float, target_fps: float, max_frames: int = 0
+) -> np.ndarray:
+    """Native frame indices for a uniform ``target_fps`` timeline.
+
+    Target frame ``k`` maps to the native frame nearest to real time
+    ``k / target_fps``, so frame ``k`` always corresponds to ~``k/target_fps``
+    seconds **regardless of the video's native fps**. This keeps frames aligned
+    with the labels and the decoder, which both operate at ``target_fps`` — the
+    old integer-stride sampling only stayed aligned when native fps was an exact
+    multiple of ``target_fps`` (true for PianoVAM's 60→30, but not for PianoYT's
+    24/25/29.97 fps YouTube clips, which drifted out of sync).
+    """
+    native_fps = float(native_fps) or float(target_fps)
+    ratio = native_fps / float(target_fps) if target_fps > 0 else 1.0
+    if ratio <= 0:
+        ratio = 1.0
+    n = int(np.floor(native_len / ratio))
+    n = max(0, n)
+    if max_frames and max_frames > 0:
+        n = min(n, int(max_frames))
+    idx = np.round(np.arange(n) * ratio).astype(np.int64)
+    if native_len > 0:
+        idx = np.clip(idx, 0, native_len - 1)
+    return idx
+
+
 class WarpedVideo:
     """Random-access reader yielding warped keyboard strips at target fps."""
 
@@ -60,13 +87,12 @@ class WarpedVideo:
         self.target_fps = target_fps
         self.read_chunk = max(1, int(read_chunk))
 
-        # Native frame index for each target frame (uniform subsampling).
-        self.stride = max(1, int(round(self.native_fps / target_fps)))
-        n = self.native_len // self.stride
-        if max_frames > 0:
-            n = min(n, max_frames)
-        self.num_frames = int(n)
-        self._native_index = (np.arange(self.num_frames) * self.stride).astype(np.int64)
+        # Native frame index for each target frame, sampled by timestamp so the
+        # effective rate equals target_fps for any native fps (see docstring).
+        self._native_index = plan_frame_sampling(
+            self.native_len, self.native_fps, target_fps, max_frames
+        )
+        self.num_frames = int(len(self._native_index))
 
     def __len__(self) -> int:
         return self.num_frames

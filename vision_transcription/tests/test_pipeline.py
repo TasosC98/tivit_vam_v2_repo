@@ -7,6 +7,7 @@ import numpy as np
 from pianovam_vision.labels import Note, build_target_rolls
 from pianovam_vision.decode import decode_notes
 from pianovam_vision.metadata import load_recordings_pianoyt
+from pianovam_vision.video import plan_frame_sampling
 
 
 def test_target_roll_shapes_and_content():
@@ -86,3 +87,26 @@ def test_pianoyt_csv_corners_and_splits(tmp_path):
     valid2 = {r.record_time for r in r2 if r.split == "valid"}
     assert valid1 == valid2 and len(valid1) >= 1
     assert valid1 <= {"100", "102"}  # only train ids can become valid, never test "101"
+
+
+def test_frame_sampling_alignment():
+    # 60 fps source -> 30 fps target = every other native frame (PianoVAM case:
+    # must stay byte-identical to the old integer-stride behaviour).
+    idx = plan_frame_sampling(600, 60.0, 30.0)
+    assert len(idx) == 300
+    np.testing.assert_array_equal(idx, np.arange(300) * 2)
+
+    # 25 fps source -> 30 fps target: target frame k must land at real time
+    # ~k/30 s (the old code left it at k/25 s -> drift). Check alignment holds
+    # across the clip to within one native frame.
+    idx = plan_frame_sampling(250, 25.0, 30.0)  # ~10 s of video
+    for k in (0, 30, 90, len(idx) - 1):
+        native_time = idx[k] / 25.0
+        target_time = k / 30.0
+        assert abs(native_time - target_time) <= 1.0 / 25.0 + 1e-9
+
+    # max_frames caps the number of target frames.
+    assert len(plan_frame_sampling(1000, 30.0, 30.0, max_frames=50)) == 50
+    # never index past the end.
+    idx = plan_frame_sampling(101, 29.97, 30.0)
+    assert idx[-1] <= 100
