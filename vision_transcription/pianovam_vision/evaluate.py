@@ -52,23 +52,38 @@ def main() -> None:
     root = Path(cfg["data"]["root"])
     recs = filter_by_split(recordings_from_cfg(cfg), [args.split])
     kb, lab = cfg["keyboard"], cfg["labels"]
+    fps = lab["fps"]
 
     agg: Dict[str, List[float]] = defaultdict(list)
+    skipped = 0
     for rec in recs:
-        reader = WarpedVideo(
-            rec.video_path(root, cfg["data"]["video_dir"], cfg["data"]["video_ext"]),
-            rec.corners, kb["warp_width"], kb["warp_height"], kb["grayscale"],
-            lab["fps"], cfg["train"].get("max_frames_per_record", 0),
-            kb.get("decode_height", 0), kb.get("read_chunk", 8),
-        )
-        est = transcribe(model, reader, cfg, device)
-        ref = read_reference(rec, cfg)
+        # Some videos (esp. PianoYT YouTube downloads) fail to decode; skip them
+        # instead of crashing the whole evaluation.
+        try:
+            reader = WarpedVideo(
+                rec.video_path(root, cfg["data"]["video_dir"], cfg["data"]["video_ext"]),
+                rec.corners, kb["warp_width"], kb["warp_height"], kb["grayscale"],
+                fps, cfg["train"].get("max_frames_per_record", 0),
+                kb.get("decode_height", 0), kb.get("read_chunk", 8),
+            )
+            est = transcribe(model, reader, cfg, device)
+        except Exception as e:
+            skipped += 1
+            print(f"{rec.record_time}: [skipped] cannot decode video ({e})")
+            continue
+
+        n = len(reader)
+        # The reader may cap frames (train.max_frames_per_record); restrict the
+        # reference to the transcribed window or a short prediction is scored
+        # against the full-length reference (meaningless F1). With no cap
+        # (max_frames_per_record=0) t_max spans the whole video, so nothing is dropped.
+        t_max = n / fps
+        ref = [nt for nt in read_reference(rec, cfg) if nt.onset < t_max]
         scores = note_scores(ref, est)
 
         # Frame-level (pitch-time grid) F1: rasterise both note sets to rolls.
-        n = len(reader)
-        ref_roll, _, _ = build_target_rolls(ref, n, lab["fps"], 1, lab["min_note_frames"])
-        est_roll, _, _ = build_target_rolls(est, n, lab["fps"], 1, lab["min_note_frames"])
+        ref_roll, _, _ = build_target_rolls(ref, n, fps, 1, lab["min_note_frames"])
+        est_roll, _, _ = build_target_rolls(est, n, fps, 1, lab["min_note_frames"])
         scores["frame_f1"] = frame_prf(est_roll, ref_roll, 0.5)["f1"]
 
         for k, v in scores.items():
@@ -93,6 +108,9 @@ def main() -> None:
         vals = agg.get(k, [])
         if vals:
             print(f"  {desc:38s}: {np.mean(vals):.4f}")
+    n_eval = len(agg.get("onset_f1", []))
+    print(f"\n  evaluated {n_eval} recording(s)"
+          + (f", skipped {skipped} (undecodable video)" if skipped else ""))
 
 
 if __name__ == "__main__":
