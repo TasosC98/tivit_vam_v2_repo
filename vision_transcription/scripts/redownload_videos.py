@@ -28,7 +28,14 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+import sys
 from pathlib import Path
+
+# Run-by-path puts scripts/ (not the project root) on sys.path, so `import
+# pianovam_vision` would fall through to any pip-installed copy (e.g. a different
+# clone). Prepend THIS file's vision_transcription/ so we always load the package
+# sitting next to this script.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pianovam_vision.config import load_config
 from pianovam_vision.metadata import recordings_from_cfg
