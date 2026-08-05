@@ -111,17 +111,24 @@ def main() -> None:
             print(f"[skip] {vid}: no URL in csv")
             fail += 1
             continue
-        # best video + best audio, muxed to mp4, written to the exact expected name.
-        cmd = ["yt-dlp", "-f", "bv*+ba/b", "--merge-output-format", "mp4",
-               "--no-playlist", "-o", str(vp), url]
+        # Remove the broken file first: otherwise yt-dlp reports "already
+        # downloaded" and skips it, leaving the corrupt file in place.
+        if vp.exists():
+            vp.unlink()
+        # Prefer H.264/mp4 so decord can decode the result (AV1 formats often
+        # can't be read); fall back to any best video+audio, muxed to mp4.
+        fmt = ("bv*[vcodec^=avc1]+ba[ext=m4a]/"
+               "bv*[ext=mp4]+ba/b[ext=mp4]/bv*+ba/b")
+        cmd = ["yt-dlp", "-f", fmt, "--merge-output-format", "mp4",
+               "--force-overwrites", "--no-playlist", "-o", str(vp), url]
         print(f"\n[dl] {vid} <- {url}")
         rc = subprocess.run(cmd).returncode
-        if rc == 0 and decodes(vp):
+        if rc == 0 and vp.exists() and decodes(vp):
             ok += 1
             print(f"     recovered: {vp.name}")
         else:
             fail += 1
-            print(f"     FAILED for {vid} (video may be private/removed)")
+            print(f"     FAILED for {vid} (private/removed, or no decodable H.264 format)")
 
     print(f"\ndone: {ok} recovered, {fail} still broken.")
     print("Verify decodability + crop before retraining:")
