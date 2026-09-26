@@ -81,12 +81,49 @@ def reference_path(rec, cfg: Dict[str, Any]) -> Path:
     return rec.tsv_path(root, d["tsv_dir"])
 
 
+_OFFSETS_CACHE: Dict[str, Dict[str, float]] = {}
+
+
+def load_label_offsets(path: str | Path) -> Dict[str, float]:
+    """Per-recording label time shifts (seconds), JSON ``{record_id: seconds}``.
+
+    The shift is ADDED to every label time (onset and offset), i.e. it moves the
+    labels onto the video timeline. Produced by ``sync_check --write_offsets``.
+    """
+    key = str(path)
+    if key not in _OFFSETS_CACHE:
+        import json
+        with open(path, "r", encoding="utf-8") as f:
+            _OFFSETS_CACHE[key] = {str(k): float(v) for k, v in json.load(f).items()}
+    return _OFFSETS_CACHE[key]
+
+
+def shift_notes(notes: List[Note], seconds: float) -> List[Note]:
+    """Shift notes in time, dropping any that would start before t=0."""
+    if not seconds:
+        return notes
+    out = [Note(n.onset + seconds, n.offset + seconds, n.pitch, n.velocity)
+           for n in notes]
+    return [n for n in out if n.onset >= 0.0]
+
+
 def read_reference(rec, cfg: Dict[str, Any]) -> List[Note]:
-    """Read a recording's ground-truth notes (TSV for PianoVAM, MIDI for PianoYT)."""
+    """Read a recording's ground-truth notes (TSV for PianoVAM, MIDI for PianoYT).
+
+    If ``data.label_offsets`` names a JSON of per-recording time shifts (e.g.
+    audio-derived PianoYT labels that are out of sync with the picture), the
+    recording's shift is applied here, so training, evaluation and the preview
+    tools all see the same corrected labels.
+    """
     path = reference_path(rec, cfg)
     if cfg["data"].get("format", "pianovam") == "pianoyt":
-        return read_midi(path)
-    return read_tsv(path, cfg["labels"]["offset_field"])
+        notes = read_midi(path)
+    else:
+        notes = read_tsv(path, cfg["labels"]["offset_field"])
+    offsets_path = cfg["data"].get("label_offsets")
+    if offsets_path:
+        notes = shift_notes(notes, load_label_offsets(offsets_path).get(rec.record_time, 0.0))
+    return notes
 
 
 def build_target_rolls(
@@ -113,6 +150,11 @@ def build_target_rolls(
             continue
         k = n.pitch - PITCH_MIN
         on_f = int(round(n.onset * fps))
+        if on_f >= num_frames:
+            # Starts after the covered frames (capped video, or labels longer
+            # than the video). Clamping it would stack a fake onset of every such
+            # note onto the last frame.
+            continue
         off_f = int(round(n.offset * fps))
         if off_f < on_f + min_note_frames:
             off_f = on_f + min_note_frames

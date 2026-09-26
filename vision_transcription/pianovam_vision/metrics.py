@@ -61,3 +61,44 @@ def note_scores(
     )
     out.update(full_p=p, full_r=r, full_f1=f)
     return out
+
+
+# Onset tolerances reported in the visual-transcription literature: 50 ms is the
+# mir_eval / Onsets-and-Frames standard (V2N reports both); 100 ms is what
+# "Pay Attention to the Keys" (PPAN) uses for its PianoYT numbers.
+PAPER_TOLERANCES = (0.05, 0.10)
+
+
+def note_scores_protocols(
+    ref: List[Note], est: List[Note], tolerances=PAPER_TOLERANCES,
+) -> Dict[str, float]:
+    """Note metrics under every protocol used in the literature, per onset tolerance.
+
+    For each tolerance tau (keys suffixed ``@50`` / ``@100`` in ms):
+      onset_*@tau   pitch + onset within tau                 (S2S, V2R, PPAN, V2N "Onset")
+      full_*@tau    + offset within max(20% of dur, 50 ms)   (mir_eval default, O&F)
+      offtol_*@tau  + offset within tau                      (V2N "++Off")
+    where * is p / r / f1.
+    """
+    import mir_eval
+
+    ref_i, ref_f = _to_intervals(ref)
+    est_i, est_f = _to_intervals(est)
+    out: Dict[str, float] = {}
+    for tol in tolerances:
+        ms = int(round(tol * 1000))
+        variants = {
+            "onset": dict(offset_ratio=None),
+            "full": dict(offset_ratio=0.2, offset_min_tolerance=0.05),
+            "offtol": dict(offset_ratio=0.0, offset_min_tolerance=tol),
+        }
+        for name, kw in variants.items():
+            if len(ref_i) == 0 or len(est_i) == 0:
+                p = r = f = 0.0
+            else:
+                p, r, f, _ = mir_eval.transcription.precision_recall_f1_overlap(
+                    ref_i, ref_f, est_i, est_f, onset_tolerance=tol, **kw)
+            out[f"{name}_p@{ms}"] = p
+            out[f"{name}_r@{ms}"] = r
+            out[f"{name}_f1@{ms}"] = f
+    return out

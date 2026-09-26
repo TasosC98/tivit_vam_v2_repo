@@ -15,6 +15,13 @@ the most simultaneous notes (best for checking that chords/polyphony line up).
     # ALL recordings at a fixed time:
     python -m pianovam_vision.draw_keyboard --config configs/default.yaml \
         --time 20 --out_dir preview_keys/
+
+    # ALL PianoYT recordings at their biggest chord STRIKE, 10 per contact sheet.
+    # --onsets_only matters for PianoYT: its audio-derived labels keep pedal-
+    # sustained keys "active", so at peak polyphony many green lines would sit on
+    # released keys even with a perfect crop.
+    python -m pianovam_vision.draw_keyboard --config configs/pianoyt.yaml \
+        --busiest --onsets_only --sheet 10 --out_dir preview_keys_yt/
 """
 from __future__ import annotations
 
@@ -86,6 +93,43 @@ def add_active_header(strip_bgr, width: int, active, band_h: int = 48):
     return np.vstack([band, strip_bgr])
 
 
+def label_bar(text: str, width: int, band_h: int = 28):
+    """Black band with white caption, stacked above each strip in a sheet."""
+    import cv2
+
+    band = np.zeros((band_h, width, 3), dtype=np.uint8)
+    cv2.putText(band, text, (6, band_h - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                (255, 255, 255), 1, cv2.LINE_AA)
+    return band
+
+
+def write_sheet(parts, out: Path, index: int) -> None:
+    import cv2
+
+    fn = out / f"sheet_{index:03d}.png"
+    cv2.imwrite(str(fn), np.vstack(parts))
+    print(f"  -> contact sheet {fn.name} ({len(parts) // 2} strips)")
+
+
+STRUCK_WINDOW = 0.10   # --onsets_only: keys struck within this many s before t
+
+
+def peak_onset_time(notes, default: float) -> float:
+    """Timestamp just after the largest chord strike (most onsets within
+    STRUCK_WINDOW). Unlike peak polyphony, this ignores notes that are only
+    sounding because of the sustain pedal (PianoYT labels come from audio)."""
+    ons = sorted(n.onset for n in notes)
+    if not ons:
+        return default
+    best, best_t, j = 0, default, 0
+    for i, t in enumerate(ons):
+        while ons[j] < t - STRUCK_WINDOW:
+            j += 1
+        if i - j + 1 > best:
+            best, best_t = i - j + 1, t
+    return best_t + 0.02   # a moment after the last strike: all keys are down
+
+
 def peak_polyphony_time(notes, default: float) -> float:
     """Timestamp where the most notes are simultaneously held."""
     if not notes:
@@ -114,6 +158,12 @@ def main() -> None:
     ap.add_argument("--height", type=int, default=240, help="output strip height")
     ap.add_argument("--show_active", action="store_true",
                     help="overlay TSV-active pitches (green lines + names)")
+    ap.add_argument("--onsets_only", action="store_true",
+                    help="mark only keys STRUCK in the last 100 ms (and with --busiest "
+                         "pick the biggest chord strike). Use for PianoYT, whose "
+                         "audio-derived labels keep pedal-sustained keys 'active'")
+    ap.add_argument("--sheet", type=int, default=0,
+                    help="also stack N strips per contact-sheet image (0 = off)")
     ap.add_argument("--out_dir", default="preview_keys")
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
@@ -139,6 +189,7 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     W, H = args.width, args.height
     ok = fail = 0
+    sheet_parts, sheet_idx = [], 0
 
     for r in recs:
         vp = r.video_path(root, cfg["data"]["video_dir"], cfg["data"]["video_ext"])
@@ -148,7 +199,8 @@ def main() -> None:
             if show_active:
                 notes = read_reference(r, cfg)
                 if args.busiest:
-                    t = peak_polyphony_time(notes, args.time)
+                    t = (peak_onset_time if args.onsets_only
+                         else peak_polyphony_time)(notes, args.time)
 
             vr = decord.VideoReader(str(vp), num_threads=1)
             fps = float(vr.get_avg_fps()) or 60.0
@@ -161,8 +213,12 @@ def main() -> None:
 
             active = None
             if show_active and notes is not None:
-                active = sorted(n.pitch for n in notes
-                                if n.onset - 0.05 <= t <= n.offset + 0.05)
+                if args.onsets_only:
+                    active = sorted(n.pitch for n in notes
+                                    if t - STRUCK_WINDOW <= n.onset <= t)
+                else:
+                    active = sorted(n.pitch for n in notes
+                                    if n.onset - 0.05 <= t <= n.offset + 0.05)
             annotate(strip_bgr, W, H, active)
             if active:
                 strip_bgr = add_active_header(strip_bgr, W, active)
@@ -175,10 +231,23 @@ def main() -> None:
                 extra = (f"  t={t:.2f}s  {len(active)} pressed: "
                          f"{[note_name(p) for p in active]}")
             print(f"[{ok + fail}/{len(recs)}] wrote {fn.name}{extra}")
+            if args.sheet > 0:
+                nh, nw = frame.shape[:2]
+                what = "keys just struck" if args.onsets_only else "labelled keys down"
+                caption = (f"{r.record_time}  [{r.split}]  {nw}x{nh}  t={t:.2f}s"
+                           + (f"  {len(active)} {what}" if active else ""))
+                if strip_bgr.shape[0] == H:       # no active-key header: pad to align
+                    strip_bgr = np.vstack([np.zeros((48, W, 3), np.uint8), strip_bgr])
+                sheet_parts += [label_bar(caption, W), strip_bgr]
+                if len(sheet_parts) // 2 >= args.sheet:
+                    write_sheet(sheet_parts, out, sheet_idx)
+                    sheet_parts, sheet_idx = [], sheet_idx + 1
         except Exception as e:                              # corrupt video -> skip
             fail += 1
             print(f"[{ok + fail}/{len(recs)}] SKIP {r.record_time}: {e}")
 
+    if sheet_parts:
+        write_sheet(sheet_parts, out, sheet_idx)
     print(f"done: {ok} images written, {fail} skipped -> {out}/")
 
 

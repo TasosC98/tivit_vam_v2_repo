@@ -21,12 +21,13 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import torch
 
-from .config import load_config
+from .config import config_from_checkpoint
 from .decode import decode_notes
 from .labels import Note
 from .metadata import index_by_record_time, recordings_from_cfg
 from .midi_io import write_midi
 from .model import build_model
+from .strip_cache import open_reader
 from .video import WarpedVideo
 
 
@@ -97,6 +98,10 @@ def main() -> None:
     ap.add_argument("--record_time", default=None)
     ap.add_argument("--video", default=None)
     ap.add_argument("--corners", default=None, help='"x,y x,y x,y x,y" = LT RT RB LB')
+    ap.add_argument("--data_config", default=None,
+                    help="look --record_time up in this config's dataset")
+    ap.add_argument("--max_frames", type=int, default=0,
+                    help="frames to transcribe (0 = whole video)")
     ap.add_argument("--output", required=True)
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
@@ -105,34 +110,25 @@ def main() -> None:
 
     ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
     # Build from the checkpoint's own config so arch/keyboard match the weights.
-    if isinstance(ckpt, dict) and "cfg" in ckpt:
-        from .config import apply_overrides
-        cfg = apply_overrides(ckpt["cfg"], args.overrides) if args.overrides \
-            else ckpt["cfg"]
-    else:
-        cfg = load_config(args.config, args.overrides)
+    cfg = config_from_checkpoint(ckpt, args.config, args.overrides, args.data_config)
 
     model = build_model(cfg).to(device)
     model.load_state_dict(ckpt["model"])
 
-    root = Path(cfg["data"]["root"])
+    kb, lab = cfg["keyboard"], cfg["labels"]
     if args.record_time:
-        recs = index_by_record_time(recordings_from_cfg(cfg))
-        rec = recs[args.record_time]
-        video_path = rec.video_path(root, cfg["data"]["video_dir"], cfg["data"]["video_ext"])
-        corners = rec.corners
+        rec = index_by_record_time(recordings_from_cfg(cfg))[args.record_time]
+        reader = open_reader(cfg, rec, args.max_frames)
+        source = f"{args.record_time} ({reader.source})"
     else:
         assert args.video and args.corners, "Provide --record_time OR --video + --corners"
-        video_path = Path(args.video)
-        corners = parse_corners(args.corners)
-
-    kb, lab = cfg["keyboard"], cfg["labels"]
-    reader = WarpedVideo(
-        video_path, corners, kb["warp_width"], kb["warp_height"],
-        kb["grayscale"], lab["fps"], cfg["train"].get("max_frames_per_record", 0),
-        kb.get("decode_height", 0), kb.get("read_chunk", 8),
-    )
-    print(f"transcribing {video_path} ({len(reader)} frames @ {lab['fps']} fps)")
+        reader = WarpedVideo(
+            Path(args.video), parse_corners(args.corners), kb["warp_width"],
+            kb["warp_height"], kb["grayscale"], lab["fps"], args.max_frames,
+            kb.get("decode_height", 0), kb.get("read_chunk", 8),
+        )
+        source = args.video
+    print(f"transcribing {source} ({len(reader)} frames @ {lab['fps']} fps)")
     notes = transcribe(model, reader, cfg, device)
     write_midi(notes, args.output)
     print(f"wrote {len(notes)} notes -> {args.output}")

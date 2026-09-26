@@ -14,6 +14,12 @@ device, ...). The active profile is chosen, highest priority first, by:
   3. ``profile:`` in the YAML (``auto`` -> matched against the hostname)
 The chosen profile's ``overrides:`` are applied first; explicit CLI overrides
 still win over them, so you can always tweak a single field by hand.
+
+Config inheritance
+------------------
+A YAML may start with ``base: other.yaml`` (path relative to the YAML itself).
+The base is loaded first and this file's keys are deep-merged on top, so an
+experiment config only lists what differs from the pinned recipe.
 """
 from __future__ import annotations
 
@@ -26,9 +32,26 @@ from typing import Any, Dict, List
 import yaml
 
 
+def _deep_merge(base: Dict[str, Any], top: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively merge ``top`` onto a copy of ``base`` (``top`` wins)."""
+    out = copy.deepcopy(base)
+    for k, v in (top or {}).items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = copy.deepcopy(v)
+    return out
+
+
 def load_yaml(path: str | Path) -> Dict[str, Any]:
+    """Load a YAML config, resolving an optional ``base:`` parent config."""
+    path = Path(path)
     with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        cfg = yaml.safe_load(f) or {}
+    base = cfg.pop("base", None)
+    if base:
+        cfg = _deep_merge(load_yaml(path.parent / base), cfg)
+    return cfg
 
 
 def _coerce(value: str) -> Any:
@@ -94,6 +117,32 @@ def load_config(config_path: str | Path, overrides: List[str] | None = None) -> 
         cfg["_active_profile"] = sel
 
     # 2. Explicit CLI overrides win over the profile.
+    if overrides:
+        cfg = apply_overrides(cfg, overrides)
+    return cfg
+
+
+def config_from_checkpoint(
+    ckpt: Dict[str, Any],
+    config_path: str | Path,
+    overrides: List[str] | None = None,
+    data_config: str | Path | None = None,
+) -> Dict[str, Any]:
+    """Config for evaluating/transcribing with a trained checkpoint.
+
+    The model/keyboard/labels settings come from the checkpoint's OWN config so
+    the architecture and warp always match the weights. ``data_config`` swaps in
+    the ``data:`` block of another config (profile-resolved) -- this is how a
+    model trained on one dataset is evaluated on the other (e.g. a PianoVAM
+    checkpoint on PianoYT). CLI ``overrides`` are applied last.
+    """
+    if isinstance(ckpt, dict) and "cfg" in ckpt:
+        cfg = copy.deepcopy(ckpt["cfg"])
+    else:
+        cfg = load_config(config_path)
+    if data_config:
+        cfg["data"] = copy.deepcopy(load_config(data_config)["data"])
+        cfg["_data_config"] = str(data_config)
     if overrides:
         cfg = apply_overrides(cfg, overrides)
     return cfg

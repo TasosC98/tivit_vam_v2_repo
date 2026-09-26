@@ -1,0 +1,51 @@
+# PianoVAM, trained on the FULL videos (paper run "vam_full").
+#
+# Same model / warp / labels / decoding as the pinned tiled_best.yaml; only the
+# training recipe changes. tiled_best_v2 saw the first 20 s of each video
+# (~3% of the data) with no augmentation, decoded at 360p; this run uses every
+# frame, the strip cache (so an epoch takes minutes, not days), clip
+# augmentation, a warmup + cosine learning-rate schedule, and decodes at 720p:
+# the 1408-px strip is then built from ~1150 real keyboard pixels instead of
+# ~570 (2x sharper; the cache makes this nearly free). vam_full_360.yaml is the
+# 360p ablation.
+#
+#   1. build the cache once:  python -m pianovam_vision.build_cache --config configs/vam_full.yaml --workers 6
+#   2. train:                 CONFIG=configs/vam_full.yaml bash scripts/run_experiment.sh vam_full tiled
+base: tiled_best.yaml
+
+profiles:
+  dib:
+    overrides:
+      data.strip_cache: /raid_storage/data_achatzigiannis/strip_cache/pianovam_w1408_h112_dh720
+
+data:
+  strip_cache: ""             # warped-strip cache dir (set per server above)
+
+keyboard:
+  decode_height: 720          # sharper strips (tiled_best_v2 used 360)
+
+train:
+  max_frames_per_record: 0    # whole videos
+  clip_hop: 32                # epoch = about one pass over every frame
+  epochs: 25
+  lr_schedule: cosine         # linear warmup, then cosine decay to min_lr_ratio*lr
+  warmup_frac: 0.03
+  min_lr_ratio: 0.02
+  num_workers: 4              # safe with the cache (no video decoding in workers)
+  max_open_readers: 256       # cached readers are tiny; keep them all open
+  max_cached_targets: 32
+  select_metric: onset_f1_best  # best.pt = best validation onset F1 (over thresholds)
+  out_dir: runs/vam_full
+
+augment:
+  enable: true
+  p: 0.8                      # fraction of training clips augmented
+  hscale: 0.006               # horizontal scale +/-0.6% (imperfect crop width)
+  hshift_px: 3                # horizontal shift +/-3 px (a key column is 16 px)
+  vshift_px: 3
+  rotate_deg: 0.3
+  brightness: 0.15
+  contrast: 0.15
+  gray_p: 0.1
+  noise_std: 0.02
+  noise_p: 0.3

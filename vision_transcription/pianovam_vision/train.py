@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import random
 import time
@@ -70,6 +71,22 @@ def make_loaders(cfg: Dict[str, Any]):
     return train_loader, valid_loader
 
 
+def lr_at(step: int, total_steps: int, t: Dict[str, Any]) -> float:
+    """Learning rate at a global step: constant, or linear warmup + cosine decay.
+
+    A pure function of the step, so a resumed run continues the same schedule.
+    """
+    base = float(t["lr"])
+    if t.get("lr_schedule", "constant") != "cosine" or total_steps <= 0:
+        return base
+    warm = int(total_steps * float(t.get("warmup_frac", 0.03)))
+    if step < warm:
+        return base * (step + 1) / warm
+    prog = min(1.0, (step - warm) / max(1, total_steps - warm))
+    floor = float(t.get("min_lr_ratio", 0.02))
+    return base * (floor + (1.0 - floor) * 0.5 * (1.0 + math.cos(math.pi * prog)))
+
+
 def compute_loss(out, batch, cfg, device):
     t = cfg["train"]
     onset_w = torch.tensor(t["onset_pos_weight"], device=device)
@@ -79,7 +96,10 @@ def compute_loss(out, batch, cfg, device):
 
     onset_t = batch["onset"].to(device)
     frame_t = batch["frame"].to(device)
-    loss = bce_onset(out["onset_logits"], onset_t) + bce_frame(out["frame_logits"], frame_t)
+    # Per-head weights: frame_loss_weight=0 trains onsets only (PianoYT, whose
+    # MIDI offsets carry sustain-pedal tails the camera cannot see).
+    loss = (float(t.get("onset_loss_weight", 1.0)) * bce_onset(out["onset_logits"], onset_t)
+            + float(t.get("frame_loss_weight", 1.0)) * bce_frame(out["frame_logits"], frame_t))
 
     if cfg["model"]["use_velocity"] and "velocity" in out:
         vel_t = batch["velocity"].to(device)
@@ -87,6 +107,10 @@ def compute_loss(out, batch, cfg, device):
         mse = ((out["velocity"] - vel_t) ** 2 * mask).sum() / (mask.sum() + 1e-6)
         loss = loss + t["velocity_loss_weight"] * mse
     return loss
+
+
+VALID_THRESHOLDS = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+SELECT_METRICS = ("frame_f1", "onset_f1", "frame_f1_best", "onset_f1_best")
 
 
 @torch.no_grad()
@@ -101,15 +125,24 @@ def evaluate(model, loader, cfg, device) -> Dict[str, float]:
         onset_t.append(batch["onset"].numpy())
         frame_t.append(batch["frame"].numpy())
     if not onset_p:
-        return {"onset_f1": 0.0, "frame_f1": 0.0}
+        return {k: 0.0 for k in SELECT_METRICS}
     op = np.concatenate([a.reshape(-1, a.shape[-1]) for a in onset_p])
     fp = np.concatenate([a.reshape(-1, a.shape[-1]) for a in frame_p])
     ot = np.concatenate([a.reshape(-1, a.shape[-1]) for a in onset_t])
     ft = np.concatenate([a.reshape(-1, a.shape[-1]) for a in frame_t])
     of = frame_prf(op, ot, cfg["decode"]["onset_threshold"])
     ff = frame_prf(fp, ft, cfg["decode"]["frame_threshold"])
-    return {"onset_f1": of["f1"], "frame_f1": ff["f1"],
-            "onset_p": of["precision"], "onset_r": of["recall"]}
+    out = {"onset_f1": of["f1"], "frame_f1": ff["f1"],
+           "onset_p": of["precision"], "onset_r": of["recall"]}
+    # Threshold-free variants: best F1 over a threshold grid. Decode thresholds
+    # are re-calibrated after training anyway, so these track what will actually
+    # be reported better than F1 at a fixed 0.5 (onset_pos_weight inflates the
+    # onset probabilities, which moves the best threshold during training).
+    for name, p, tgt in (("onset", op, ot), ("frame", fp, ft)):
+        f1s = [(frame_prf(p, tgt, thr)["f1"], thr) for thr in VALID_THRESHOLDS]
+        best_f1, best_thr = max(f1s)
+        out[f"{name}_f1_best"], out[f"{name}_thr_best"] = best_f1, best_thr
+    return out
 
 
 def main() -> None:
@@ -153,6 +186,12 @@ def main() -> None:
     use_amp = bool(t["amp"]) and device == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
+    # Validation metric that picks best.pt. frame_* suits PianoVAM (clean
+    # key-release labels); onset_* is the fair one for PianoYT, whose frame
+    # targets include sustain-pedal tails. *_best = best over a threshold grid.
+    select = t.get("select_metric", "frame_f1")
+    if select not in SELECT_METRICS:
+        raise SystemExit(f"train.select_metric must be one of {SELECT_METRICS}, got {select!r}")
     best_f1 = -1.0
     start_epoch = 0
     resume_path = args.resume
@@ -167,15 +206,42 @@ def main() -> None:
         if "scaler" in ck:
             scaler.load_state_dict(ck["scaler"])
         best_f1 = ck.get("best_f1", ck.get("metrics", {}).get("frame_f1", -1.0))
+        if ck.get("select_metric", "frame_f1") != select:
+            best_f1 = -1.0          # best.pt was chosen by another metric
         start_epoch = int(ck.get("epoch", -1)) + 1
         print(f"resumed from {resume_path}: continuing at epoch {start_epoch} "
-              f"(best_f1={best_f1:.4f})")
+              f"(best {select}={best_f1:.4f})")
+    elif t.get("init_from"):
+        # Fine-tuning: start from another run's weights (e.g. PianoVAM ->
+        # PianoYT) with a fresh optimizer, schedule and epoch counter.
+        ck = torch.load(t["init_from"], map_location=device, weights_only=False)
+        src = ck.get("cfg", {})
+        for sec, key in (("model", "arch"), ("keyboard", "warp_width"),
+                         ("keyboard", "warp_height"), ("keyboard", "grayscale")):
+            a, b = src.get(sec, {}).get(key), cfg[sec].get(key)
+            if a is not None and a != b:
+                print(f"WARNING: init_from was trained with {sec}.{key}={a}, "
+                      f"this run uses {b}")
+        missing, unexpected = model.load_state_dict(ck["model"], strict=False)
+        print(f"initialised weights from {t['init_from']} (its epoch "
+              f"{ck.get('epoch', '?')}); missing={list(missing)} "
+              f"unexpected={list(unexpected)}")
+
+    steps_per_epoch = len(train_loader)
+    total_steps = steps_per_epoch * t["epochs"]
+    if t.get("lr_schedule", "constant") != "constant":
+        print(f"lr schedule: {t['lr_schedule']} (peak {t['lr']}, warmup "
+              f"{t.get('warmup_frac', 0.03):.0%} of {total_steps} steps)")
 
     for epoch in range(start_epoch, t["epochs"]):
         model.train()
         running = 0.0
+        t_epoch = time.time()
         pbar = tqdm(train_loader, desc=f"epoch {epoch}")
         for step, batch in enumerate(pbar):
+            lr = lr_at(epoch * steps_per_epoch + step, total_steps, t)
+            for g in opt.param_groups:
+                g["lr"] = lr
             frames = batch["frames"].to(device, non_blocking=True)
             opt.zero_grad(set_to_none=True)
             with torch.amp.autocast("cuda", enabled=use_amp):
@@ -189,25 +255,27 @@ def main() -> None:
             scaler.update()
             running += loss.item()
             if step % t["log_every"] == 0:
-                pbar.set_postfix(loss=f"{running / (step + 1):.4f}")
+                pbar.set_postfix(loss=f"{running / (step + 1):.4f}", lr=f"{lr:.2e}")
+        print(f"[epoch {epoch}] train loss {running / max(1, steps_per_epoch):.4f} | "
+              f"{(time.time() - t_epoch) / 60:.1f} min")
 
         if (epoch + 1) % t["eval_every_epochs"] == 0:
             metrics = evaluate(model, valid_loader, cfg, device)
             print(f"[epoch {epoch}] valid {metrics}")
-            is_best = metrics["frame_f1"] > best_f1
+            is_best = metrics[select] > best_f1
             if is_best:
-                best_f1 = metrics["frame_f1"]
+                best_f1 = metrics[select]
             # Save optimizer/scaler/best_f1 too so --resume continues cleanly.
             ckpt = {"model": model.state_dict(), "cfg": cfg,
                     "epoch": epoch, "metrics": metrics,
                     "optimizer": opt.state_dict(), "scaler": scaler.state_dict(),
-                    "best_f1": best_f1}
+                    "best_f1": best_f1, "select_metric": select}
             torch.save(ckpt, out_dir / "last.pt")
             if is_best:
                 torch.save(ckpt, out_dir / "best.pt")
-                print(f"  -> new best frame_f1={best_f1:.4f} (saved best.pt)")
+                print(f"  -> new best {select}={best_f1:.4f} (saved best.pt)")
 
-    print(f"done. best frame_f1={best_f1:.4f}")
+    print(f"done. best {select}={best_f1:.4f}")
 
 
 if __name__ == "__main__":

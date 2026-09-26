@@ -1,0 +1,16 @@
+# PianoVAM -> PianoYT transfer (paper run "yt_finetune").
+#
+# Starts from the PianoVAM model's weights (clean Disklavier labels) and
+# fine-tunes on PianoYT with a lower learning rate. Same protocol as "Pay
+# Attention to the Keys", which pre-trains on R3 and fine-tunes on PianoYT.
+# Requires runs/vam_full/best.pt (train vam_full first).
+#
+#   CONFIG=configs/yt_finetune.yaml bash scripts/run_experiment.sh yt_finetune tiled
+base: yt_full.yaml
+
+train:
+  init_from: runs/vam_full/best.pt   # weights only; fresh optimizer + schedule
+  lr: 0.0002                         # 1/3 of from-scratch: adapt, don't overwrite
+  epochs: 12
+  warmup_frac: 0.05
+  out_dir: runs/yt_finetune

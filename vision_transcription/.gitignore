@@ -12,3 +12,9 @@ venv/
 runs/
 preview/
 preview_keys/
+
+# Experiment results / logs / review images produced on the server
+results/
+out/
+logs/
+preview_keys_*/

@@ -1,0 +1,49 @@
+# PianoYT from scratch on the FULL videos (paper run "yt_full").
+#
+# Identical recipe to vam_full.yaml -- same model, warp, 720p decoding,
+# augmentation and schedule -- so the two datasets are compared on equal terms. PianoYT labels
+# are audio-transcribed MIDI: their offsets include sustain-pedal tails, so the
+# best checkpoint is picked by onset F1 and results are reported as onset F1.
+#
+#   1. build the cache once:  python -m pianovam_vision.build_cache --config configs/yt_full.yaml --workers 6
+#   2. train:                 CONFIG=configs/yt_full.yaml bash scripts/run_experiment.sh yt_full tiled
+base: pianoyt.yaml
+
+profiles:
+  dib:
+    overrides:
+      data.strip_cache: /raid_storage/data_achatzigiannis/strip_cache/pianoyt_w1408_h112_dh720
+
+data:
+  strip_cache: ""
+  # After sync_check, point this at the per-video corrections JSON, e.g.
+  # label_offsets: pianoyt_label_offsets.json
+
+keyboard:
+  decode_height: 720          # same as vam_full (PianoYT videos below 720p decode natively)
+
+train:
+  max_frames_per_record: 0
+  clip_hop: 32
+  epochs: 25
+  lr_schedule: cosine
+  warmup_frac: 0.03
+  min_lr_ratio: 0.02
+  num_workers: 4
+  max_open_readers: 256
+  max_cached_targets: 32
+  select_metric: onset_f1_best
+  out_dir: runs/yt_full
+
+augment:
+  enable: true
+  p: 0.8
+  hscale: 0.006
+  hshift_px: 3
+  vshift_px: 3
+  rotate_deg: 0.3
+  brightness: 0.15
+  contrast: 0.15
+  gray_p: 0.1
+  noise_std: 0.02
+  noise_p: 0.3

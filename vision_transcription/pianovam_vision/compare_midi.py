@@ -15,6 +15,8 @@ from collections import defaultdict
 from pathlib import Path
 
 from .config import load_config
+from .labels import reference_path
+from .metadata import index_by_record_time, recordings_from_cfg
 
 
 def load_notes(path: str):
@@ -65,6 +67,10 @@ def main() -> None:
     root = Path(cfg["data"]["root"])
     ref_dir = Path(args.ref_dir) if args.ref_dir else root / cfg["data"]["midi_dir"]
     pred_dir = Path(args.pred_dir)
+    # PianoYT reference MIDIs are named audio_<id>.0.midi, not <id>.mid.
+    by_id = {}
+    if not args.ref_dir and cfg["data"].get("format", "pianovam") == "pianoyt":
+        by_id = index_by_record_time(recordings_from_cfg(cfg))
 
     preds = sorted(pred_dir.glob("*.mid"))
     if not preds:
@@ -75,7 +81,7 @@ def main() -> None:
     print(f"{'recording':<22} {'ref':>6} {'pred':>6} {'common':>7} "
           f"{'recall%':>8} {'prec%':>7} {'F1':>6}")
     for pf in preds:
-        rf = ref_dir / pf.name
+        rf = reference_path(by_id[pf.stem], cfg) if pf.stem in by_id else ref_dir / pf.name
         if not rf.exists():
             print(f"{pf.stem:<22} (no reference MIDI in {ref_dir})")
             continue

@@ -1,0 +1,18 @@
+# Ablation of vam_full: identical, but decoded at 360p like tiled_best_v2.
+# Also lets you check that the strip cache reproduces tiled_best_v2's numbers
+# (evaluate it with --data_config configs/vam_full_360.yaml).
+#
+#   python -m pianovam_vision.build_cache --config configs/vam_full_360.yaml --workers 6
+#   CONFIG=configs/vam_full_360.yaml bash scripts/run_experiment.sh vam_full_360 tiled
+base: vam_full.yaml
+
+profiles:
+  dib:
+    overrides:
+      data.strip_cache: /raid_storage/data_achatzigiannis/strip_cache/pianovam_w1408_h112_dh360
+
+keyboard:
+  decode_height: 360
+
+train:
+  out_dir: runs/vam_full_360
