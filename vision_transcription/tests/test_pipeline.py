@@ -309,3 +309,56 @@ def test_augment_identity_and_ranges():
     y = aug.apply_photometric(x.clone(), {"brightness": 0.5, "contrast": 0.5,
                                           "gray_p": 1.0, "noise_std": 0.1, "noise_p": 1.0}, rng)
     assert y.shape == x.shape and float(y.min()) >= 0.0 and float(y.max()) <= 1.0
+
+
+# ------------------------------------------------------- keyboard alignment
+def _render_keyboard(s=1.0, t=0.0, mirrored=False, upside_down=False, keys=True, seed=0):
+    """Frames of a warped strip whose keyboard is stretched by s and shifted by t px."""
+    from pianovam_vision.keyboard import key_geometry
+
+    W, H = 1408, 112
+    can = np.full((H, W), 215.0)
+    if keys:
+        geo = key_geometry(W, H)
+        for kind, x0, _, x1, y1 in geo.values():
+            if kind == "white":
+                can[:, min(x0, W - 1)] = 170                      # white-key separators
+        for kind, x0, _, x1, y1 in geo.values():
+            if kind == "black":
+                can[:y1, x0:x1] = 35
+    if mirrored:
+        can = can[:, ::-1]
+    if upside_down:
+        can = can[::-1, :]
+    x = np.arange(W)
+    u = (x - W / 2 - t) / s + W / 2
+    obs = can[:, np.clip(np.round(u).astype(int), 0, W - 1)]
+    obs[:, (u < 0) | (u >= W)] = 60                               # piano body outside
+    rng = np.random.default_rng(seed)
+    frames = []
+    for _ in range(12):
+        f = obs.copy()
+        hx = int(rng.integers(100, W - 300))
+        f[20:, hx:hx + 200] = 180                                 # a hand, moving around
+        frames.append(np.clip(f + rng.normal(0, 5, f.shape), 0, 255))
+    return np.stack(frames).astype(np.uint8)[..., None].repeat(3, axis=3)
+
+
+def test_keyboard_alignment_check():
+    pytest.importorskip("scipy")
+    from pianovam_vision.check_alignment import analyse
+
+    ok = analyse(_render_keyboard())
+    assert ok["verdict"] == "OK" and ok["fit"] > 0.6
+    assert abs(ok["err_left_keys"]) < 0.1 and abs(ok["err_right_keys"]) < 0.1
+
+    # crop 3% too narrow and shifted: C8's end is cut off by ~1.5 white keys
+    bad = analyse(_render_keyboard(s=1.03, t=20))
+    assert bad["verdict"] == "MISALIGNED"
+    assert abs(bad["scale"] - 1.03) < 0.006 and abs(bad["shift_px"] - 20) <= 3
+    assert abs(bad["err_left_keys"]) < 0.2 and abs(bad["err_right_keys"] - 1.52) < 0.2
+
+    # a mirrored keyboard reads as a big misalignment (mirror = 3-4 key shift)
+    assert analyse(_render_keyboard(mirrored=True))["verdict"] != "OK"
+    assert analyse(_render_keyboard(upside_down=True))["verdict"] == "UPSIDE_DOWN?"
+    assert analyse(_render_keyboard(keys=False))["verdict"] == "NO_KEYS_FOUND"

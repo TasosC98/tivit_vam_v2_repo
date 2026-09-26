@@ -132,6 +132,7 @@ only stops the watching**, never the job. Results land in `results/`, logs in
 | `scripts/run_experiment.sh` | trains / resumes one model (unchanged) | 2 |
 | `scripts/evaluate_run.sh` | calibrates on valid → scores test with those thresholds | 3 |
 | `scripts/status.sh` | one line per training run (unchanged) | any |
+| `python -m pianovam_vision.check_alignment` | per-video crop alignment vs the 88-key grid | 0b |
 
 ## Phase 0 — update the code, checks, free numbers (no training, a few hours)
 
@@ -171,6 +172,22 @@ throughout one video → probably out of sync: note the id for Phase 4.
 
 **Send me** `results/phase0_vam_on_yt.txt`, `phase0_vam_on_vam.txt`,
 `phase0_yt_on_yt.txt` and `phase0_probe_yt.txt` (the "issues" list at its end).
+
+### Phase 0b — why does the old model fail zero-shot? (after Phase 0 / the caches)
+
+The old PianoVAM model scored onset F1 0.06 @50 ms / 0.13 @100 ms on PianoYT
+(predicting only ~31% as many notes as exist; five videos near zero). Two
+diagnostics separate the possible causes:
+```bash
+# (1) thresholds: re-calibrate on PianoYT *valid* (still no PianoYT training)
+DATA_CONFIG=configs/pianoyt.yaml bash scripts/evaluate_run.sh P0_vam_on_yt_cal   configs/tiled_best.yaml /home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/runs/tiled_best_v2/best.pt onset_f1
+# (2) crops: does every video's strip start at A0 and end at C8? (PianoVAM = reference)
+nohup python -m pianovam_vision.check_alignment --config configs/vam_full.yaml --csv results/alignment_vam.csv > logs/alignment_vam.log 2>&1 &
+nohup python -m pianovam_vision.check_alignment --config configs/yt_full.yaml  --csv results/alignment_yt.csv  > logs/alignment_yt.log  2>&1 &
+```
+`check_alignment` fits the black-key pattern to each video and reports the
+error at the A0 and C8 ends in white keys (flagged beyond 1 key; parallax makes
+even perfect crops read ~0.3–0.5 key off, so compare with PianoVAM).
 
 ## Phase 1 — build the strip caches (~1–2 h, ~150 GB; can run during Phase 0)
 
