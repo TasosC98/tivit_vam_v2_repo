@@ -172,8 +172,9 @@ vision_transcription/
 ---
 
 ## 7. Roadmap / known next steps
-- **Frame caching**: pre-warp frames to disk (memmap/LMDB) to remove per-epoch
-  decode+warp cost — biggest training-speed win.
+- **Frame caching — done**: `python -m pianovam_vision.build_cache` pre-warps
+  every frame once (`data.strip_cache`); training then reads small JPEG strips
+  instead of decoding video. See `EXPERIMENT_PLAN.md` for the full workflow.
 - **Velocity head** experiments (cue: key-press speed across consecutive frames).
 - **Hand-occlusion handling** using the provided `Handskeleton/` MediaPipe data
   to mask/inform occluded keys.

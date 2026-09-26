@@ -39,26 +39,33 @@ downloaded separately.
 
 ## Run it
 
+**The full paper workflow (both datasets, cross-dataset, sync correction) is in
+[`EXPERIMENT_PLAN.md`](EXPERIMENT_PLAN.md).** The PianoYT-only essentials:
+
 ```bash
-# 0. Sanity-check the layout (split counts + which files are present/missing)
-python -m pianovam_vision.check_data --config configs/pianoyt.yaml
+# 0. Layout + per-video resolution/fps/duration/crop checks
+python -m pianovam_vision.check_data --config configs/yt_full.yaml --probe
 
-# 1. VERIFY CORNERS + SYNC FIRST (see the gotcha below) on a few recordings
-python -m pianovam_vision.preview --config configs/pianoyt.yaml \
-    --record_time 100 --time 30 --snap_to_onset --out_dir preview/
+# 1. VERIFY CROPS + SYNC FIRST: every video, keys struck in the last 100 ms in green
+python -m pianovam_vision.draw_keyboard --config configs/yt_full.yaml \
+    --busiest --onsets_only --sheet 10 --out_dir preview_keys_yt/
 
-# 2. Train / resume (same script as PianoVAM)
-CONFIG=configs/pianoyt.yaml bash scripts/run_experiment.sh pianoyt_tiled tiled train.num_workers=0
+# 2. Build the strip cache once, then train / resume (full videos, augmentation)
+python -m pianovam_vision.build_cache --config configs/yt_full.yaml --workers 6
+CONFIG=configs/yt_full.yaml bash scripts/run_experiment.sh yt_full tiled
 
 # 3. Calibrate decode thresholds on the held-out valid split
-python -m pianovam_vision.calibrate --config configs/pianoyt.yaml \
-    --checkpoint runs/pianoyt_tiled/best.pt --split valid --target onset_f1
+python -m pianovam_vision.calibrate --config configs/yt_full.yaml \
+    --checkpoint runs/yt_full/best.pt --split valid --target onset_f1
 
-# 4. Evaluate on test with the calibrated thresholds
-python -m pianovam_vision.evaluate --config configs/pianoyt.yaml \
-    --checkpoint runs/pianoyt_tiled/best.pt --split test --save_midi out/pianoyt_test \
+# 4. Evaluate on test (whole videos; prints onset F1 at 50 AND 100 ms)
+python -m pianovam_vision.evaluate --config configs/yt_full.yaml \
+    --checkpoint runs/yt_full/best.pt --split test --csv results/yt_full_test.csv \
     decode.onset_threshold=<ot> decode.frame_threshold=<ft>
 ```
+
+`configs/pianoyt.yaml` is the original 20-s-per-video recipe (run
+`pianoyt_tiled`); `yt_full.yaml` inherits from it.
 
 ## Gotchas specific to PianoYT
 
@@ -72,6 +79,12 @@ python -m pianovam_vision.evaluate --config configs/pianoyt.yaml \
 2. **Offsets include sustain pedal.** PianoYT labels are MIDI extracted from audio
    (Onsets-and-Frames), so note-off times carry pedal tails a camera can't see.
    Report/optimise **onset+pitch (`onset_f1`)**, not `full_f1` (which will read low),
-   exactly as PianoVAM does with `compare_midi`.
+   exactly as PianoVAM does with `compare_midi`. The published PianoYT numbers
+   ("Pay Attention to the Keys": S2S 0.64, V2R 0.64, ViT 0.68) use a **100 ms**
+   onset tolerance — compare against our `@100` column, not `@50`.
 3. **No native validation split** — a deterministic 10% of train is relabelled
    `valid` (`data.valid_frac` / `data.valid_seed`). Set `valid_frac: 0.0` to disable.
+4. **Audio/video sync.** Labels follow each video's audio track; a video whose
+   sound and picture drift apart has shifted labels. `sync_check` estimates the
+   per-video shift with a trained model and writes corrections for
+   `data.label_offsets` (see `EXPERIMENT_PLAN.md`, Phase 4).
