@@ -135,6 +135,12 @@ def try_open_cached(cfg: Dict[str, Any], rec, max_frames: int = 0):
     why = meta_mismatch(meta, expected_meta(cfg, rec))
     if why:
         return None, f"stale cache: {why}"
+    # The three files must belong together (an interrupted or overlapping build
+    # can leave a mixed set): sizes agree with what the .json recorded.
+    off = np.load(idx_p, mmap_mode="r")
+    if (len(off) != meta.get("num_frames", -1) + 1 or int(off[-1]) != meta.get("bytes")
+            or bin_p.stat().st_size != meta.get("bytes")):
+        return None, "incomplete cache files (interrupted build?) -> rebuilt by build_cache"
     vp = video_path_for(cfg, rec)
     if vp.exists() and meta.get("video_bytes") not in (None, vp.stat().st_size):
         return None, "stale cache: video file changed since the cache was built"
@@ -176,15 +182,16 @@ def write_record_cache(
 ) -> Dict[str, Any]:
     """Encode an iterable of (H, W, 3) RGB uint8 strips into the cache.
 
-    Files are written under temporary names and renamed at the end (``.json``
-    last), so an interrupted build never leaves a record that looks complete.
+    Files are written under temporary names (unique per process, so two builds
+    never write into the same file) and renamed at the end (``.json`` last), so
+    an interrupted build never leaves a record that looks complete.
     Returns the metadata written.
     """
     import cv2
 
     bin_p, idx_p, meta_p = cache_paths(cache_dir, record_time)
     bin_p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = {p: p.with_name(p.name + ".tmp") for p in (bin_p, idx_p, meta_p)}
+    tmp = {p: p.with_name(f"{p.name}.tmp{os.getpid()}") for p in (bin_p, idx_p, meta_p)}
     offsets = [0]
     params = [cv2.IMWRITE_JPEG_QUALITY, int(quality)]
     with open(tmp[bin_p], "wb") as f:
@@ -206,3 +213,15 @@ def write_record_cache(
     for p in (bin_p, idx_p, meta_p):             # .json last = commit marker
         os.replace(tmp[p], p)
     return meta
+
+
+def remove_partial_files(cache_dir: str | Path) -> float:
+    """Delete temporary files left by interrupted builds; returns GB freed."""
+    freed = 0
+    for p in Path(cache_dir).glob("*.tmp*"):
+        try:
+            freed += p.stat().st_size
+            p.unlink()
+        except OSError:
+            pass
+    return freed / 2**30

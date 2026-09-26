@@ -156,8 +156,11 @@ are elsewhere: `OLD_VAM=/path/best.pt OLD_YT=runs/<run>/best.pt bash scripts/pha
 overfit further; it stays in the paper as the "20 s / no augmentation" row.
 
 **Look at the contact sheets** (`preview_keys_yt/sheet_*.png`, ≈20 images for
-228 videos). Copy them to the laptop, e.g. in PowerShell with PuTTY's `pscp`:
-`pscp achatzigiannis@gondor:/home/achatzigiannis/tivit_pianoyt/vision_transcription/preview_keys_yt/sheet_*.png .`
+228 videos). They exist once `logs/phase0.log` says "Phase 0 finished". Copy
+them to the laptop with WinSCP (Tools → Import sites → your PuTTY session), or
+in PowerShell with PuTTY's `pscp` — use the **host name or IP you type in
+PuTTY** ("gondor" is only the server's own name; the laptop cannot resolve it):
+`pscp achatzigiannis@<PuTTY host>:/home/achatzigiannis/tivit_pianoyt/vision_transcription/preview_keys_yt/sheet_*.png .`
 In each strip: A0 at the left, C8 at the right, **black keys at the top**
 (same orientation as PianoVAM), red lines on the white-key borders, and every
 **green line on a key with a finger on it** (green = keys struck in the last
@@ -176,7 +179,11 @@ bash scripts/build_caches.sh      # checks free disk first, then builds PianoVAM
 tail -f logs/build_caches.log     # prints GB so far and KB per frame (~38 KB expected)
 ```
 - Interrupted or the server rebooted → the **same command** resumes.
-- Too little disk → `QUALITY=85 bash scripts/build_caches.sh` (~15% smaller).
+- Too little disk → `QUALITY=85 bash scripts/build_caches.sh` (~15% smaller;
+  the model cannot tell the difference). The build also stops by itself when
+  the disk is down to `MIN_FREE_GB` (default 30) free.
+- Stop it: `pkill -f build_caches.sh; pkill -f pianovam_vision.build_cache`
+  (finished videos are kept; partial ones are cleaned up and rebuilt).
 - A re-downloaded video is detected (file size) and rebuilt automatically.
 - 360p ablation cache (Phase 5), when needed:
   `CONFIGS="configs/vam_full_360.yaml" bash scripts/build_caches.sh`

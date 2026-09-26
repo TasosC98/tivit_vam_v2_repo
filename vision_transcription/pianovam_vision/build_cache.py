@@ -10,12 +10,15 @@ interruption. Run on the server with the venv active:
 
 The cache directory is ``data.strip_cache`` from the config. Budget roughly
 15-40 KB per frame (30 fps) -- the first finished recordings print their size,
-so check ``df -h`` early.
+so check ``df -h`` early. The build stops starting new videos when the disk
+gets down to ``--min_free_gb`` (videos in progress still finish, so keep that
+margin larger than ``--workers`` x the biggest video, ~2 GB each).
 """
 from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -28,7 +31,8 @@ import numpy as np
 from .config import load_config
 from .metadata import filter_by_split, recordings_from_cfg
 from .strip_cache import (
-    expected_meta, try_open_cached, video_path_for, write_record_cache,
+    expected_meta, remove_partial_files, try_open_cached, video_path_for,
+    write_record_cache,
 )
 
 
@@ -82,6 +86,8 @@ def main() -> None:
     ap.add_argument("--chunk", type=int, default=64, help="frames decoded per read")
     ap.add_argument("--force", action="store_true", help="rebuild even if cached")
     ap.add_argument("--limit", type=int, default=0, help="only the first N (testing)")
+    ap.add_argument("--min_free_gb", type=float, default=30.0,
+                    help="stop starting new videos below this much free disk space")
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
 
@@ -97,6 +103,10 @@ def main() -> None:
     if args.limit:
         recs = recs[:args.limit]
 
+    if Path(d["strip_cache"]).is_dir():
+        gb = remove_partial_files(d["strip_cache"])
+        if gb > 0:
+            print(f"removed partial files of an interrupted build ({gb:.1f} GB)")
     todo = []
     for r in recs:
         if not video_path_for(cfg, r).exists():
@@ -112,7 +122,19 @@ def main() -> None:
         return
 
     Path(d["strip_cache"]).mkdir(parents=True, exist_ok=True)
+
+    def free_gb() -> float:
+        return shutil.disk_usage(d["strip_cache"]).free / 2**30
+
+    def low_disk() -> bool:
+        return free_gb() < args.min_free_gb
+
+    if low_disk():
+        print(f"only {free_gb():.0f} GB free on the cache disk "
+              f"(< --min_free_gb {args.min_free_gb:g}): not starting", flush=True)
+        raise SystemExit(2)
     done = failed = 0
+    stopped_early = False
     tot_mb = tot_frames = 0.0
     t0 = time.time()
 
@@ -128,8 +150,17 @@ def main() -> None:
               f"{tot_mb / 1024:.1f} GB, {tot_mb * 1024 / max(tot_frames, 1):.1f} KB/frame"
               f"{warn}", flush=True)
 
+    def disk_stop_message(queued: int) -> str:
+        return (f"STOPPING: only {free_gb():.0f} GB free on the cache disk "
+                f"(< --min_free_gb {args.min_free_gb:g}); {queued} video(s) not started. "
+                f"Free some space (or lower --quality) and run the same command again.")
+
     if args.workers <= 1:
-        for r in todo:
+        for i, r in enumerate(todo):
+            if low_disk():
+                stopped_early = True
+                print(disk_stop_message(len(todo) - i), flush=True)
+                break
             try:
                 report(build_one(cfg, r, args.quality, args.chunk))
             except Exception as e:
@@ -139,17 +170,28 @@ def main() -> None:
         with ProcessPoolExecutor(max_workers=args.workers) as ex:
             futs = {ex.submit(build_one, cfg, r, args.quality, args.chunk): r for r in todo}
             for fut in as_completed(futs):
+                if fut.cancelled():
+                    continue
                 try:
                     report(fut.result())
                 except Exception as e:
                     failed += 1
                     print(f"[{done + failed}/{len(todo)}] {futs[fut].record_time}: "
                           f"FAILED ({e})", flush=True)
+                if not stopped_early and low_disk():
+                    stopped_early = True
+                    queued = sum(f.cancel() for f in futs)
+                    print(disk_stop_message(queued) + " Waiting for the videos in "
+                          "progress to finish...", flush=True)
 
     hrs = tot_frames / cfg["labels"]["fps"] / 3600
     print(f"\ndone in {(time.time() - t0) / 60:.1f} min: {done} built ({hrs:.1f} h of "
           f"video, {tot_mb / 1024:.1f} GB), {failed} failed. Failed recordings fall "
           f"back to on-the-fly decoding (or are skipped if the video is unreadable).")
+    if stopped_early:
+        print(f"INCOMPLETE: stopped for disk space ({free_gb():.0f} GB free). "
+              f"Re-run the same command after freeing space; built videos are kept.")
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

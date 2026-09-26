@@ -266,6 +266,21 @@ def test_strip_cache_roundtrip_and_staleness(tmp_path):
     assert "decode_height" in try_open_cached(cfg2, rec)[1]
     assert try_open_cached(cfg, Recording("r2", "train", corners))[1] == "not cached"
 
+    # A mixed / truncated set (interrupted or overlapping builds) is rejected ...
+    from pianovam_vision.strip_cache import cache_paths, remove_partial_files
+    bin_p = cache_paths(cfg["data"]["strip_cache"], "r1")[0]
+    data = bin_p.read_bytes()
+    bin_p.write_bytes(data[:-10])
+    assert "incomplete" in try_open_cached(cfg, rec)[1]
+    bin_p.write_bytes(data)
+    assert try_open_cached(cfg, rec)[1] is None
+    # ... and leftover temporary files (old and new naming) are cleaned up.
+    for name in ("r1.bin.tmp", "r1.idx.npy.tmp4242"):
+        (bin_p.parent / name).write_bytes(b"x" * 1000)
+    assert remove_partial_files(cfg["data"]["strip_cache"]) > 0
+    assert not list(bin_p.parent.glob("*.tmp*"))
+    assert try_open_cached(cfg, rec)[1] is None           # real files untouched
+
 
 def test_augment_identity_and_ranges():
     pytest.importorskip("cv2")

@@ -9,13 +9,19 @@
 #
 # It refuses to start when the disk looks too small for what is left to build
 # (~80 GB per dataset at 720p): QUALITY=85 makes the cache ~15% smaller,
-# FORCE=1 skips the check. CONFIGS="configs/vam_full_360.yaml" builds another one.
+# FORCE=1 skips the check. While running, it stops starting new videos once the
+# disk is down to MIN_FREE_GB (default 30) free. CONFIGS="configs/vam_full_360.yaml"
+# builds another one.
+#
+# Stop it:  pkill -f build_caches.sh; pkill -f pianovam_vision.build_cache
+#           (videos already built are kept; the same command resumes)
 set -uo pipefail
 SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$SELF")/.."
 
 CONFIGS="${CONFIGS:-configs/vam_full.yaml configs/yt_full.yaml}"
 QUALITY="${QUALITY:-90}"
+MIN_FREE_GB="${MIN_FREE_GB:-30}"
 GB_PER_CACHE="${GB_PER_CACHE:-80}"
 WORKERS="${1:-}"
 if [ -z "$WORKERS" ]; then
@@ -24,8 +30,14 @@ if [ -z "$WORKERS" ]; then
   [ "$WORKERS" -lt 1 ] && WORKERS=1
 fi
 mkdir -p logs
+PIDFILE=logs/build_caches.pid
 
 if [ -z "${_CACHE_CHILD:-}" ]; then
+  if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+    echo "ERROR: a cache build is already running (pid $(cat "$PIDFILE")). To stop it:"
+    echo "  pkill -f build_caches.sh; pkill -f pianovam_vision.build_cache"
+    exit 1
+  fi
   # Disk check here, in the foreground, so the answer is on screen.
   need=0; dirs=""
   for c in $CONFIGS; do
@@ -44,15 +56,22 @@ if [ -z "${_CACHE_CHILD:-}" ]; then
     exit 1
   fi
   _CACHE_CHILD=1 nohup bash "$SELF" "$WORKERS" > logs/build_caches.log 2>&1 &
-  echo "cache build started in the background (pid $!, $WORKERS workers)."
+  echo $! > "$PIDFILE"
+  echo "cache build started in the background (pid $!, $WORKERS workers, quality $QUALITY)."
   echo "  watch: tail -f logs/build_caches.log"
+  echo "  stop:  pkill -f build_caches.sh; pkill -f pianovam_vision.build_cache"
   exit 0
 fi
 
 export DECORD_EOF_RETRY_MAX="${DECORD_EOF_RETRY_MAX:-2048}"
 for c in $CONFIGS; do
   echo; echo "=== $(date '+%Y-%m-%d %H:%M') building cache for $c ($WORKERS workers, quality $QUALITY)"
-  python -m pianovam_vision.build_cache --config "$c" --workers "$WORKERS" --quality "$QUALITY"
+  python -m pianovam_vision.build_cache --config "$c" --workers "$WORKERS" \
+      --quality "$QUALITY" --min_free_gb "$MIN_FREE_GB"
+  if [ $? -eq 2 ]; then
+    echo "=== stopped: the disk is nearly full (see above). Nothing else was started."
+    exit 2
+  fi
 done
 echo; echo "=== $(date '+%Y-%m-%d %H:%M') all caches done"
 for c in $CONFIGS; do
