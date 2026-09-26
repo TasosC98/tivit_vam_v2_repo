@@ -136,7 +136,8 @@ only stops the watching**, never the job. Results land in `results/`, logs in
 ## Phase 0 — update the code, checks, free numbers (no training, a few hours)
 
 ```bash
-git status                  # only __pycache__ files listed? -> git checkout -- .    (anything else: tell me first)
+git status                  # note which files are listed as modified
+git stash                   # sets local changes aside safely (a changed .py/.yaml? tell me: it is kept in the stash)
 git pull                    # the new code (branch PianoYT)
 python -m pytest tests/ -q  # expect "13 passed"  (no pytest? pip install pytest)
 bash scripts/status.sh      # still running from before? stop it: kill $(cat runs/<name>/run.pid)
