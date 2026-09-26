@@ -36,6 +36,11 @@ def cache_paths(cache_dir: str | Path, record_time: str) -> Tuple[Path, Path, Pa
             d / f"{record_time}.json")
 
 
+def failed_marker(cache_dir: str | Path, record_time: str) -> Path:
+    """Written by build_cache when a video cannot be decoded (holds the error)."""
+    return Path(cache_dir) / f"{record_time}.failed"
+
+
 def video_path_for(cfg: Dict[str, Any], rec) -> Path:
     d = cfg["data"]
     return rec.video_path(Path(d["root"]), d["video_dir"], d["video_ext"])

@@ -38,6 +38,19 @@ if [ -f "${OUT}/run.pid" ] && kill -0 "$(cat "${OUT}/run.pid")" 2>/dev/null; the
   exit 1
 fi
 
+# A config that trains from the strip cache needs it complete: a recording that
+# is not cached yet is decoded from the video inside the DataLoader workers for
+# the whole run (slow, and the old source of hangs). FORCE=1 skips this.
+if [ "${FORCE:-0}" != "1" ]; then
+  if ! python -m pianovam_vision.build_cache --config "${CONFIG}" --check "$@"; then
+    echo "ERROR: the strip cache for ${CONFIG} is not complete yet. Wait until" >&2
+    echo "       logs/build_caches.log says 'all caches done' (if some videos are still" >&2
+    echo "       missing then, run 'bash scripts/build_caches.sh' once more)," >&2
+    echo "       or start with FORCE=1 to train anyway (slow)." >&2
+    exit 1
+  fi
+fi
+
 RESUME=""
 if [ -f "${OUT}/last.pt" ]; then
   RESUME="--resume auto"

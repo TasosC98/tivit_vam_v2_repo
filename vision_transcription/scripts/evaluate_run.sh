@@ -40,8 +40,15 @@ thresholds_in() {
   grep -oE 'decode\.onset_threshold=[0-9.]+ decode\.frame_threshold=[0-9.]+' "$1" | tail -n 1
 }
 
+PIDFILE="logs/${NAME}.pid"
 if [ -z "${_EVAL_CHILD:-}" ]; then
+  if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+    echo "ERROR: evaluation '${NAME}' is already running (pid $(cat "$PIDFILE"))."
+    echo "       Watch it: tail -f logs/${NAME}.log   (or pick another name)"
+    exit 1
+  fi
   _EVAL_CHILD=1 nohup bash "$SELF" "$@" > "logs/${NAME}.log" 2>&1 &
+  echo $! > "$PIDFILE"
   echo "evaluation '${NAME}' started in the background (pid $!)."
   echo "  watch: tail -f logs/${NAME}.log"
   exit 0

@@ -31,8 +31,8 @@ import numpy as np
 from .config import load_config
 from .metadata import filter_by_split, recordings_from_cfg
 from .strip_cache import (
-    expected_meta, remove_partial_files, try_open_cached, video_path_for,
-    write_record_cache,
+    expected_meta, failed_marker, remove_partial_files, try_open_cached,
+    video_path_for, write_record_cache,
 )
 
 
@@ -88,20 +88,44 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=0, help="only the first N (testing)")
     ap.add_argument("--min_free_gb", type=float, default=30.0,
                     help="stop starting new videos below this much free disk space")
+    ap.add_argument("--check", action="store_true",
+                    help="only report whether the cache is complete for training "
+                         "(train+valid splits); exit 3 if not")
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
 
     cfg = load_config(args.config, args.overrides)
     d = cfg["data"]
     if not d.get("strip_cache"):
+        if args.check:
+            return                                   # no cache configured: nothing to wait for
         raise SystemExit("set data.strip_cache in the config (or as an override)")
-    splits = args.splits or (list(d["train_splits"]) + list(d["valid_splits"])
-                             + list(d["test_splits"]))
+    default_splits = list(d["train_splits"]) + list(d["valid_splits"])
+    if not args.check:
+        default_splits += list(d["test_splits"])
+    splits = args.splits or default_splits
     excl = set(d.get("exclude_records", []) or [])
     recs = [r for r in filter_by_split(recordings_from_cfg(cfg), splits)
             if r.record_time not in excl]
     if args.limit:
         recs = recs[:args.limit]
+
+    if args.check:
+        missing, failed, no_video, ok = [], 0, 0, 0
+        for r in recs:
+            if not video_path_for(cfg, r).exists():
+                no_video += 1
+            elif try_open_cached(cfg, r)[0] is not None:
+                ok += 1
+            elif failed_marker(d["strip_cache"], r.record_time).exists():
+                failed += 1                          # undecodable: training skips it too
+            else:
+                missing.append(r.record_time)
+        print(f"strip cache {d['strip_cache']} ({'+'.join(splits)}): {ok} cached, "
+              f"{failed} undecodable, {no_video} without video, {len(missing)} NOT cached yet")
+        if missing:
+            raise SystemExit(3)
+        return
 
     if Path(d["strip_cache"]).is_dir():
         gb = remove_partial_files(d["strip_cache"])
@@ -138,11 +162,15 @@ def main() -> None:
     tot_mb = tot_frames = 0.0
     t0 = time.time()
 
+    def mark_failed(rid: str, err: Exception) -> None:
+        failed_marker(d["strip_cache"], rid).write_text(str(err), encoding="utf-8")
+
     def report(res) -> None:
         nonlocal done, tot_mb, tot_frames
         done += 1
         tot_mb += res["mb"]
         tot_frames += res["frames"]
+        failed_marker(d["strip_cache"], res["record"]).unlink(missing_ok=True)
         warn = f"  WARNING {res['error']}" if res["error"] else ""
         print(f"[{done + failed}/{len(todo)}] {res['record']}: {res['frames']} frames, "
               f"{res['mb']:.0f} MB, {res['sec']:.0f}s "
@@ -165,6 +193,7 @@ def main() -> None:
                 report(build_one(cfg, r, args.quality, args.chunk))
             except Exception as e:
                 failed += 1
+                mark_failed(r.record_time, e)
                 print(f"[{done + failed}/{len(todo)}] {r.record_time}: FAILED ({e})", flush=True)
     else:
         with ProcessPoolExecutor(max_workers=args.workers) as ex:
@@ -176,6 +205,7 @@ def main() -> None:
                     report(fut.result())
                 except Exception as e:
                     failed += 1
+                    mark_failed(futs[fut].record_time, e)
                     print(f"[{done + failed}/{len(todo)}] {futs[fut].record_time}: "
                           f"FAILED ({e})", flush=True)
                 if not stopped_early and low_disk():
