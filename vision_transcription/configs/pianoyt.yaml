@@ -41,7 +41,14 @@ data:
   test_splits:  [test]
   # record ids (as strings) to drop entirely, e.g. bad crops. Missing videos or
   # MIDIs are skipped automatically, so they need NOT be listed here.
-  exclude_records: []
+  # Checked 2026-09-27 with check_alignment + the draw_keyboard contact sheets
+  # (all are train videos; the test set is unchanged):
+  #   267       text screen instead of a keyboard; crop box runs off the frame
+  #   407       crop box does not span A0..C8
+  #   426, 428  Synthesia-style animation (falling notes), not camera footage
+  #   429, 433  Synthesia-style animation; both rows are the same YouTube video
+  #   410       same YouTube video as 402 (kept once)
+  exclude_records: ["267", "407", "410", "426", "428", "429", "433"]
 
 keyboard:
   # PianoYT gives an axis-aligned crop box, so the "perspective" warp is a plain

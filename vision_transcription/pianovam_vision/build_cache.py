@@ -17,10 +17,14 @@ margin larger than ``--workers`` x the biggest video, ~2 GB each).
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
+import signal
+import subprocess
+import sys
 import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict
 
@@ -75,6 +79,40 @@ def build_one(cfg: Dict[str, Any], rec, quality: int, chunk: int) -> Dict[str, A
             "sec": time.time() - t0, "error": status.get("error")}
 
 
+def build_isolated(args, record_time: str) -> Dict[str, Any]:
+    """Build one recording in its own Python process.
+
+    A video that crashes the decoder (segfault) or gets the process killed (out
+    of memory) then costs only that video -- in a shared process pool one such
+    crash fails every video still queued.
+    """
+    cmd = [sys.executable, "-m", "pianovam_vision.build_cache", "--config", args.config,
+           "--only", record_time, "--quality", str(args.quality), "--chunk", str(args.chunk),
+           *args.overrides]
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True,
+                           timeout=args.timeout_min * 60)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"no result after {args.timeout_min} min (decoder stuck?)")
+    for line in p.stdout.splitlines():
+        if line.startswith("RESULT "):
+            res = json.loads(line[len("RESULT "):])
+            if "failed" in res:
+                raise RuntimeError(res["failed"])
+            return res
+    if p.returncode < 0:
+        sig = -p.returncode
+        try:
+            name = signal.Signals(sig).name
+        except ValueError:
+            name = "?"
+        hint = {9: " -- killed, probably out of memory",
+                11: " -- crash inside the video decoder"}.get(sig, "")
+        raise RuntimeError(f"process died with signal {sig} ({name}){hint}")
+    last = (p.stderr or "").strip().splitlines()[-1:] or ["no output"]
+    raise RuntimeError(f"process exited with code {p.returncode}: {last[0][:300]}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
@@ -91,6 +129,9 @@ def main() -> None:
     ap.add_argument("--check", action="store_true",
                     help="only report whether the cache is complete for training "
                          "(train+valid splits); exit 3 if not")
+    ap.add_argument("--timeout_min", type=float, default=120,
+                    help="give up on a video after this many minutes")
+    ap.add_argument("--only", default=None, help=argparse.SUPPRESS)  # internal: one video
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
 
@@ -100,6 +141,19 @@ def main() -> None:
         if args.check:
             return                                   # no cache configured: nothing to wait for
         raise SystemExit("set data.strip_cache in the config (or as an override)")
+
+    if args.only:                                    # child process of build_isolated
+        rec = next((r for r in recordings_from_cfg(cfg) if r.record_time == args.only), None)
+        try:
+            if rec is None:
+                raise KeyError(f"no recording {args.only!r} in the metadata")
+            res = build_one(cfg, rec, args.quality, args.chunk)
+        except Exception as e:
+            print("RESULT " + json.dumps({"record": args.only,
+                                          "failed": f"{type(e).__name__}: {e}"}), flush=True)
+            raise SystemExit(1)
+        print("RESULT " + json.dumps(res), flush=True)
+        return
     default_splits = list(d["train_splits"]) + list(d["valid_splits"])
     if not args.check:
         default_splits += list(d["test_splits"])
@@ -196,8 +250,9 @@ def main() -> None:
                 mark_failed(r.record_time, e)
                 print(f"[{done + failed}/{len(todo)}] {r.record_time}: FAILED ({e})", flush=True)
     else:
-        with ProcessPoolExecutor(max_workers=args.workers) as ex:
-            futs = {ex.submit(build_one, cfg, r, args.quality, args.chunk): r for r in todo}
+        # Threads only wait; each video is decoded in its own process.
+        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+            futs = {ex.submit(build_isolated, args, r.record_time): r for r in todo}
             for fut in as_completed(futs):
                 if fut.cancelled():
                     continue
@@ -216,8 +271,9 @@ def main() -> None:
 
     hrs = tot_frames / cfg["labels"]["fps"] / 3600
     print(f"\ndone in {(time.time() - t0) / 60:.1f} min: {done} built ({hrs:.1f} h of "
-          f"video, {tot_mb / 1024:.1f} GB), {failed} failed. Failed recordings fall "
-          f"back to on-the-fly decoding (or are skipped if the video is unreadable).")
+          f"video, {tot_mb / 1024:.1f} GB), {failed} failed. Failed videos are skipped "
+          f"by training and evaluation (reason in <cache>/<id>.failed); running this "
+          f"command again retries them.")
     if stopped_early:
         print(f"INCOMPLETE: stopped for disk space ({free_gb():.0f} GB free). "
               f"Re-run the same command after freeing space; built videos are kept.")

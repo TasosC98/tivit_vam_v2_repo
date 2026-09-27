@@ -202,6 +202,9 @@ tail -f logs/build_caches.log     # prints GB so far and KB per frame (~38 KB ex
 - Stop it: `pkill -f build_caches.sh; pkill -f pianovam_vision.build_cache`
   (finished videos are kept; partial ones are cleaned up and rebuilt).
 - A re-downloaded video is detected (file size) and rebuilt automatically.
+- Each video is decoded in its own process: a video that crashes the decoder
+  is logged as `FAILED` with the reason, skipped by training/evaluation, and
+  retried by the next build.
 - 360p ablation cache (Phase 5), when needed:
   `CONFIGS="configs/vam_full_360.yaml" bash scripts/build_caches.sh`
 

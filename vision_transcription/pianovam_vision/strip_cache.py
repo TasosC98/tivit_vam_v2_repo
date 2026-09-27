@@ -167,6 +167,13 @@ def open_reader(cfg: Dict[str, Any], rec, max_frames: Optional[int] = None):
     reader, why = try_open_cached(cfg, rec, max_frames)
     if reader is not None:
         return reader
+    cache_dir = cfg["data"].get("strip_cache")
+    if cache_dir and failed_marker(cache_dir, rec.record_time).exists():
+        # build_cache could not process this video (decoder crash, unreadable
+        # file); decoding it here would hit the same problem -- inside a
+        # DataLoader worker it would take the whole training run down.
+        reason = failed_marker(cache_dir, rec.record_time).read_text(encoding="utf-8")
+        raise IOError(f"skipped: build_cache could not process this video ({reason[:200]})")
     kb = cfg["keyboard"]
     reader = WarpedVideo(
         video_path_for(cfg, rec), rec.corners, kb["warp_width"], kb["warp_height"],
