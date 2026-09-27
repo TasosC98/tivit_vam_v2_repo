@@ -44,10 +44,12 @@ def main() -> None:
                     help="onset tolerance (s) used while calibrating")
     ap.add_argument("--max_frames", type=int, default=0,
                     help="frames per video (0 = whole video)")
-    # Low values matter for cross-dataset runs: on unfamiliar videos the model is
-    # less confident, so the best threshold can fall well below 0.2.
-    ap.add_argument("--onset_grid", default="0.05,0.1,0.15,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9")
-    ap.add_argument("--frame_grid", default="0.1,0.2,0.3,0.4,0.5,0.6,0.7")
+    # Both ends matter. On unfamiliar videos (cross-dataset) the model is less
+    # confident, so the best threshold can fall well below 0.2; in-domain, the
+    # onset_pos_weight of 8 pushes onset probabilities up, so it can exceed 0.9.
+    ap.add_argument("--onset_grid",
+                    default="0.05,0.1,0.15,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.95,0.98")
+    ap.add_argument("--frame_grid", default="0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9")
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
 
