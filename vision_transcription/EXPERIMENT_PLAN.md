@@ -132,6 +132,7 @@ only stops the watching**, never the job. Results land in `results/`, logs in
 | `scripts/run_experiment.sh` | trains / resumes one model (unchanged) | 2 |
 | `scripts/evaluate_run.sh` | calibrates on valid → scores test with those thresholds | 3 |
 | `scripts/status.sh` | one line per training run (unchanged) | any |
+| `scripts/after.sh` | runs a command when a training run finishes (one GPU, one run at a time) | 2–3 |
 | `python -m pianovam_vision.check_alignment` | per-video crop alignment vs the 88-key grid | 0b |
 
 ## Phase 0 — update the code, checks, free numbers (no training, a few hours)
@@ -208,11 +209,15 @@ tail -f logs/build_caches.log     # prints GB so far and KB per frame (~38 KB ex
 - 360p ablation cache (Phase 5), when needed:
   `CONFIGS="configs/vam_full_360.yaml" bash scripts/build_caches.sh`
 
-## Phase 2 — train E1 and E2 in parallel (~1 day)
+## Phase 2 — train E1, then E2 (~1.5 days)
+
+Two trainings on the one GPU each run at about half speed, so running them
+one after the other finishes both at the same time -- and E1 (the source
+model of E3/E4) ~12 h sooner. `after.sh` queues E2 behind E1.
 
 ```bash
 CONFIG=configs/vam_full.yaml bash scripts/run_experiment.sh vam_full tiled
-CONFIG=configs/yt_full.yaml  bash scripts/run_experiment.sh yt_full  tiled
+bash scripts/after.sh vam_full "CONFIG=configs/yt_full.yaml bash scripts/run_experiment.sh yt_full tiled"
 ```
 Check in the first minutes:
 ```bash
