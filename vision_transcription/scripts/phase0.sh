@@ -32,6 +32,7 @@ if [ -z "${_PHASE0_CHILD:-}" ]; then
 fi
 
 export DECORD_EOF_RETRY_MAX="${DECORD_EOF_RETRY_MAX:-2048}"
+export PYTHONUNBUFFERED=1                  # logs show progress as it happens
 say() { echo; echo "=== $(date '+%Y-%m-%d %H:%M') $*"; }
 # run <name> <command...>: output to results/phase0_<name>.txt, one-line status here
 run() {

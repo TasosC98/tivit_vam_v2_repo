@@ -55,6 +55,7 @@ if [ -z "${_EVAL_CHILD:-}" ]; then
 fi
 
 export DECORD_EOF_RETRY_MAX="${DECORD_EOF_RETRY_MAX:-2048}"
+export PYTHONUNBUFFERED=1                  # logs show progress as it happens
 DC=()
 [ -n "${DATA_CONFIG:-}" ] && DC=(--data_config "$DATA_CONFIG")
 echo "=== $(date '+%Y-%m-%d %H:%M') ${NAME}: ${CKPT}" \

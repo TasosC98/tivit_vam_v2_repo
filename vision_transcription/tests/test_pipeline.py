@@ -362,3 +362,32 @@ def test_keyboard_alignment_check():
     assert analyse(_render_keyboard(mirrored=True))["verdict"] != "OK"
     assert analyse(_render_keyboard(upside_down=True))["verdict"] == "UPSIDE_DOWN?"
     assert analyse(_render_keyboard(keys=False))["verdict"] == "NO_KEYS_FOUND"
+
+
+# ------------------------------------------------------ calibration shortcuts
+def test_calibration_count_and_bound_are_exact():
+    """The fast threshold search relies on two facts: (1) the number of decoded
+    notes equals the number of rising edges of the thresholded onset roll, and
+    (2) F1 <= 2*min(n_ref, n_est) / (n_ref + n_est). Both must hold exactly."""
+    pytest.importorskip("mir_eval")
+    from pianovam_vision.metrics import note_scores
+
+    rng = np.random.default_rng(0)
+    fps = 30.0
+    for trial in range(20):
+        T = 300
+        onset_p = rng.random((T, 88)) ** 8          # mostly low, some spikes
+        frame_p = rng.random((T, 88))
+        ot = float(rng.choice([0.05, 0.2, 0.5, 0.8]))
+        b = onset_p >= ot
+        count = int(b[0].sum()) + int((b[1:] & ~b[:-1]).sum())
+        est = decode_notes(onset_p, frame_p, fps, onset_threshold=ot,
+                           frame_threshold=0.5, min_duration_s=0.03)
+        assert count == len(est)
+
+        ref = [Note(float(t) / fps, float(t) / fps + 0.3, int(p), 80)
+               for t, p in zip(rng.integers(0, T - 10, 60), rng.integers(21, 109, 60))]
+        ref.sort(key=lambda n: (n.onset, n.pitch))
+        s = note_scores(ref, est)
+        bound = 2 * min(len(ref), len(est)) / (len(ref) + len(est))
+        assert s["onset_f1"] <= bound + 1e-9 and s["full_f1"] <= bound + 1e-9

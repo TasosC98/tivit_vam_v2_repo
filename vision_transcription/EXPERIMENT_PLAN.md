@@ -131,6 +131,7 @@ only stops the watching**, never the job. Results land in `results/`, logs in
 | `scripts/build_caches.sh` | builds both strip caches (checks free disk first) | 1 |
 | `scripts/run_experiment.sh` | trains / resumes one model (unchanged) | 2 |
 | `scripts/evaluate_run.sh` | calibrates on valid → scores test with those thresholds | 3 |
+| `scripts/report.sh` | **one screen with everything**: trainings, evaluations (with calibration progress), queued jobs, GPU, disk | any |
 | `scripts/status.sh` | one line per training run (unchanged) | any |
 | `scripts/after.sh` | runs a command when a training run finishes (one GPU, one run at a time) | 2–3 |
 | `python -m pianovam_vision.check_alignment` | per-video crop alignment vs the 88-key grid | 0b |
