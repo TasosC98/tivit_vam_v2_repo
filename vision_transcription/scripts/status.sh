@@ -25,9 +25,9 @@ for d in runs/*/; do
   # tqdm writes progress with carriage returns; turn them into lines and take
   # the most recent epoch/progress fragment. (-a: a log can contain stray
   # binary bytes, e.g. from an interrupted run; read it as text anyway.)
-  prog="$(tr '\r' '\n' < "${log}" | grep -aE 'epoch [0-9]+:' | tail -n 1)"
+  prog="$(tr '\r' '\n' < "${log}" | tr -d '\000' | grep -aE 'epoch [0-9]+:' | tail -n 1)"
   # Latest finished-epoch validation line, if any.
-  valid="$(grep -aE '\[epoch [0-9]+\] valid' "${log}" | tail -n 1)"
+  valid="$(tr -d '\000' < "${log}" | grep -aE '\[epoch [0-9]+\] valid' | tail -n 1)"
 
   echo "=== ${name}  [${status}] ==="
   [ -n "${prog}" ]  && echo "    ${prog}"
