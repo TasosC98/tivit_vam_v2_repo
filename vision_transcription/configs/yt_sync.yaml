@@ -1,0 +1,22 @@
+# PianoYT with sync-corrected TRAINING labels (paper run "yt_sync", E6).
+#
+# Identical to yt_full.yaml, except that each video's labels are shifted by the
+# correction sync_check measured with the E2 model (videos whose labels sit away
+# from the typical timing; see pianovam_vision/sync_check.py):
+#
+#   1. measure (an evaluation-sized GPU job; waits for other evaluations):
+#      PYTHONUNBUFFERED=1 nohup flock logs/.evaluate.lock python -m pianovam_vision.sync_check \
+#          --config configs/yt_full.yaml --checkpoint runs/yt_full/best.pt \
+#          --csv results/sync_yt.csv --write_offsets results/pianoyt_label_offsets.json \
+#          decode.onset_threshold=0.50 decode.frame_threshold=0.70 > logs/E6_sync_check.log 2>&1 &
+#   2. train:     CONFIG=configs/yt_sync.yaml bash scripts/run_experiment.sh yt_sync tiled
+#   3. evaluate on the ORIGINAL labels, like E2 and the papers:
+#      DATA_CONFIG=configs/yt_full.yaml bash scripts/evaluate_run.sh E6_yt_sync \
+#          configs/yt_sync.yaml runs/yt_sync/best.pt onset_f1
+base: yt_full.yaml
+
+data:
+  label_offsets: results/pianoyt_label_offsets.json
+
+train:
+  out_dir: runs/yt_sync

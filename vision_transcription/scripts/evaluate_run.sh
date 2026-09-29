@@ -16,8 +16,13 @@
 #                                      skip calibration, reuse an earlier run's thresholds
 #   BASELINE_MIDI=~/V2N/predicted_midi/pianovam_test   also compare with another
 #                                      system's predictions (score_midi, paired test)
+#   TIMING=1                           also tune onset timing on valid (sub-frame
+#                                      onsets, a time shift, an extra shift for black keys)
+#   TIMING_GRID=-0.05:0.20:0.01        time shifts to try (s); widen for cross-dataset
 #
 # Evaluations run one at a time: start several and they queue up by themselves.
+# The model's outputs are kept in rolls/<name>/ (not downloaded with out/), so
+# running the same <name> again (e.g. with TIMING=1) decodes them without the GPU.
 #
 # Outputs: logs/<name>.log (watch this), results/<name>_calibrate.txt,
 #          results/<name>_test.txt + .csv, out/<name>_test/*.mid
@@ -26,7 +31,7 @@ SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$SELF")/.."
 
 if [ $# -ne 4 ]; then
-  sed -n '2,21p' "$SELF"; exit 1
+  sed -n '2,28p' "$SELF"; exit 1
 fi
 NAME="$1"; CONFIG="$2"; CKPT="$3"; TARGET="$4"
 [ -f "$CONFIG" ] || { echo "ERROR: no config $CONFIG"; exit 1; }
@@ -37,9 +42,10 @@ if [ -n "${THRESHOLDS_FROM:-}" ] && [ ! -f "$THRESHOLDS_FROM" ]; then
 fi
 mkdir -p logs results out
 
-# The "decode.onset_threshold=X decode.frame_threshold=Y" line calibrate prints.
-thresholds_in() {
-  grep -oE 'decode\.onset_threshold=[0-9.]+ decode\.frame_threshold=[0-9.]+' "$1" | tail -n 1
+# The settings line calibrate prints: "decode.onset_threshold=X decode.frame_threshold=Y"
+# (+ decode.onset_timing / time_shift_s / black_shift_s when calibrated with TIMING=1).
+decode_line_in() {
+  grep -E '^[[:space:]]*decode\.onset_threshold=' "$1" | tail -n 1 | sed 's/^[[:space:]]*//'
 }
 
 PIDFILE="logs/${NAME}.pid"
@@ -78,6 +84,7 @@ fi
 
 if [ -n "${THRESHOLDS:-}" ]; then
   read -r OT FT <<< "$THRESHOLDS"
+  DECODE="decode.onset_threshold=${OT} decode.frame_threshold=${FT}"
   echo "using the given thresholds: onset=${OT} frame=${FT}"
 else
   if [ -n "${THRESHOLDS_FROM:-}" ]; then
@@ -86,24 +93,31 @@ else
   else
     src="results/${NAME}_calibrate.txt"
     echo "--- calibrating on valid (target ${TARGET}) -> ${src}"
+    TM=()
+    [ -n "${TIMING:-}" ] && TM=(--timing)
+    [ -n "${TIMING_GRID:-}" ] && TM+=("--shift_grid=${TIMING_GRID}")
     if ! python -m pianovam_vision.calibrate --config "$CONFIG" --checkpoint "$CKPT" \
-         --split valid --target "$TARGET" ${DC[@]+"${DC[@]}"} > "$src" 2>&1; then
+         --split valid --target "$TARGET" ${DC[@]+"${DC[@]}"} ${TM[@]+"${TM[@]}"} \
+         --rolls_dir "rolls/${NAME}/valid" > "$src" 2>&1; then
       echo "FAILED: calibration -- see ${src}"; exit 1
     fi
-    grep -E "NOTE|Note F1" "$src"
+    grep -E "NOTE|Note F1|best timing" "$src"
   fi
-  best="$(thresholds_in "$src")"
-  [ -n "$best" ] || { echo "FAILED: no thresholds found in ${src}"; exit 1; }
-  OT="${best#decode.onset_threshold=}"; OT="${OT%% *}"
-  FT="${best##*decode.frame_threshold=}"
+  DECODE="$(decode_line_in "$src")"
+  [ -n "$DECODE" ] || { echo "FAILED: no thresholds found in ${src}"; exit 1; }
+  OT="${DECODE#decode.onset_threshold=}"; OT="${OT%% *}"
+  FT="${DECODE#*decode.frame_threshold=}"; FT="${FT%% *}"
 fi
 
 echo "--- scoring test with onset=${OT} frame=${FT} -> results/${NAME}_test.txt"
+[ "$DECODE" = "decode.onset_threshold=${OT} decode.frame_threshold=${FT}" ] \
+  || echo "    decode settings: ${DECODE}"
+# DECODE is a list of key=value overrides: split it into words on purpose.
+# shellcheck disable=SC2086
 if ! python -m pianovam_vision.evaluate --config "$CONFIG" --checkpoint "$CKPT" \
      --split test ${DC[@]+"${DC[@]}"} --csv "results/${NAME}_test.csv" \
-     --save_midi "out/${NAME}_test" \
-     decode.onset_threshold="$OT" decode.frame_threshold="$FT" \
-     > "results/${NAME}_test.txt" 2>&1; then
+     --save_midi "out/${NAME}_test" --rolls_dir "rolls/${NAME}/test" \
+     $DECODE > "results/${NAME}_test.txt" 2>&1; then
   echo "FAILED: evaluation -- see results/${NAME}_test.txt"; exit 1
 fi
 sed -n '/=== mean over recordings/,$p' "results/${NAME}_test.txt"

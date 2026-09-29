@@ -8,6 +8,10 @@ This implements a visual *Onsets-and-Frames* network (the acoustic spectrogram i
 replaced by a perspective-rectified image of the keyboard), trained on the
 PianoVAM v1.0 labels.
 
+**Status report** (results, comparison with PPAN / PianoVAM / V2N, next steps):
+open [`reports/pianovam_pianoyt_study.html`](reports/pianovam_pianoyt_study.html)
+in a browser. The run plan is in [`EXPERIMENT_PLAN.md`](EXPERIMENT_PLAN.md).
+
 ---
 
 ## 1. Pipeline overview

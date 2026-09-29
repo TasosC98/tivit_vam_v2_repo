@@ -1,0 +1,1450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PianoVAM–PianoYT Study</title>
+<meta name="description" content="Status report of the per-key video-only piano transcription experiments, with the three related papers explained and compared.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=JetBrains+Mono:wght@400;600&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+:root{
+  --bg:#F4F5F7; --surface:#FFFFFF; --surface-2:#ECEEF2; --ink:#14161B; --ink-2:#434957; --ink-3:#6B7282; --rule:#D8DCE4;
+  --ours:#0B7D74; --ours-soft:#D3EDEA; --yt:#B4466D; --yt-soft:#F6E1E9; --ft:#9A7700; --v2n:#2F5FD0; --v2n-soft:#DFE6FA;
+  --ppan:#7A4CC2; --ppan-soft:#ECE3F8; --other:#98A0AF; --old:#BCC2CD;
+  --good:#1D8349; --good-soft:#DCF1E3; --warn:#985A00; --warn-soft:#FAEBD3; --bad:#BC3326; --bad-soft:#F9DFDB; --info-soft:#E3E9F4;
+  --key-white:#FFFFFF; --key-black:#1A1C21; --key-edge:#BFC5D0;
+  --code-bg:#12151C; --code-ink:#E4E8EF; --code-dim:#8D96A8; --code-btn:#2B3242;
+  --sans:"Source Sans 3","Segoe UI",system-ui,-apple-system,sans-serif;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,"Courier New",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0D0F13; --surface:#151820; --surface-2:#1C2029; --ink:#E7E9EE; --ink-2:#B3B9C6; --ink-3:#858C9C; --rule:#2A2F3A;
+    --ours:#3CC4B5; --ours-soft:#0F2E2B; --yt:#F08BAE; --yt-soft:#35182A; --ft:#E0C04A; --v2n:#84A6FF; --v2n-soft:#18233F;
+    --ppan:#BA9AF7; --ppan-soft:#271D3B; --other:#6D7586; --old:#4B5262;
+    --good:#55C687; --good-soft:#112A1C; --warn:#F0AA4C; --warn-soft:#2E2210; --bad:#F2826F; --bad-soft:#331815; --info-soft:#1A2233;
+    --key-white:#E4E7ED; --key-black:#07080A; --key-edge:#3B414D;
+    --code-bg:#090B0F; --code-ink:#E4E8EF; --code-dim:#7E8799; --code-btn:#262C3A;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0D0F13; --surface:#151820; --surface-2:#1C2029; --ink:#E7E9EE; --ink-2:#B3B9C6; --ink-3:#858C9C; --rule:#2A2F3A;
+  --ours:#3CC4B5; --ours-soft:#0F2E2B; --yt:#F08BAE; --yt-soft:#35182A; --ft:#E0C04A; --v2n:#84A6FF; --v2n-soft:#18233F;
+  --ppan:#BA9AF7; --ppan-soft:#271D3B; --other:#6D7586; --old:#4B5262;
+  --good:#55C687; --good-soft:#112A1C; --warn:#F0AA4C; --warn-soft:#2E2210; --bad:#F2826F; --bad-soft:#331815; --info-soft:#1A2233;
+  --key-white:#E4E7ED; --key-black:#07080A; --key-edge:#3B414D;
+  --code-bg:#090B0F; --code-ink:#E4E8EF; --code-dim:#7E8799; --code-btn:#262C3A;
+}
+body{background:var(--bg);color:var(--ink);font:16.5px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1060px;margin:0 auto;padding-inline:16px}
+a{color:var(--ours);text-underline-offset:2px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--ours);outline-offset:2px;border-radius:4px}
+code{font:.88em var(--mono);background:var(--surface-2);padding:1px 5px;border-radius:5px;overflow-wrap:anywhere}
+header.top{padding-block:30px 14px}
+.eyebrow{font:600 12px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+h1{font:700 clamp(32px,5.2vw,48px)/1.06 var(--display);letter-spacing:-.015em;margin:.35em 0 .3em;text-wrap:balance}
+.lede{font-size:19px;line-height:1.5;color:var(--ink-2);max-width:66ch;margin:0 0 .6em}
+.meta{font:12.5px/1.5 var(--mono);color:var(--ink-3)}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--rule)}
+nav.tabs .wrap{display:flex;gap:4px;overflow-x:auto;padding-block:8px;scrollbar-width:thin}
+nav.tabs a{flex:0 0 auto;text-decoration:none;color:var(--ink-2);font:600 14.5px var(--sans);padding:7px 13px;border-radius:999px;white-space:nowrap}
+nav.tabs a small{font:600 11px var(--mono);color:var(--ink-3);margin-right:5px;letter-spacing:.04em}
+nav.tabs a:hover{background:var(--surface-2)}
+nav.tabs a[aria-current="page"]{background:var(--ink);color:var(--bg)}
+nav.tabs a[aria-current="page"] small{color:var(--bg);opacity:.75}
+main section{padding-block:30px 60px}
+h2{font:700 clamp(26px,3.6vw,34px)/1.12 var(--display);letter-spacing:-.01em;margin:0 0 .45em;text-wrap:balance}
+h3{font:700 21px/1.25 var(--display);margin:2.3em 0 .5em;text-wrap:balance}
+h4{font:700 16.5px/1.3 var(--sans);margin:1.5em 0 .35em}
+p,li{max-width:74ch}
+p{margin:.55em 0}
+ul,ol{padding-left:1.3em;margin:.5em 0}
+li{margin:.3em 0}
+.muted{color:var(--ink-3)}
+.small{font-size:14.5px}
+.kicker{font:600 12px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+/* tables */
+.tbl{overflow-x:auto;margin:14px 0 10px;border:1px solid var(--rule);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14.5px;line-height:1.45}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{font:600 11.5px/1.3 var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);background:var(--surface-2);white-space:nowrap}
+.num{text-align:right;font-family:var(--mono);font-size:13.5px;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+tr.us td{background:var(--ours-soft)}
+tr.grp td{font:600 11.5px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);background:var(--surface-2)}
+td.b,.b{font-weight:700}
+.tcap{font-size:13.5px;color:var(--ink-3);margin:-2px 2px 14px;max-width:none}
+.yes{color:var(--good);font-weight:600}.no{color:var(--warn);font-weight:600}.part{color:var(--ink-2);font-weight:600}
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;margin:18px 0 6px}
+.tile{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:14px 16px 13px}
+.tile .big{font:700 36px/1 var(--display);letter-spacing:-.01em;color:var(--ours)}
+.tile .big small{font-size:18px;margin-left:2px}
+.tile.bad .big{color:var(--bad)}
+.tile .lab{font-weight:700;margin-top:8px;line-height:1.3}
+.tile .cmp{font-size:14px;color:var(--ink-2);margin-top:3px;line-height:1.4}
+/* chips + callouts */
+.chip{display:inline-block;font:600 11px/1.5 var(--mono);padding:1px 8px;border-radius:999px;letter-spacing:.03em;white-space:nowrap}
+.chip.done{background:var(--good-soft);color:var(--good)}.chip.run{background:var(--ours-soft);color:var(--ours)}
+.chip.fail{background:var(--bad-soft);color:var(--bad)}.chip.queue{background:var(--warn-soft);color:var(--warn)}
+.chip.plan{background:var(--surface-2);color:var(--ink-3)}
+.call{border-radius:12px;padding:12px 16px;margin:12px 0;background:var(--surface);border:1px solid var(--rule)}
+.call p,.call li{max-width:none}
+.call>:first-child{margin-top:0}.call>:last-child{margin-bottom:0}
+.call .tag{font:700 11px var(--mono);letter-spacing:.07em;text-transform:uppercase;display:block;margin-bottom:3px}
+.call.ok{background:var(--good-soft);border-color:transparent}.call.ok .tag{color:var(--good)}
+.call.warn{background:var(--warn-soft);border-color:transparent}.call.warn .tag{color:var(--warn)}
+.call.bad{background:var(--bad-soft);border-color:transparent}.call.bad .tag{color:var(--bad)}
+.call.info{background:var(--info-soft);border-color:transparent}.call.info .tag{color:var(--v2n)}
+.call.new{background:var(--ours-soft);border-color:transparent}.call.new .tag{color:var(--ours)}
+/* figures + charts */
+figure{margin:18px 0;background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:14px 14px 12px}
+figure .scroll{overflow-x:auto}
+figcaption{font-size:14px;line-height:1.5;color:var(--ink-2);margin-top:8px;max-width:none}
+figcaption b{color:var(--ink)}
+.ftitle{font:700 15.5px/1.3 var(--sans);margin:0 0 4px}
+svg.chart{display:block;width:100%;min-width:600px;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13.5px;color:var(--ink-2);margin:2px 0 8px}
+.lg{display:inline-flex;align-items:center;gap:7px}
+.sw{width:20px;height:5px;border-radius:3px;display:inline-block}
+.sw.dot{width:10px;height:10px;border-radius:50%}
+.sw.lite{opacity:.45}
+.sw.c-ours{background:var(--ours)}.sw.c-yt{background:var(--yt)}.sw.c-ft{background:var(--ft)}.sw.c-v2n{background:var(--v2n)}
+.sw.c-ppan{background:var(--ppan)}.sw.c-other{background:var(--other)}.sw.c-old{background:var(--old)}
+.sw.dash.c-ours{background:repeating-linear-gradient(90deg,var(--ours) 0 6px,transparent 6px 10px)}
+.sw.dash.c-yt{background:repeating-linear-gradient(90deg,var(--yt) 0 6px,transparent 6px 10px)}
+.chart .ax{fill:var(--ink-3);font:11.5px var(--mono)}
+.chart .axl{fill:var(--ink-2);font:600 12.5px var(--sans)}
+.chart .rl{fill:var(--ink);font:600 13px var(--sans)}
+.chart .rs{fill:var(--ink-3);font:11.5px var(--sans)}
+.chart .val{fill:var(--ink-2);font:600 11.5px var(--mono)}
+.chart .note{fill:var(--ink-2);font:12.5px var(--sans)}
+.chart .grp{fill:var(--ink-3);font:600 11px var(--mono);letter-spacing:.06em}
+.chart .grid{stroke:var(--rule);stroke-width:1}
+.chart .zero{stroke:var(--ink-3);stroke-width:1.3}
+.chart .vline{stroke:var(--ink-3);stroke-width:1.2;stroke-dasharray:4 4}
+.chart .ln{fill:none;stroke-width:2.3;stroke-linejoin:round;stroke-linecap:round}
+.chart .ln.thin{stroke-width:1.4;opacity:.55}
+.chart .ln.dash{stroke-dasharray:6 5}
+.chart .conn{stroke:var(--ink-3);stroke-width:2}
+.chart .pend{fill:var(--surface-2);stroke:var(--ink-3);stroke-dasharray:5 4}
+.chart .pendt{fill:var(--ink-3);font:italic 12px var(--sans)}
+.chart .ring{fill:none;stroke-width:2.2}
+.chart .lite{opacity:.42}
+.chart .hollow{fill:var(--surface);stroke-width:2.2}
+.c-ours{fill:var(--ours);stroke:var(--ours)}.c-yt{fill:var(--yt);stroke:var(--yt)}.c-ft{fill:var(--ft);stroke:var(--ft)}
+.c-v2n{fill:var(--v2n);stroke:var(--v2n)}.c-ppan{fill:var(--ppan);stroke:var(--ppan)}.c-other{fill:var(--other);stroke:var(--other)}
+.c-old{fill:var(--old);stroke:var(--old)}.c-bad{fill:var(--bad);stroke:var(--bad)}
+.chart .hollow.c-v2n{fill:var(--surface)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:999px;overflow:hidden;margin:2px 0 8px}
+.seg button{font:600 13px var(--sans);background:transparent;color:var(--ink-2);border:0;padding:5px 13px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+/* keyboard hero */
+.hero{margin:22px 0 8px;background:var(--surface);border:1px solid var(--rule);border-radius:16px;padding:16px 16px 12px}
+.hero .scroll{overflow-x:auto}
+svg.kbd{display:block;width:100%;min-width:640px;height:auto}
+.kbd .kw{fill:var(--key-white);stroke:var(--key-edge);stroke-width:1.5}
+.kbd .kb{fill:var(--key-black)}
+.kbd .kw.hl{fill:var(--ours-soft);stroke:var(--ours);stroke-width:3}
+.kbd .tl{fill:var(--surface-2);stroke:var(--rule);stroke-width:1}
+.kbd .tl.hl{fill:var(--ours);stroke:var(--ours)}
+.kbd .conn{fill:none;stroke:var(--ours);stroke-width:3}
+.kbd .kbl{fill:var(--ink-3);font:600 22px var(--mono)}
+.kbd .kbt{fill:var(--ours);font:700 22px var(--sans)}
+/* pipeline */
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px;margin:16px 0;counter-reset:st;list-style:none;padding:0}
+.flow li{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:11px 14px;margin:0;max-width:none;counter-increment:st;position:relative}
+.flow li::before{content:counter(st);font:700 12px var(--mono);color:var(--ours);display:block;margin-bottom:2px}
+.flow li b{display:block;font:700 15.5px/1.3 var(--sans)}
+.flow li span{display:block;font-size:14px;color:var(--ink-2);line-height:1.45;margin-top:3px}
+.flow li code{font-size:12px}
+/* experiment map */
+.xmap{display:grid;grid-template-columns:minmax(150px,.75fr) 1fr 1fr;gap:8px;margin:14px 0;min-width:600px}
+.xwrap{overflow-x:auto}
+.xmap .h{font:600 11.5px var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);align-self:end;padding:0 4px 2px}
+.xmap .rowh{font-weight:700;align-self:center;line-height:1.3;padding-right:6px}
+.xmap .rowh span{display:block;font-weight:400;font-size:13.5px;color:var(--ink-3)}
+.xmap .cell{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.4}
+.xmap .cell .id{font:700 16px var(--display);margin-right:6px}
+.xmap .cell .v{display:block;font:600 13px var(--mono);margin-top:4px;color:var(--ink)}
+.xmap .cell.empty{background:transparent;border-style:dashed;color:var(--ink-3)}
+/* code */
+.code{position:relative;background:var(--code-bg);color:var(--code-ink);border-radius:12px;margin:12px 0}
+.code pre{margin:0;padding:14px 16px;padding-right:84px;overflow-x:auto;font:13px/1.6 var(--mono);white-space:pre}
+.code .cm{color:var(--code-dim)}
+.copy{position:absolute;top:8px;right:8px;font:600 12.5px var(--sans);background:var(--code-btn);color:var(--code-ink);border:0;border-radius:7px;padding:5px 10px;cursor:pointer}
+/* paper citation */
+.cite{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:14px 18px;margin:14px 0}
+.cite dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0;font-size:15px}
+.cite dt{font:600 11.5px/2 var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+.cite dd{margin:0}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
+.two>div>h4:first-child{margin-top:.4em}
+details{margin:10px 0;background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:10px 14px}
+details summary{cursor:pointer;font-weight:700}
+details[open] summary{margin-bottom:6px}
+.pager{display:flex;justify-content:space-between;gap:12px;margin-top:44px;border-top:1px solid var(--rule);padding-top:16px;flex-wrap:wrap}
+.pager a{text-decoration:none;font-weight:600}
+.pager span{font:600 11.5px var(--mono);color:var(--ink-3);display:block;letter-spacing:.05em;text-transform:uppercase}
+footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
+@media (max-width:560px){ body{font-size:16px} .lede{font-size:17.5px} .tile .big{font-size:32px} }
+@media (prefers-reduced-motion:reduce){ *{scroll-behavior:auto!important} }
+</style>
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<header class="top wrap">
+  <div class="eyebrow">PhD project · video-only piano transcription</div>
+  <h1>PianoVAM–PianoYT Study</h1>
+  <p class="lede">What we built, what the numbers say, and how they compare with three papers — in plain words, with every number taken from your result files or from the papers themselves.</p>
+  <div class="meta">Updated: 29 Sep 2026, evening (report.sh at ~21:15: E2 finished, E5 running) · sources: your <code>report.sh</code> output, the downloaded <code>results/</code>, <code>logs/</code> and <code>out/</code> folders, PianoVAM v1.2 fingering labels · papers read on arXiv (tables checked twice)</div>
+</header>
+
+<nav class="tabs" aria-label="Report pages">
+  <div class="wrap">
+    <a href="#summary">Summary</a>
+    <a href="#method">Our system</a>
+    <a href="#results">Results</a>
+    <a href="#ppan"><small>PAPER</small>PPAN · 2411.09037</a>
+    <a href="#pianovam"><small>PAPER</small>PianoVAM · 2509.08800</a>
+    <a href="#v2n"><small>PAPER</small>V2N · 2608.03419</a>
+    <a href="#variables">Variables</a>
+    <a href="#next">Next steps &amp; logs</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- ================================================================ SUMMARY -->
+<section id="summary">
+  <h2>Where we stand</h2>
+  <p>You have a video-only piano transcription model that is <b>as good as the best published system on PianoVAM</b> (V2N, ISMIR 2026), with <b>22 times fewer parameters</b>. Trained on YouTube videos (PianoYT) from scratch, it reaches <b>63.9% at 100 ms</b> — the level that S2S and V2R reach only after pre-training on another dataset, 4 points below PPAN. A PianoVAM model that has never seen PianoYT still collapses there, and <b>more than a third of that gap is a timing offset in the PianoYT labels</b>, which we can measure and correct.</p>
+
+  <div class="hero">
+    <div class="scroll" id="kbd"></div>
+    <p class="small muted" style="margin:8px 2px 0;max-width:none">Top: the keyboard after we flatten it (A0 on the left, C8 on the right), 1408 pixels wide. Bottom: the model cuts that strip into <b>88 equal columns of 16 pixels</b>, one per key, and makes a separate yes/no decision for each column, 30 times per second. Highlighted: middle C (key 40 of 88, column index 39).</p>
+  </div>
+
+  <h3>The project in one paragraph</h3>
+  <p>The input is a video of a piano keyboard filmed from above. The output is a MIDI file: for every note, <b>which key</b> (pitch), <b>when the key goes down</b> (onset) and <b>when it comes up</b> (offset). No audio is used. Later, every note will also get <b>the hand that played it</b>. Our model flattens the keyboard into a strip and gives each of the 88 keys its own column, so it never has to search for a key — it only has to decide, for a known place, “pressed or not”.</p>
+
+  <h3>What you want to show in the paper</h3>
+  <ol>
+    <li><b>A small per-key model is enough for state-of-the-art results on clean data</b> — PianoVAM, whose labels come from a Disklavier piano that records every key exactly. <span class="chip done">E1 done</span></li>
+    <li><b>What changes with noisy data</b> — PianoYT: YouTube videos whose labels were made by an audio model. Same model, same training recipe. <span class="chip done">E2 done: 63.9%</span></li>
+    <li><b>Does knowledge move between the two datasets?</b> Without any training on the new one (“zero-shot”, E3/E5) and with fine-tuning (E4). <span class="chip done">E3 done</span> <span class="chip run">E4 training</span> <span class="chip run">E5 running</span></li>
+    <li><b>Why PianoYT is hard, and how to fix it</b> — data audit (done), timing and sync (new evidence below), sync-corrected labels (E6). <span class="chip plan">E6 planned</span></li>
+    <li><b>Which hand played each note</b> (E7) — labels published two days ago; a first baseline works. <span class="chip run">E7 started</span></li>
+  </ol>
+
+  <h3>The four numbers to remember</h3>
+  <div class="tiles">
+    <div class="tile"><div class="big">95.2<small>%</small></div><div class="lab">PianoVAM onset F1 at 50 ms (98.0% at 100 ms)</div><div class="cmp">V2N: 94.7% (a tie, p = 0.91) and 97.0% (we are better, p = 0.008). Same test files, same scoring script.</div></div>
+    <div class="tile"><div class="big">63.9<small>%</small></div><div class="lab">PianoYT onset F1 at 100 ms (E2, from scratch)</div><div class="cmp">PPAN: 68%; S2S and V2R: 64% — all three pre-trained on R3 first. Our old model: 49.0%.</div></div>
+    <div class="tile"><div class="big">1.30<small> M</small></div><div class="lab">Parameters in our model</div><div class="cmp">V2N: 28.2 M — 22× more. Our model has 1,299,491 weights.</div></div>
+    <div class="tile bad"><div class="big">14.7<small>%</small></div><div class="lab">Zero-shot PianoVAM → PianoYT, 100 ms</div><div class="cmp">A collapse — but <b>26.6%</b> if the predictions are simply moved ~110 ms later (a diagnostic, see Results → Timing).</div></div>
+  </div>
+
+  <figure>
+    <div class="ftitle">PianoVAM test set — onset F1 (%) of every system we can compare with</div>
+    <div class="legend"><span class="lg"><i class="sw c-other"></i>solid bar = 50 ms tolerance</span><span class="lg"><i class="sw c-other lite"></i>light bar = 100 ms tolerance</span></div>
+    <div class="scroll" id="ch-sota"></div>
+    <figcaption>9 test recordings, 42,241 notes. <b>Ours and V2N</b> are scored by the same script on each system’s MIDI files (our re-score of V2N reproduces its published 94.7 / 97.0 exactly). The other rows are copied from V2N’s Table 1, where V2N retrained each system from scratch. “Li et al.” there is the video branch only. The x-axis starts at 50%.</figcaption>
+  </figure>
+
+  <h3>Experiment status</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>ID</th><th>Question</th><th>Trained on → tested on</th><th>Status</th><th class="num">Onset F1 50 / 100 ms</th></tr></thead>
+    <tbody>
+      <tr class="us"><td class="b">E1</td><td>How good on clean labels?</td><td>PianoVAM → PianoVAM</td><td><span class="chip done">done 28 Sep</span></td><td class="num">95.2 / 98.0</td></tr>
+      <tr class="us"><td class="b">E2</td><td>How good on noisy labels (from scratch)?</td><td>PianoYT → PianoYT</td><td><span class="chip done">done 29 Sep</span></td><td class="num">39.2 / 63.9</td></tr>
+      <tr><td class="b">E3a</td><td>Zero-shot, PianoVAM thresholds</td><td>PianoVAM → PianoYT</td><td><span class="chip done">done</span></td><td class="num">4.1 / 9.4</td></tr>
+      <tr><td class="b">E3b</td><td>Zero-shot, thresholds tuned on PianoYT valid</td><td>PianoVAM → PianoYT</td><td><span class="chip done">done</span></td><td class="num">6.1 / 14.7</td></tr>
+      <tr><td class="b">E4</td><td>Does clean pre-training help noisy data?</td><td>PianoVAM, then fine-tune PianoYT → PianoYT</td><td><span class="chip run">training</span> epoch 6 of 0–11; evaluation queued</td><td class="num">pending<br><span class="muted">valid 0.342 (E2: 0.339 at that epoch)</span></td></tr>
+      <tr><td class="b">E5a</td><td>Reverse zero-shot, PianoYT thresholds</td><td>PianoYT → PianoVAM</td><td><span class="chip run">running</span></td><td class="num">—</td></tr>
+      <tr><td class="b">E5b</td><td>Reverse zero-shot, PianoVAM-valid thresholds</td><td>PianoYT → PianoVAM</td><td><span class="chip queue">waiting for E5a</span></td><td class="num">—</td></tr>
+      <tr><td class="b">E1t, E3c</td><td>The same models with onset timing tuned on valid</td><td>PianoVAM → PianoVAM; PianoVAM → PianoYT</td><td><span class="chip queue">start tonight</span></td><td class="num">—</td></tr>
+      <tr><td class="b">E6</td><td>Do sync-corrected labels help?</td><td>PianoYT (fixed labels) → PianoYT</td><td><span class="chip plan">sync check tomorrow</span></td><td class="num">—</td></tr>
+      <tr><td class="b">E7</td><td>Which hand played each note?</td><td>PianoVAM</td><td><span class="chip run">first baseline</span></td><td class="num">right hand: 97.7%</td></tr>
+      <tr><td class="b">A1</td><td>Ablation: one global strip vs 88 tiles</td><td>PianoVAM → PianoVAM</td><td><span class="chip queue">starts after E4</span></td><td class="num">—</td></tr>
+      <tr><td class="b">P0</td><td>Old model (tiled_best_v2, old recipe) as baseline</td><td>several</td><td><span class="chip done">done 27 Sep</span></td><td class="num">VAM→VAM 84.3 / 89.0<br>YT→YT 33.3 / 49.0</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tcap">E1 numbers are from the V2N-comparison script (95.2 / 98.0); our own evaluator gives 95.3 / 98.0 (explained on the Results page). All other numbers are from our evaluator. PianoYT scores use the 20 test videos we have (video 163 is missing on the server). E7: right hand for the 1,800 manually labelled notes (Results R11).</p>
+
+  <h3>Is everything OK?</h3>
+  <div class="call ok"><span class="tag">Yes — the main result is solid</span>Three independent measurements agree for E1: 95.2% on the <em>valid</em> set during calibration, 95.3% on <em>test</em> with our evaluator, and 95.2% on test with the V2N script. The thresholds were chosen on valid only, never on test.</div>
+  <div class="call ok"><span class="tag">The GPU queue works</span>E5b now waits for E5a instead of crashing (commit <code>5279b5b</code>), and the E4 evaluation and the strip ablation start by themselves when the fine-tuning ends. One detail: E5a is running for the second time — E2 had already finished at 16:30, so the old waiter started E5a then, and the new one started it again at 21:12. Same result; about an hour of GPU time.</div>
+  <div class="call ok"><span class="tag">Video timing is exact</span>Your timestamp check: in all 18 videos tested (9 PianoVAM, 9 PianoYT) every frame sits exactly at <i>i</i>/fps (first frame +0.0 ms, middle and last frames off by +0.0 ms). Our video reader is not the cause of the timing offsets.</div>
+  <div class="call new"><span class="tag">New tonight</span>(1) <b>Black keys are detected ~12 ms later than white keys</b> (median +15.6 vs +3.9 ms), which is why their recall at 50 ms is lower (92.8% vs 97.3%) — key detection itself is fine: only 19 of 42,241 notes are wrong-key errors. (2) <b>PianoVAM published hand and finger labels</b> (v1.2, two days ago). (3) <b>The hand tags in PianoVAM’s skeleton files are mirrored</b>; swapped, a simple fingertip rule finds the right hand for 97.7% of the manually labelled notes. Details: Results R10 and R11.</div>
+
+  <h3>The experiment map</h3>
+  <div class="xwrap"><div class="xmap">
+    <div class="h"></div><div class="h">Tested on PianoVAM (clean)</div><div class="h">Tested on PianoYT (noisy)</div>
+    <div class="rowh">Trained on PianoVAM<span>Disklavier labels, 80 recordings</span></div>
+    <div class="cell"><span class="id">E1</span><span class="chip done">done</span><span class="v">95.2 / 98.0</span></div>
+    <div class="cell"><span class="id">E3</span><span class="chip done">done</span> zero-shot<span class="v">a: 4.1 / 9.4 · b: 6.1 / 14.7</span></div>
+    <div class="rowh">Trained on PianoYT<span>audio-model labels, 179 videos</span></div>
+    <div class="cell"><span class="id">E5</span><span class="chip run">running</span> reverse zero-shot<span class="v">a running · b waiting its turn</span></div>
+    <div class="cell"><span class="id">E2</span><span class="chip done">done</span><span class="v">39.2 / 63.9</span></div>
+    <div class="rowh">PianoVAM, then fine-tuned on PianoYT</div>
+    <div class="cell empty">not planned (would show forgetting)</div>
+    <div class="cell"><span class="id">E4</span><span class="chip run">training</span><span class="v">evaluation queued</span></div>
+    <div class="rowh">PianoYT with corrected sync</div>
+    <div class="cell empty">—</div>
+    <div class="cell"><span class="id">E6</span><span class="chip plan">planned</span><span class="v">—</span></div>
+  </div></div>
+  <p class="tcap">Numbers: onset F1 (%) at 50 / 100 ms on the test split. PianoYT’s rival number is PPAN’s 68% at 100 ms (after pre-training on a third dataset, R3).</p>
+
+  <div class="pager"><a href="#next"><span>Last page</span>Next steps &amp; logs</a><a href="#method"><span>Next</span>How our system works →</a></div>
+</section>
+
+<!-- ================================================================ METHOD -->
+<section id="method" hidden>
+  <h2>How our system works</h2>
+  <p>The model is a visual version of <em>Onsets and Frames</em> (the classic audio transcription network): instead of a spectrogram it reads an image of the keyboard, and for every key and every video frame it answers two questions — <b>“did a note start here?”</b> (onset) and <b>“is the key down?”</b> (frame).</p>
+
+  <ol class="flow">
+    <li><b>Video frame</b><span>PianoVAM: 1920×1080, 60 fps. PianoYT: mostly 1920×1080, 24–60 fps. We decode at 720p and take 30 frames per second.</span></li>
+    <li><b>Flatten the keyboard</b><span>The dataset gives the 4 keyboard corners. A perspective warp maps them to a straight strip — A0 at the left edge, C8 at the right edge.</span></li>
+    <li><b>Keyboard strip</b><span>1408 × 112 pixels, colour. 1408 / 88 = 16 px per key index.</span></li>
+    <li><b>CNN (4 blocks)</b><span>Each block halves width and height: 1408×112 → 88×7, with 192 channels. The same CNN runs on every frame.</span></li>
+    <li><b>88 key columns (the “tiles”)</b><span>Average each of the 88 columns → one vector of 64 numbers per key per frame. This is ROI pooling with 88 fixed regions.</span></li>
+    <li><b>Memory over time (BiGRU)</b><span>One small bidirectional GRU reads each key’s vectors over the clip (32 frames ≈ 1.07 s), the same weights for all 88 keys.</span></li>
+    <li><b>Two outputs per key</b><span>Onset probability and frame probability (the frame head also sees the onset). 88 × 2 numbers per frame.</span></li>
+    <li><b>Decode → MIDI</b><span>A note starts where onset ≥ threshold, and lasts while frame ≥ threshold. Thresholds are tuned on the valid split (PianoVAM: 0.90 / 0.70).</span></li>
+  </ol>
+
+  <figure>
+    <div class="ftitle">From strip to 88 tiles (to scale in width)</div>
+    <div class="scroll" id="ch-tiles"></div>
+    <figcaption>The CNN shrinks the strip 16 times in both directions, so each of the 88 output columns sits exactly over one 16-px column of the strip. Column 39 (middle C) is highlighted at every stage.</figcaption>
+  </figure>
+
+  <h3>Tiles and ROIs in simple words</h3>
+  <ul>
+    <li><b>ROI</b> (“region of interest”) just means “the part of the image we look at for one answer”. Here there are 88 ROIs, one per key, and they never move: the keyboard corners fix where each key is. Nothing has to be detected.</li>
+    <li><b>“Tile”</b> is our name for one such column. The strip is cut into 88 <em>equal</em> columns of 16 px in pitch order. Real keys are not equally wide (white keys are wider than black keys), so a column is not the exact outline of its key — but each output column “sees” a wider area of the strip (the CNN’s receptive field), and it learns which pixels belong to its key.</li>
+    <li><b>Why it helps:</b> pitch = position. The model never has to <em>find</em> a key, only to judge it. And because all 88 keys share the same weights, what it learns about one key helps all the others. This is why 1.3 M parameters are enough.</li>
+    <li><b>What it is not:</b> not hand tracking and not moving boxes. Hand ROIs (from MediaPipe landmarks) are planned for E7, to say which hand played a note.</li>
+  </ul>
+
+  <h3>Size of the model</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Part</th><th>What it does</th><th class="num">Parameters</th></tr></thead>
+    <tbody>
+      <tr><td>CNN, 4 blocks (32, 64, 128, 192 channels)</td><td>Reads the image of one frame</td><td class="num">841,184</td></tr>
+      <tr><td>Per-key projection (192 → 64)</td><td>Makes the 64-number vector of each key</td><td class="num">12,352</td></tr>
+      <tr><td>BiGRU, 2 layers, 128 units each way</td><td>Memory over time, shared by all keys</td><td class="num">445,440</td></tr>
+      <tr><td>Onset head + frame head</td><td>Turn each key’s state into two probabilities</td><td class="num">515</td></tr>
+      <tr class="us"><td class="b">Total</td><td></td><td class="num b">1,299,491</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tcap">Counted from <code>pianovam_vision/model.py</code> with the settings in <code>configs/tiled_best.yaml</code>. For scale: V2N reports 28.2 M parameters and 125 GFLOPs per 1-second clip.</p>
+
+  <h3>How we train</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Setting</th><th>Old recipe<br><span class="muted">tiled_best_v2</span></th><th>E1 · vam_full</th><th>E2 · yt_full</th><th>E4 · yt_finetune</th></tr></thead>
+    <tbody>
+      <tr><td>Data per video</td><td>first 20 s only</td><td colspan="3">whole videos</td></tr>
+      <tr><td>Training videos</td><td>80 PianoVAM</td><td>80 PianoVAM</td><td>179 PianoYT</td><td>179 PianoYT</td></tr>
+      <tr><td>Clips per epoch</td><td>—</td><td class="num">55,774</td><td class="num">51,093</td><td class="num">51,093</td></tr>
+      <tr><td>Decode height</td><td>360p</td><td colspan="3">720p (strip built from ~2× more real pixels)</td></tr>
+      <tr><td>Augmentation</td><td>none</td><td colspan="3">80% of clips: ±0.6% width, ±3 px shift, ±0.3° rotation, ±15% brightness/contrast, 10% grayscale, noise</td></tr>
+      <tr><td>Start weights</td><td>random</td><td>random</td><td>random</td><td>E1’s best model</td></tr>
+      <tr><td>Learning rate</td><td>0.0006, constant</td><td colspan="2">0.0006, 3% warm-up, cosine down to 1.2e-5</td><td>0.0002, 5% warm-up, cosine</td></tr>
+      <tr><td>Epochs</td><td>best at epoch 8</td><td>25 (best: epoch 14)</td><td>25</td><td>12</td></tr>
+      <tr><td>Batch</td><td colspan="4">8 clips × 32 frames; AdamW, weight decay 1e-4, mixed precision, gradient clip 3.0</td></tr>
+      <tr><td>Loss</td><td colspan="4">Binary cross-entropy for onset (positive weight 8, onsets are rare) + frame (positive weight 2)</td></tr>
+      <tr><td>Which checkpoint is kept</td><td colspan="4"><code>best.pt</code> = the epoch with the best per-frame onset F1 on valid (over thresholds 0.1–0.9)</td></tr>
+      <tr><td>Time per epoch</td><td>—</td><td>~47 min</td><td>44–71 min</td><td>~37 min alone</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>The two datasets, as we use them</h3>
+  <div class="tbl"><table>
+    <thead><tr><th></th><th>PianoVAM (v1.1 split)</th><th>PianoYT</th></tr></thead>
+    <tbody>
+      <tr><td>Where labels come from</td><td>Disklavier piano: exact key MIDI</td><td>Onsets &amp; Frames audio model run on the video’s sound</td></tr>
+      <tr><td>Offset we use</td><td><code>key_offset</code> = physical key release</td><td>MIDI note-off (includes sustain-pedal tails; not visible)</td></tr>
+      <tr><td>Keyboard position</td><td>4 corner points per recording</td><td>axis-aligned crop box per video</td></tr>
+      <tr><td>Train</td><td>80 recordings (train + ext-train = 81, minus 2024-09-05_21-37-08, which does not decode)</td><td>179 videos (186, minus 7 removed in our audit)</td></tr>
+      <tr><td>Valid</td><td>9 recordings, 1.52 h, 43,108 notes</td><td>21 videos held out from train (seed 1234), 1.83 h, 39,150 notes</td></tr>
+      <tr><td>Test</td><td>9 recordings, 1.68 h, 42,241 notes (same as V2N)</td><td>21 listed; 20 available (163 missing), 1.62 h, 31,636 notes</td></tr>
+      <tr><td>Video</td><td>1920×1080, 60 fps</td><td>1920×1080 (217) or 1280×720 (10); 25 fps (152), 23.98 (41), 59.94 (11), 30 (7), 60 (6), 29.75–29.97 (10)</td></tr>
+      <tr><td>Crop check</td><td>98 / 98 OK</td><td>220 / 227 OK (6 no keyboard found, 1 misaligned)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>How we score (the evaluation protocol)</h3>
+  <ol>
+    <li><b>Tune thresholds on valid only.</b> The model is run once on every valid video; then many onset/frame threshold pairs are tried, and the best pair is kept (<code>calibrate.py</code>). The test set is never used for any choice.</li>
+    <li><b>Score whole test videos</b> with those thresholds, using <code>mir_eval</code> (the standard library all three papers use).</li>
+    <li><b>Onset F1 at 50 and 100 ms</b>: a predicted note is correct if it has the right pitch and its onset is within ±50 ms (or ±100 ms) of a true note. 50 ms is the audio standard and V2N’s main number; 100 ms is PPAN’s number for PianoYT. At 30 fps one frame is 33.3 ms.</li>
+    <li><b>Onset + offset</b>, two rules: mir_eval’s default (offset within 20% of the note length, at least 50 ms) and V2N’s stricter “++Off” (offset within the same ±50/±100 ms).</li>
+    <li><b>Frame F1</b>: every key × every time step is one yes/no. Our evaluator uses a 30 fps grid; the V2N comparison uses V2N’s 60 Hz grid.</li>
+    <li><b>Average over recordings</b>, each recording counts once. Differences between two systems are tested with a paired Wilcoxon signed-rank test over the recordings (two-sided; V2N used one-sided, which is less strict).</li>
+  </ol>
+
+  <div class="pager"><a href="#summary"><span>Previous</span>← Summary</a><a href="#results"><span>Next</span>Results →</a></div>
+</section>
+
+<!-- ================================================================ RESULTS -->
+<section id="results" hidden>
+  <h2>Results, with the numbers</h2>
+  <p>All numbers on this page are copied by a script from your downloaded files (<code>results/*.txt</code>, <code>*.csv</code>) or computed on your PC from the downloaded MIDI files. F1, precision (P) and recall (R) are shown as 0–1 in the tables that come from our evaluator, and as % where we compare with papers.</p>
+
+  <h3>R1 · E1: PianoVAM → PianoVAM (clean labels)</h3>
+  <p>Model <code>runs/vam_full/best.pt</code> (epoch 14), thresholds onset 0.90 / frame 0.70 chosen on valid. 9 test recordings, 42,241 true notes, 41,581 predicted.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Tolerance</th><th>What must be right</th><th class="num">P</th><th class="num">R</th><th class="num">F1</th></tr></thead>
+    <tbody>
+      <tr class="us"><td>50 ms</td><td>onset + pitch</td><td class="num">0.965</td><td class="num">0.941</td><td class="num b">0.953</td></tr>
+      <tr><td>50 ms</td><td>+ offset (mir_eval default)</td><td class="num">0.931</td><td class="num">0.909</td><td class="num">0.920</td></tr>
+      <tr><td>50 ms</td><td>+ offset within 50 ms (V2N “++Off”)</td><td class="num">0.917</td><td class="num">0.895</td><td class="num">0.905</td></tr>
+      <tr class="us"><td>100 ms</td><td>onset + pitch</td><td class="num">0.992</td><td class="num">0.968</td><td class="num b">0.980</td></tr>
+      <tr><td>100 ms</td><td>+ offset (mir_eval default)</td><td class="num">0.956</td><td class="num">0.932</td><td class="num">0.944</td></tr>
+      <tr><td>100 ms</td><td>+ offset within 100 ms</td><td class="num">0.984</td><td class="num">0.960</td><td class="num">0.971</td></tr>
+      <tr><td colspan="2">Frame F1 (30 fps grid)</td><td class="num"></td><td class="num"></td><td class="num">0.922</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tcap">Source: <code>results/E1_vam_full_test.txt</code>. Headline there: 0.9528 (50 ms) and 0.9797 (100 ms).</p>
+  <p><b>How to read it:</b> precision is higher than recall (0.965 vs 0.941): when the model plays a note it is almost always right; the errors are mostly <em>missed</em> notes. At 100 ms almost everything found is correct (P = 0.992) — the remaining errors at 50 ms are mostly timing, not wrong keys.</p>
+  <div class="call info"><span class="tag">Why 95.3 here and 95.2 against V2N?</span>Our evaluator scores the decoded notes directly (0.9528). The V2N comparison script scores the saved MIDI files, where times are rounded to MIDI ticks; a few onsets that sit right at the ±50 ms edge flip, giving 95.18. At 100 ms both give 98.0. For comparisons with papers, use the MIDI-based numbers (95.2), because V2N was scored the same way.</div>
+
+  <h3>R2 · Against V2N, same test, same labels, same script</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Metric (mean of 9 recordings, %)</th><th class="num">Ours</th><th class="num">V2N</th><th class="num">Wilcoxon p</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td>Onset F1 @50 ms</td><td class="num b">95.2</td><td class="num">94.7</td><td class="num">0.910</td><td>tie</td></tr>
+      <tr><td>Onset F1 @100 ms</td><td class="num b">98.0</td><td class="num">97.0</td><td class="num">0.008</td><td class="yes">ours better</td></tr>
+      <tr><td>Onset + offset @50 ms (“++Off”)</td><td class="num b">90.3</td><td class="num">89.6</td><td class="num">0.652</td><td>tie</td></tr>
+      <tr><td>Onset + offset @100 ms (“++Off”)</td><td class="num b">97.1</td><td class="num">95.5</td><td class="num">0.004</td><td class="yes">ours better</td></tr>
+      <tr><td>Onset + offset @50 ms (mir_eval default)</td><td class="num b">91.8</td><td class="num">90.9</td><td class="num">0.652</td><td>tie</td></tr>
+      <tr><td>Frame F1 (60 Hz grid)</td><td class="num b">91.6</td><td class="num">90.5</td><td class="num">0.164</td><td>tie</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tcap">Source: <code>results/E1_vam_full_vs_baseline.txt</code>; V2N = the MIDI files V2N released on GitHub. Ours is higher on onset @50 in 6 of 9 recordings. Our re-score of V2N gives 94.7 / 97.0 / 89.6 / 95.5 / 90.5; V2N’s paper prints 94.7 / 97.0 / 89.5 / 95.5 / 90.9 — the onsets match exactly, the frame score differs by 0.4 (a detail of how the 60 Hz grid is drawn).</p>
+
+  <figure>
+    <div class="ftitle">Onset F1 per test recording — ours vs V2N</div>
+    <div class="seg" role="group" aria-label="Tolerance"><button type="button" id="tol50" aria-pressed="true">50 ms</button><button type="button" id="tol100" aria-pressed="false">100 ms</button></div>
+    <div class="legend"><span class="lg"><i class="sw dot c-ours"></i>ours (E1)</span><span class="lg"><i class="sw dot c-v2n"></i>V2N</span></div>
+    <div class="scroll" id="ch-e1rec"></div>
+    <figcaption>Rows are sorted by our score. The three recordings where V2N wins at 50 ms (02-14 20:10, 02-17 21:44, 09-02 14:10) jump a lot from 50 to 100 ms: the model found the notes but slightly late. That is a timing error, not a recognition error — see R8. x-axis from 0.85 to 1.</figcaption>
+  </figure>
+
+  <h3>R3 · What the new recipe changed (same model)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>PianoVAM test (our evaluator)</th><th class="num">Old recipe<br>tiled_best_v2</th><th class="num">New recipe<br>vam_full</th><th class="num">Change</th></tr></thead>
+    <tbody>
+      <tr><td>Onset F1 @50 ms</td><td class="num">0.843</td><td class="num b">0.953</td><td class="num">+0.110</td></tr>
+      <tr><td>Onset F1 @100 ms</td><td class="num">0.890</td><td class="num b">0.980</td><td class="num">+0.090</td></tr>
+      <tr><td>Onset + offset within 50 ms</td><td class="num">0.643</td><td class="num b">0.905</td><td class="num">+0.262</td></tr>
+      <tr><td>Onset + offset (mir_eval default) @50</td><td class="num">0.688</td><td class="num b">0.920</td><td class="num">+0.232</td></tr>
+      <tr><td>Frame F1 (30 fps)</td><td class="num">0.836</td><td class="num b">0.922</td><td class="num">+0.086</td></tr>
+      <tr><td>Predicted / true notes</td><td class="num">44,522 / 42,241</td><td class="num">41,581 / 42,241</td><td></td></tr>
+    </tbody>
+  </table></div>
+  <p>The architecture did not change. Whole videos (instead of the first 20 s), 720p, augmentation and a cosine learning-rate schedule turned an 84% model into a 95% model — and offsets improved the most (+26 points). This is a useful message for the paper: <b>the recipe matters as much as the architecture</b>. The strip-vs-tiles ablation (A1) will show how much the tiles add under the new recipe.</p>
+
+  <h3>R4 · Training curves (validation, per frame)</h3>
+  <figure>
+    <div class="legend"><span class="lg"><i class="sw c-ours"></i>vam_full (E1) onset</span><span class="lg"><i class="sw dash c-ours"></i>vam_full frame</span><span class="lg"><i class="sw c-yt"></i>yt_full (E2) onset</span><span class="lg"><i class="sw dash c-yt"></i>yt_full frame</span><span class="lg"><i class="sw c-ft"></i>yt_finetune (E4) onset</span></div>
+    <div class="scroll" id="ch-train"></div>
+    <figcaption>Per-frame F1 on the valid split after every epoch (<code>onset_f1_best</code>, <code>frame_f1_best</code>). These are <b>not</b> note scores: they count every key × frame, so a note found one frame late counts as wrong here but as right in the note score. That is why vam_full’s best per-frame onset F1 (0.814, epoch 14) becomes a note F1 of 0.953 on test. Use these curves to compare epochs of one run, not datasets. yt_full epochs 13–20 and 22–23 and yt_finetune epochs 2–4 are not in the files you downloaded (see Next steps to get them).</figcaption>
+  </figure>
+  <ul>
+    <li><b>PianoVAM</b> improves quickly and is flat from epoch ~10 (0.80–0.81): more epochs would not help much.</li>
+    <li><b>PianoYT</b> stops at ~0.35 per-frame onset F1 from epoch 6 on, with a training loss 7× higher than PianoVAM’s (0.128 vs 0.018 at the last epoch). The model cannot fit the labels better — a sign of label noise (timing and wrong notes), not of too little training.</li>
+    <li><b>Fine-tuning (E4)</b> starts from the PianoVAM model: 0.336 at epoch 0, 0.321 at epoch 1, 0.342 at epoch 5 (yt_full: 0.310, 0.269 and 0.339 at the same epochs). The head start has almost gone by epoch 5; the test score will decide.</li>
+  </ul>
+
+  <h3>R5 · Calibration: how confident is the model?</h3>
+  <figure>
+    <div class="legend"><span class="lg"><i class="sw c-ours"></i>E1: PianoVAM model on PianoVAM valid</span><span class="lg"><i class="sw dash c-ours"></i>E3b: PianoVAM model on PianoYT valid</span><span class="lg"><i class="sw c-yt"></i>E2: PianoYT model on PianoYT valid (running)</span></div>
+    <div class="scroll" id="ch-cal"></div>
+    <figcaption>Note F1 at 50 ms on the valid split for each onset threshold (frame threshold 0.5). On its own data the PianoVAM model is very sure of itself: the best threshold is 0.90. On YouTube videos the same model is unsure, and the best threshold falls to 0.20. The PianoYT model peaks in the middle (0.50, F1 0.357 so far). Source: <code>results/*_calibrate.txt</code>.</figcaption>
+  </figure>
+
+  <h3>R6 · Zero-shot: PianoVAM model on PianoYT (E3)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Run</th><th>Model / thresholds</th><th class="num">Onset F1 @50</th><th class="num">@100</th><th class="num">P / R @100</th><th class="num">Predicted / true notes</th></tr></thead>
+    <tbody>
+      <tr><td class="b">E3a</td><td>vam_full, PianoVAM thresholds 0.90 / 0.70</td><td class="num">0.041</td><td class="num">0.094</td><td class="num">0.350 / 0.056</td><td class="num">4,959 / 31,636</td></tr>
+      <tr><td class="b">E3b</td><td>vam_full, PianoYT-valid thresholds 0.20 / 0.10</td><td class="num">0.061</td><td class="num">0.147</td><td class="num">0.208 / 0.124</td><td class="num">20,392 / 31,636</td></tr>
+      <tr><td>P0</td><td>old model, PianoVAM thresholds 0.60 / 0.50</td><td class="num">0.061</td><td class="num">0.130</td><td class="num">0.240 / 0.094</td><td class="num">9,868 / 31,636</td></tr>
+      <tr><td>P0-cal</td><td>old model, PianoYT-valid thresholds 0.15 / 0.10 (19 videos)</td><td class="num">0.065</td><td class="num">0.140</td><td class="num">0.185 / 0.121</td><td class="num">16,096 / 30,040</td></tr>
+      <tr class="grp"><td colspan="6">for reference: trained on PianoYT</td></tr>
+      <tr><td>P0</td><td>old PianoYT model (pianoyt_tiled), 0.70 / 0.40</td><td class="num">0.333</td><td class="num">0.490</td><td class="num">0.619 / 0.429</td><td class="num">21,389 / 31,636</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tcap">Sources: <code>results/E3a_zeroshot_test.txt</code>, <code>E3b_zeroshot_test.txt</code>, <code>phase0_vam_on_yt.txt</code>, <code>P0_vam_on_yt_cal_test.txt</code>, <code>phase0_yt_on_yt.txt</code>. P0-cal skipped video 162 (decoder error) as well as 163.</p>
+  <p><b>What it means:</b> the much better model (95% instead of 84% on PianoVAM) is <em>not</em> better on YouTube (0.147 vs 0.140). With PianoVAM thresholds it stays almost silent (predicts 16% as many notes as exist). V2N reports the same collapse between PianoVAM and R3 (0–6%). But see R8: a single time shift doubles these numbers, so the collapse is partly a timing mismatch.</p>
+  <figure>
+    <div class="ftitle">Per test video, onset F1 at 100 ms: trained on PianoYT vs zero-shot</div>
+    <div class="legend"><span class="lg"><i class="sw c-yt"></i>old model trained on PianoYT (Phase 0)</span><span class="lg"><i class="sw c-ours"></i>zero-shot PianoVAM model (E3b)</span></div>
+    <div class="scroll" id="ch-zs"></div>
+    <figcaption>Sorted by the in-domain score. Videos 309 and 430 fail for every model (the trained one predicts 149 and 48 notes for 2,474 and 1,712 true notes) although their crops are correct — they need a closer look.</figcaption>
+  </figure>
+
+  <h3>R7 · PianoYT trained on PianoYT (E2) — done</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>PianoYT test (20 videos)</th><th class="num">Onset F1 @50</th><th class="num">Onset F1 @100</th><th>How it was trained</th></tr></thead>
+    <tbody>
+      <tr class="us"><td class="b">E2 · our model, new recipe</td><td class="num b">0.392</td><td class="num b">0.639</td><td>PianoYT only, from scratch</td></tr>
+      <tr><td>Old model (Phase 0)</td><td class="num">0.333</td><td class="num">0.490</td><td>PianoYT only, old recipe (20 s per video, 360p)</td></tr>
+      <tr><td>PPAN (their Table 3)</td><td class="num">—</td><td class="num">0.68</td><td>video pre-training + R3, then PianoYT (onsets only)</td></tr>
+      <tr><td>S2S, V2R (PPAN’s Table 3)</td><td class="num">—</td><td class="num">0.64</td><td>R3, then PianoYT (onsets only)</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tcap">E2: <code>runs/yt_full/best.pt</code>, thresholds onset 0.50 / frame 0.70 chosen on PianoYT valid. Source: your report.sh (headline 0.3917 / 0.6386); precision, recall and per-video scores come with the next download. PPAN’s test set has 33,535 notes, ours 31,636 (video 163 is missing).</p>
+  <p><b>What it means:</b> the recipe that gave 95% on PianoVAM gives <b>0.639 on PianoYT, from scratch</b> — +0.149 over the old model, the same as S2S and V2R <em>after</em> pre-training on R3, and 0.04 below PPAN. The gap between 50 and 100 ms is large (0.392 vs 0.639): many notes are found but more than 50 ms away from their label — the PianoYT timing problem again (R8). E4 (pre-trained on PianoVAM) shows tomorrow whether clean pre-training closes the last 0.04; E6 (sync-corrected labels) is the second candidate.</p>
+
+  <h3>R8 · Timing — what the downloaded MIDI files show</h3>
+  <p>New analysis for this report, computed on your PC with <code>mir_eval</code> from the predicted MIDI in <code>out/</code> and your local label copies (PianoVAM TSVs, PianoYT MIDI). Sanity check: the 100 ms scores match the server’s to 4 decimals for every recording. For each matched note we take the error <b>predicted onset − true onset</b> (positive = we are late).</p>
+
+  <h4>1 · PianoVAM: each recording has its own constant offset</h4>
+  <figure>
+    <div class="legend"><span class="lg"><i class="sw c-ours"></i>new model (E1)</span><span class="lg"><i class="sw c-old"></i>old model (tiled_best_v2)</span></div>
+    <div class="scroll" id="ch-offsets"></div>
+    <figcaption>Median onset error per test recording (notes matched within 100 ms). Pooled over all 41,303 matched notes, E1 is +8.0 ms late on average (median +7.0, spread SD 20.1 ms) and 98.0% of the notes are within ±50 ms. One recording, 02-14 20:10, is <b>+30.5 ms</b> late.</figcaption>
+  </figure>
+  <figure>
+    <div class="legend"><span class="lg"><i class="sw c-ours"></i>02-14 20:10 (22 minutes)</span><span class="lg"><i class="sw c-other"></i>the other 8 recordings</span></div>
+    <div class="scroll" id="ch-drift"></div>
+    <figcaption>Median error in every minute of every recording. The lines are flat: <b>no drift</b>, just a fixed offset per recording. 02-14 20:10 stays between +28 and +34 ms for all 22 minutes.</figcaption>
+  </figure>
+  <ul>
+    <li><b>How much it costs:</b> removing each recording’s own offset would raise the mean onset F1 at 50 ms from 0.952 to <b>0.970</b> (02-14 20:10 alone: 0.928 → 0.985). One shift for all recordings together barely helps (best: all predictions 5 ms earlier → 0.953), because the offsets differ per recording. These are upper bounds computed with the test labels — a diagnosis, not a result.</li>
+    <li><b>Where it comes from:</b> not the video files — your timestamp check shows every frame exactly on the <i>i</i>/fps grid, so our reader is right. It is the model and the decoding: black keys are detected about 12 ms later than white keys (R10), and the decoder takes the <em>first</em> frame above a high threshold (0.90), not the centre of the onset peak. V2N scores 0.965 on 02-14 20:10 with the same labels, which also points to our side, and the old model has <em>different</em> per-recording offsets, as expected if the decoding is involved.</li>
+    <li><b>The fix (new code):</b> <code>TIMING=1</code> tunes on valid the onset rule (first frame, or the sub-frame centre of the onset peak), one time shift for all keys, and an extra shift for black keys. Nothing is chosen on test, and no retraining is needed. It targets exactly the 50 ms score, where we tie with V2N (run E1t, Next steps).</li>
+  </ul>
+
+  <h4>2 · PianoYT: the labels are ~110 ms later than the key presses</h4>
+  <figure>
+    <div class="legend"><span class="lg"><i class="sw c-ours"></i>zero-shot PianoVAM model (E3b), 100 ms</span><span class="lg"><i class="sw dash c-ours"></i>same, 50 ms</span><span class="lg"><i class="sw c-yt"></i>old model trained on PianoYT, 100 ms</span><span class="lg"><i class="sw dash c-yt"></i>same, 50 ms</span></div>
+    <div class="scroll" id="ch-yscan"></div>
+    <figcaption>Mean onset F1 over the PianoYT test videos when every predicted onset is moved by the same amount of time. The model trained on PianoYT is best with no shift (it learned the label timing). The PianoVAM model is best when its predictions are moved <b>110–120 ms later</b>: F1 at 100 ms goes from 0.147 to <b>0.266</b>, at 50 ms from 0.063 to <b>0.170</b>. E3a: 0.094 → 0.137 (80 ms). Computed from MIDI (20 videos for E3b; 19 for the PianoYT model, whose MIDI for video 307 is not in <code>out/</code>).</figcaption>
+  </figure>
+  <p>The PianoVAM model learned onset = the moment the Disklavier registers the key. On <b>all 20</b> PianoYT test videos its onsets come 60–235 ms before the PianoYT labels (typically 75–155 ms). The PianoYT labels come from audio, and YouTube video and sound are often not perfectly in sync. So <b>part of the “zero-shot collapse” is a timing convention mismatch</b>: measured on the same 19 videos against the model trained on PianoYT (0.482 at 100 ms), one shift closes 37% of the gap at 100 ms and 41% at 50 ms. A fair version (E3c): choose the shift on PianoYT <em>valid</em>, like the thresholds, and apply it to test.</p>
+
+  <h4>3 · One PianoYT test video is clearly out of sync</h4>
+  <figure>
+    <div class="legend"><span class="lg"><i class="sw c-ours"></i>zero-shot PianoVAM model (E3b)</span><span class="lg"><i class="sw c-yt"></i>old model trained on PianoYT</span></div>
+    <div class="scroll" id="ch-lags"></div>
+    <figcaption>Best time shift per test video (ms the predictions must move later to match the labels). Video 302 needs an extra ~130–150 ms compared with the others, for <b>both</b> models; correcting it lifts the trained model’s F1 on 302 from 0.10 to 0.42 at 50 ms. Per-video shifts for the trained model lift its mean F1 from 0.338 to 0.380 at 50 ms. Videos where a model predicts almost nothing (309, 430) give unreliable shifts.</figcaption>
+  </figure>
+  <p>This is the evidence for E6: PianoYT labels have a global delay plus per-video errors. V2N found the same kind of problem in R3 (MIDI–video offsets above 200 ms in 70 of 895 files).</p>
+
+  <h3>R9 · PianoYT audit (paper material)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Video</th><th>Problem</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td>267</td><td>text screen instead of a keyboard; crop box outside the frame</td><td>excluded</td></tr>
+      <tr><td>407</td><td>crop does not span A0 … C8 (misaligned)</td><td>excluded</td></tr>
+      <tr><td>426, 428</td><td>Synthesia-style animation (falling notes), not a camera</td><td>excluded</td></tr>
+      <tr><td>429, 433</td><td>Synthesia-style animation; both rows are the same YouTube video</td><td>excluded</td></tr>
+      <tr><td>410</td><td>same YouTube video as 402</td><td>excluded (402 kept)</td></tr>
+      <tr><td>438</td><td>automatic check found no keyboard (fit 0.22)</td><td>still used — worth one more look</td></tr>
+      <tr><td>434–439</td><td>crop box extends beyond the frame (probably downloaded at another resolution)</td><td>kept (crops check OK except 438)</td></tr>
+      <tr><td>163</td><td>video missing on the server (test split)</td><td>skipped automatically</td></tr>
+      <tr><td>302 (test)</td><td>labels ~130–150 ms more out of sync than the rest</td><td>keep; report; fix in E6</td></tr>
+      <tr><td>309, 430 (test)</td><td>crops correct, but every model fails</td><td>investigate (sync? appearance?)</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tcap">Keyboard-crop check (<code>check_alignment</code>): PianoVAM 98/98 OK (median worst-end error 0.36 white keys); PianoYT 220/227 OK (median 0.21 white keys). One model column is 0.59 white keys wide, so the crops are accurate enough.</p>
+
+  <h3>R10 · Where the PianoVAM errors are (is key detection OK?)</h3>
+  <p>Every true and every predicted note of E1’s 9 test recordings, classified at 50 ms (pooled over all notes; computed on your PC from <code>out/E1_vam_full_test</code> and the labels).</p>
+  <div class="two">
+    <div><div class="tbl"><table>
+      <thead><tr><th>Error type</th><th class="num">Missed true notes</th><th class="num">Extra notes</th></tr></thead>
+      <tbody>
+        <tr><td><b>Timing</b>: found, but 50–100 ms off</td><td class="num">826 (1.96%)</td><td class="num">824 (1.98%)</td></tr>
+        <tr><td><b>Wrong key</b>: 1–2 keys away, same moment</td><td class="num">14 (0.03%)</td><td class="num">5 (0.01%)</td></tr>
+        <tr><td><b>Wrong octave</b></td><td class="num">1 (0.00%)</td><td class="num">0</td></tr>
+        <tr><td><b>Really missed / really extra</b></td><td class="num">916 (2.17%)</td><td class="num">268 (0.64%)</td></tr>
+        <tr class="us"><td class="b">All errors</td><td class="num">1,757 of 42,241</td><td class="num">1,097 of 41,581</td></tr>
+      </tbody>
+    </table></div></div>
+    <div><div class="tbl"><table>
+      <thead><tr><th>Group</th><th class="num">Recall @50</th><th class="num">Recall @100</th><th class="num">Median onset error</th></tr></thead>
+      <tbody>
+        <tr><td>White keys (28,563 notes)</td><td class="num">0.973</td><td class="num">0.983</td><td class="num">+3.9 ms</td></tr>
+        <tr><td>Black keys (13,678 notes)</td><td class="num">0.928</td><td class="num">0.967</td><td class="num">+15.6 ms</td></tr>
+        <tr><td>Top octaves C6–C8, white</td><td class="num">0.918</td><td class="num">0.971</td><td class="num"></td></tr>
+        <tr><td>Top octaves C6–C8, black</td><td class="num">0.856</td><td class="num">0.947</td><td class="num"></td></tr>
+        <tr><td>Fast repeats (same key within 150 ms, 377 notes)</td><td class="num">0.722</td><td class="num"></td><td class="num"></td></tr>
+      </tbody>
+    </table></div></div>
+  </div>
+  <ul>
+    <li><b>Key detection is fine.</b> Only 19 of 42,241 notes are confused with a neighbouring key. The warp, the corners and the 88 columns do their job — for black keys too. No change is needed there.</li>
+    <li><b>Half of the errors at 50 ms are timing</b> (1,650 notes), and black keys carry most of it: they are found at the right place but about 12 ms later (their movement is harder to see from above), so more of them fall outside ±50 ms. At 100 ms the black-key gap shrinks from 4.5 to 1.6 points. The new timing calibration, with its extra black-key shift, targets exactly this.</li>
+    <li><b>The real misses</b> (2.2%) are concentrated in the top octaves and in fast repeated notes (a key struck again within 150 ms: only 72% found). A higher frame rate or a finer onset target would help those; they are a small share.</li>
+  </ul>
+
+  <h3>R11 · Hands: first baselines (PianoVAM v1.2 fingering labels)</h3>
+  <p>Two days ago PianoVAM published <code>Fingering/</code> (automatic hand + finger labels for every note of 106 recordings; 19.9% “Noinfo”) and <code>Fingering_GT/</code> (1,800 notes of 11 recordings labelled by hand). Scored against the <b>manual</b> labels:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>How the hand is chosen</th><th class="num">Notes with a hand</th><th class="num">Right hand</th></tr></thead>
+    <tbody>
+      <tr><td>Pitch split at middle C (below = left)</td><td class="num">100%</td><td class="num">81.3%</td></tr>
+      <tr><td>Best single pitch split (chosen on these notes)</td><td class="num">100%</td><td class="num">81.8%</td></tr>
+      <tr><td>Dataset’s automatic labels (<code>Fingering/</code>)</td><td class="num">88.2%</td><td class="num">99.2%</td></tr>
+      <tr><td>Nearest MediaPipe fingertip, skeleton tags <b>as stored</b></td><td class="num">100%</td><td class="num">2.3%</td></tr>
+      <tr class="us"><td class="b">Nearest MediaPipe fingertip, tags swapped</td><td class="num">100%</td><td class="num b">97.7%</td></tr>
+      <tr class="us"><td class="b">Our predicted notes (E1) + that rule, 2 test recordings</td><td class="num">253 of 300 notes found</td><td class="num b">100% of found notes</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tcap">The 1,800 manual notes: 1 recording in valid, 2 in test (02-17 21:44 and 09-02 14:10, 150 notes each), 8 in train. “Nearest fingertip” = the hand whose fingertip, warped with our keyboard warp, is closest to the key at the onset frame (the rule of <code>hands.py</code> on the main branch). Computed on your PC with the skeleton files and the labels downloaded from Hugging Face.</p>
+  <ul>
+    <li><b>The skeleton files label the hands backwards.</b> MediaPipe decides left/right as if the camera image were a mirror (a selfie camera); for a camera looking down at the keyboard that flips. Every tool that reads <code>Handskeleton/</code> must swap the tags — including our <code>hands.py</code>, which uses them as they are.</li>
+    <li><b>A hand result exists already, without any training</b>: our notes + the swapped fingertip rule give the right hand for all 253 notes we found in the two manually labelled test recordings (note + hand F1 0.868 there, the same as the note F1). On all 1,800 manual notes the rule is right 97.7% of the time; the dataset’s own labels are right 99.2% of the time but leave 11.8% of the notes without a hand.</li>
+    <li><b>What E7 should add</b>: the remaining 2.3% (hands crossing, a hand hidden by the other), and the <b>finger</b> (1–5) — the labels have it. A small sample so far: say “on the manually labelled notes”.</li>
+  </ul>
+
+  <div class="pager"><a href="#method"><span>Previous</span>← How our system works</a><a href="#ppan"><span>Next</span>Paper: PPAN →</a></div>
+</section>
+
+<!-- ================================================================ PPAN -->
+<section id="ppan" hidden>
+  <div class="kicker">Paper 1 of 3 · arXiv 2411.09037</div>
+  <h2>“Pay Attention to the Keys” (PPAN)</h2>
+  <div class="cite"><dl>
+    <dt>Title</dt><dd>Pay Attention to the Keys: Visual Piano Transcription Using Transformers</dd>
+    <dt>Authors</dt><dd>Uros Zivanovic, Ivan Pilkov, Carlos Eduardo Cancino-Chacón</dd>
+    <dt>Venue</dt><dd>IJCAI 2025 (arXiv v1 13 Nov 2024, v2 4 Jul 2025)</dd>
+    <dt>Name</dt><dd>The paper calls its model “ViT”. V2N calls it <b>PPAN</b>; we do too.</dd>
+    <dt>Link</dt><dd><a href="https://arxiv.org/abs/2411.09037" target="_blank" rel="noopener">arxiv.org/abs/2411.09037</a></dd>
+  </dl></div>
+
+  <h3>In one minute</h3>
+  <ul>
+    <li>They use a <b>Vision Transformer</b> (ViT-small) whose weights were <b>pre-trained on video by other authors</b> (“distilled ViT-small” of Wang et al., 2023).</li>
+    <li>Input: <b>6 grayscale frames</b> at 30 fps (0.2 s), keyboard crop of 64 × 784 pixels.</li>
+    <li>They train on <b>R3</b> (about 31 h, 2 professional pianists, real MIDI), then <b>fine-tune on PianoYT using onsets only</b> (“PianoYT ground truth offsets are of low quality”).</li>
+    <li>They score with a <b>100 ms</b> onset tolerance (“∼±3 frames”), not 50 ms.</li>
+    <li>Their headline for us: <b>PianoYT onset F-score 0.68</b>, against 0.64 for S2S and V2R.</li>
+  </ul>
+
+  <h3>How they do it</h3>
+  <div class="tbl"><table>
+    <tbody>
+      <tr><td class="b">Backbone</td><td>ViT-small: 12 layers, 384-dim embeddings, 6 heads; spatio-temporal “tubelet” patches</td></tr>
+      <tr><td class="b">Pre-training</td><td>Video weights from Wang et al. (2023); the paper says results depend strongly on them</td></tr>
+      <tr><td class="b">Input</td><td>6 frames, 30 fps, grayscale, 64 × 784 crop; augmentation: noise, rotation, brightness/scale jitter</td></tr>
+      <tr><td class="b">Outputs</td><td>88 onset + 88 frame values per frame; offsets come from the frame output</td></tr>
+      <tr><td class="b">Labels</td><td>Onset frame = 1, the frames before and after = 0.5</td></tr>
+      <tr><td class="b">Training on R3</td><td>AdamW (weight decay 0.05), cosine with 25% warm-up, 10 epochs, batch 384 on 4 GPUs, stochastic depth, class weights</td></tr>
+      <tr><td class="b">Fine-tuning on PianoYT</td><td>SGD (momentum 0.9), cosine with 10% warm-up, 5 epochs, batch 32 on 2 GPUs, onsets only</td></tr>
+      <tr><td class="b">Decoding</td><td>Gaussian smoothing (onsets σ 0.2, frames σ 0.8), threshold 0.5</td></tr>
+      <tr><td class="b">Scoring</td><td>mir_eval; framewise, onsetwise, notewise F-score; onset tolerance 100 ms</td></tr>
+      <tr><td class="b">PianoYT as they have it</td><td>train 369,922 notes (17.2 h, 2 videos missing); test 33,535 notes (1.7 h); videos transcoded to 30 fps</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Their numbers (exact, Table 3)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Model</th><th class="num">R3s frame</th><th class="num">R3s onset</th><th class="num">R3s note</th><th class="num">R3x frame</th><th class="num">R3x onset</th><th class="num">R3x note</th><th class="num">PianoYT onset</th></tr></thead>
+    <tbody>
+      <tr class="grp"><td colspan="8">Trained on R3 · predicting onsets and frames</td></tr>
+      <tr><td>S2S</td><td class="num">0.31</td><td class="num">0.84</td><td class="num">0.18</td><td class="num">0.46</td><td class="num">0.83</td><td class="num">0.46</td><td class="num">0.06</td></tr>
+      <tr><td>V2R</td><td class="num">0.31</td><td class="num">0.84</td><td class="num">0.18</td><td class="num">0.45</td><td class="num">0.82</td><td class="num">0.47</td><td class="num">0.01</td></tr>
+      <tr><td class="b">ViT (PPAN)</td><td class="num">0.32</td><td class="num">0.87</td><td class="num">0.19</td><td class="num">0.48</td><td class="num">0.85</td><td class="num">0.49</td><td class="num b">0.40</td></tr>
+      <tr class="grp"><td colspan="8">Trained on R3 · predicting frames only</td></tr>
+      <tr><td>S2S</td><td class="num">0.51</td><td class="num">0.82</td><td class="num">0.27</td><td class="num">0.63</td><td class="num">0.81</td><td class="num">0.55</td><td class="num">0.24</td></tr>
+      <tr><td>V2R</td><td class="num">0.52</td><td class="num">0.86</td><td class="num">0.28</td><td class="num">0.63</td><td class="num">0.83</td><td class="num">0.57</td><td class="num">0.05</td></tr>
+      <tr><td class="b">ViT (PPAN)</td><td class="num">0.52</td><td class="num">0.88</td><td class="num">0.29</td><td class="num">0.63</td><td class="num">0.85</td><td class="num">0.57</td><td class="num">0.35</td></tr>
+      <tr class="grp"><td colspan="8">Trained on R3, fine-tuned on PianoYT · predicting onsets only</td></tr>
+      <tr><td>S2S</td><td class="num">—</td><td class="num">0.21</td><td class="num">—</td><td class="num">—</td><td class="num">0.30</td><td class="num">—</td><td class="num">0.64</td></tr>
+      <tr><td>V2R</td><td class="num">—</td><td class="num">0.21</td><td class="num">—</td><td class="num">—</td><td class="num">0.30</td><td class="num">—</td><td class="num">0.64</td></tr>
+      <tr class="us"><td class="b">ViT (PPAN)</td><td class="num">—</td><td class="num">0.58</td><td class="num">—</td><td class="num">—</td><td class="num">0.72</td><td class="num">—</td><td class="num b">0.68</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tcap">F-scores, onset tolerance 100 ms. The PianoYT column of the first two groups is <b>zero-shot</b> (never trained on PianoYT). After fine-tuning, R3 scores drop (0.87 → 0.58 on R3s): the model forgets R3. Their ablation (Table 2, R3s, frame / onset / note): colour 0.08 / 0.18 / 0.06 → + grayscale 0.12 / 0.25 / 0.07 → + data augmentation 0.16 / 0.39 / 0.13 → + class weights 0.31 / 0.63 / 0.20.</p>
+
+  <figure>
+    <div class="ftitle">PianoYT onset F-score at 100 ms — PPAN’s table and our runs</div>
+    <div class="scroll" id="ch-yt"></div>
+    <figcaption>PPAN rows: their Table 3. Our rows: the 20 available test videos (they have 33,535 test notes, we have 31,636 — close, not identical). The “+ timing shift” bar is a diagnostic chosen on test, not a result.</figcaption>
+  </figure>
+
+  <h3>Same or different?</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Point</th><th>PPAN</th><th>Us</th><th>Comparable?</th></tr></thead>
+    <tbody>
+      <tr><td>Frame rate</td><td>30 fps</td><td>30 fps</td><td class="yes">yes</td></tr>
+      <tr><td>Onset tolerance</td><td>100 ms</td><td>50 and 100 ms</td><td class="yes">yes, use our 100 ms number</td></tr>
+      <tr><td>Metric library</td><td>mir_eval</td><td>mir_eval</td><td class="yes">yes</td></tr>
+      <tr><td>PianoYT test set</td><td>33,535 notes, 1.7 h</td><td>20 of 21 videos (163 missing), 31,636 notes, 1.62 h</td><td class="part">almost — say so in the paper</td></tr>
+      <tr><td>PianoYT training data</td><td>all train videos (2 missing)</td><td>179 videos (7 removed in our audit, 21 held out for valid)</td><td class="no">different</td></tr>
+      <tr><td>Pre-training</td><td>generic video weights + R3</td><td>none (E2) or PianoVAM (E4)</td><td class="no">different — this is the experiment</td></tr>
+      <tr><td>Model</td><td>ViT-small, global view of 6 frames</td><td>per-key CNN + BiGRU, 1.3 M, 32-frame clips</td><td class="no">different</td></tr>
+      <tr><td>Input</td><td>grayscale 64 × 784</td><td>colour 1408 × 112 (10% grayscale in augmentation)</td><td class="no">different</td></tr>
+      <tr><td>Training targets on PianoYT</td><td>onsets only</td><td>onsets + frames</td><td class="no">different</td></tr>
+      <tr><td>Decoding</td><td>smoothing + fixed 0.5</td><td>thresholds tuned on valid</td><td class="no">different</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>What we do differently, and why</h3>
+  <ol>
+    <li><b>Per-key tiles instead of a global transformer.</b> Pitch is position, so we give each key its own column and share the weights. Why: a tiny model (1.3 M) that learns from little data and is easy to explain.</li>
+    <li><b>Clean pre-training data.</b> They pre-train on R3; we pre-train on PianoVAM, whose labels come from the piano itself. Why: E4 then asks a clear question — does exact-label pre-training help noisy YouTube data?</li>
+    <li><b>We report 50 ms too.</b> 100 ms hides timing errors (at 30 fps it is ±3 frames). Our timing analysis shows PianoYT labels carry a ~110 ms offset for an outside model — which a 100 ms tolerance partly absorbs.</li>
+    <li><b>Thresholds tuned on valid</b> instead of fixed, because the best threshold moves a lot between datasets (0.90 vs 0.20, Results R5).</li>
+  </ol>
+
+  <h3>What we can say — and what not yet</h3>
+  <div class="two">
+    <div><h4 class="yes">We can say</h4><ul class="small">
+      <li>PPAN reports 0.68 onset F at 100 ms on PianoYT (R3 pre-training, onset-only fine-tuning).</li>
+      <li>Our E2, trained <b>only on PianoYT, from scratch</b> (1.3 M parameters), reaches <b>0.639</b> at 100 ms on our 20-video test set — the level of S2S and V2R (0.64), which needed R3 pre-training, and 0.04 below PPAN.</li>
+      <li>On PianoVAM, PPAN as retrained by V2N scores 84.9 / 94.1 (50 / 100 ms); we score 95.2 / 98.0 (V2N’s numbers for PPAN, not our run).</li>
+    </ul></div>
+    <div><h4 class="no">Not yet / not at all</h4><ul class="small">
+      <li>“Better than PPAN on PianoYT” — not with E2 (0.639 &lt; 0.68). E4 (pre-trained on PianoVAM) and E6 (sync-corrected labels) are the candidates.</li>
+      <li>Zero-shot: their ViT went R3 → PianoYT at 0.40; ours PianoVAM → PianoYT at 0.147 (0.266 with one timing shift). Different source datasets, so no direct claim. It does support their own remark that pre-trained weights drive transfer.</li>
+      <li>Exact same test set — 1 of 21 videos is missing for us.</li>
+    </ul></div>
+  </div>
+
+  <div class="pager"><a href="#results"><span>Previous</span>← Results</a><a href="#pianovam"><span>Next</span>Paper: PianoVAM →</a></div>
+</section>
+
+<!-- ================================================================ PIANOVAM -->
+<section id="pianovam" hidden>
+  <div class="kicker">Paper 2 of 3 · arXiv 2509.08800</div>
+  <h2>PianoVAM: the dataset paper</h2>
+  <div class="cite"><dl>
+    <dt>Title</dt><dd>PianoVAM: A Multimodal Piano Performance Dataset</dd>
+    <dt>Authors</dt><dd>Yonghyun Kim, Junhyung Park, Joonhyung Bae, Kirak Kim, Taegyun Kwon, Alexander Lerch, Juhan Nam</dd>
+    <dt>Venue</dt><dd>ISMIR 2025 (arXiv 10 Sep 2025)</dd>
+    <dt>Note</dt><dd>Kim, Nam and Lerch are also authors of V2N: the dataset and the state-of-the-art model come from the same group.</dd>
+    <dt>Link</dt><dd><a href="https://arxiv.org/abs/2509.08800" target="_blank" rel="noopener">arxiv.org/abs/2509.08800</a></dd>
+  </dl></div>
+
+  <h3>In one minute</h3>
+  <ul>
+    <li>A <b>dataset</b>, not a model: <b>106</b> solo recordings, about <b>21 hours</b>, <b>1,050,966 notes</b>, <b>10 amateur pianists</b> (70 recordings advanced, 26 intermediate, 10 beginner), practising on a <b>Yamaha Disklavier</b> — a piano that records every key as exact MIDI.</li>
+    <li>Every recording has: top-view <b>video 1080p at 60 fps</b>, audio (44.1 kHz, mono), <b>MIDI</b>, <b>hand landmarks</b> (MediaPipe Hands), semi-automatic <b>fingering labels</b> (about 95% precise on a checked sample), <b>keyboard corner points</b>, and metadata.</li>
+    <li>Audio, video and MIDI were aligned with a shared audio signal plus fine alignment by dynamic time warping (±2.5 s band).</li>
+    <li>Benchmarks in the paper: <b>audio-only</b> transcription and <b>audio + video</b> (video used as a filter). There is <b>no video-only</b> transcription experiment.</li>
+  </ul>
+
+  <h3>What we take from it</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>From PianoVAM</th><th>Where we use it</th></tr></thead>
+    <tbody>
+      <tr><td>Keyboard corner points</td><td>The perspective warp that makes our 1408 × 112 strip</td></tr>
+      <tr><td>TSV labels: onset, <code>key_offset</code></td><td>Training targets and test labels; <code>key_offset</code> = physical key release (what a camera can see)</td></tr>
+      <tr><td>Split file (<code>metadata</code>, v1.1)</td><td>train / ext-train / valid / test — the same 9 test recordings as V2N</td></tr>
+      <tr><td>Hand landmarks, fingering</td><td>Planned hand head (E7)</td></tr>
+    </tbody>
+  </table></div>
+  <div class="call info"><span class="tag">Two versions of the split</span>The paper describes a <b>73 / 19 / 14</b> file split (no piece in two splits; about 80/10/10 by duration). The current release that V2N and we use (v1.1) has 107 recordings: train + ext-train 81, valid 9, test 9, and 8 “special” ones (blurry or four hands). So the paper’s benchmark numbers are on a <b>different test set</b> from ours. The labels were also corrected on Hugging Face in March 2026 (offsets only; onsets unchanged) — our scores use the corrected labels, the same ones that reproduce V2N’s published numbers.</div>
+
+  <h3>Their numbers (exact)</h3>
+  <div class="two">
+    <div>
+      <h4>Table 4 · Audio-only (Onsets &amp; Frames), PianoVAM test, F1 %</h4>
+      <div class="tbl"><table>
+        <thead><tr><th>Trained on</th><th class="num">Note</th><th class="num">w/ Offset</th><th class="num">w/ Vel.</th><th class="num">Frame</th></tr></thead>
+        <tbody>
+          <tr><td>MAESTROv3</td><td class="num">93.4</td><td class="num">62.3</td><td class="num">90.3</td><td class="num">78.2</td></tr>
+          <tr><td>PianoVAM</td><td class="num b">95.8</td><td class="num">60.4</td><td class="num b">93.9</td><td class="num">80.0</td></tr>
+          <tr><td>Combined</td><td class="num">95.2</td><td class="num b">73.5</td><td class="num">93.0</td><td class="num b">86.9</td></tr>
+        </tbody>
+      </table></div>
+      <p class="tcap">“Note” = onset + pitch. Offsets here are pedal-adjusted: “adjusted to the pedal-release time if the sustain pedal remained engaged”. Computed over the whole test split (their 14 files).</p>
+    </div>
+    <div>
+      <h4>Table 5 · Onsets with bad audio, %</h4>
+      <div class="tbl"><table>
+        <thead><tr><th>Input</th><th>Method</th><th class="num">P</th><th class="num">R</th><th class="num">F1</th></tr></thead>
+        <tbody>
+          <tr><td>Noisy (0 dB)</td><td>vanilla</td><td class="num">96.0</td><td class="num">43.7</td><td class="num">57.2</td></tr>
+          <tr><td></td><td>+ noise aug.</td><td class="num">96.1</td><td class="num">82.8</td><td class="num">88.7</td></tr>
+          <tr><td></td><td>+ video</td><td class="num">97.2</td><td class="num">82.7</td><td class="num">89.2</td></tr>
+          <tr><td>Reverberant</td><td>vanilla</td><td class="num">66.8</td><td class="num">68.2</td><td class="num">64.4</td></tr>
+          <tr><td></td><td>+ video</td><td class="num">68.1</td><td class="num">67.8</td><td class="num">64.8</td></tr>
+        </tbody>
+      </table></div>
+      <p class="tcap">“+ video” removes notes that are physically impossible given the hands and keyboard seen in the video.</p>
+    </div>
+  </div>
+
+  <h3>Same or different?</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Point</th><th>PianoVAM paper (audio)</th><th>Us (video)</th><th>Comparable?</th></tr></thead>
+    <tbody>
+      <tr><td>Input</td><td>audio</td><td>video only</td><td class="no">different task</td></tr>
+      <tr><td>Test set</td><td>14 files (v1.0 split)</td><td>9 recordings (v1.1 split)</td><td class="no">different</td></tr>
+      <tr><td>Offset definition</td><td>pedal-adjusted (end of sound)</td><td>key release</td><td class="no">different</td></tr>
+      <tr><td>Onset tolerance</td><td>not stated (mir_eval default is 50 ms)</td><td>50 and 100 ms</td><td class="part">probably the same</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>What we do differently, and why</h3>
+  <ol>
+    <li><b>Video only.</b> The dataset paper uses video only to help audio. We show video alone can reach onset scores in the same range as audio — which is the point of visual transcription (silent practice pianos, noisy rooms, old videos).</li>
+    <li><b>Key-release offsets.</b> A camera sees the key come up, not the sound fade under the pedal, so we train and score with <code>key_offset</code>, like V2N.</li>
+    <li><b>We use the dataset’s hand data later</b> (E7) for the hand of each note — the dataset paper uses hands for fingering labels.</li>
+  </ol>
+
+  <h3>What we can say — and what not</h3>
+  <div class="two">
+    <div><h4 class="yes">We can say</h4><ul class="small">
+      <li>Our video-only onset F1 (95.3% at 50 ms, v1.1 test) is in the same range as the paper’s audio-only Onsets &amp; Frames trained on PianoVAM (95.8%) — as context, on different test files.</li>
+    </ul></div>
+    <div><h4 class="no">Not without a new experiment</h4><ul class="small">
+      <li>“Video matches audio.” That needs the audio model scored on the same 9 test recordings. It is a cheap, strong optional experiment (standard audio model, same split).</li>
+      <li>Any offset comparison — their offsets include the pedal.</li>
+    </ul></div>
+  </div>
+
+  <div class="pager"><a href="#ppan"><span>Previous</span>← Paper: PPAN</a><a href="#v2n"><span>Next</span>Paper: V2N →</a></div>
+</section>
+
+<!-- ================================================================ V2N -->
+<section id="v2n" hidden>
+  <div class="kicker">Paper 3 of 3 · arXiv 2608.03419</div>
+  <h2>V2N: the current state of the art</h2>
+  <div class="cite"><dl>
+    <dt>Title</dt><dd>Multi-Task Multi-Frame Visual Piano Transcription</dd>
+    <dt>Authors</dt><dd>Yonghyun Kim, Hoyeol Sohn, Juhan Nam, Alexander Lerch</dd>
+    <dt>Venue</dt><dd>Accepted to ISMIR 2026 (arXiv 4 Aug 2026)</dd>
+    <dt>Code</dt><dd><a href="https://github.com/yonghyunk1m/V2N" target="_blank" rel="noopener">github.com/yonghyunk1m/V2N</a> — includes predicted MIDI, which we used for the head-to-head test</dd>
+    <dt>Link</dt><dd><a href="https://arxiv.org/abs/2608.03419" target="_blank" rel="noopener">arxiv.org/abs/2608.03419</a></dd>
+  </dl></div>
+
+  <h3>In one minute</h3>
+  <ul>
+    <li><b>V2N</b> (“Video to Notes”) calls itself the first complete visual transcription system: onset, offset, <b>key hold</b> and <b>velocity</b>.</li>
+    <li>A <b>ResNet-18</b> (grayscale, trained from scratch) reads 5-frame windows of an <b>800 × 144</b> keyboard image at <b>25 fps</b>; three Conformer-style convolution blocks cover <b>1 second</b> (25 frames); four BiLSTM heads give the four outputs.</li>
+    <li><b>28.2 M parameters</b>, 125 GFLOPs per 1-second clip.</li>
+    <li>They retrained four older systems (S2S, V2R, PPAN, and the video branch of Li et al.) on PianoVAM and R3 and beat them all.</li>
+    <li>They show that <b>cross-dataset transfer collapses</b> (PianoVAM ↔ R3: 0–6%) and blame the geometry: their warp fixes the pixel grid, not the keyboard inside it (keyboard ~784 px wide on R3 vs ~606 px on PianoVAM).</li>
+  </ul>
+
+  <h3>How they do it</h3>
+  <div class="tbl"><table>
+    <tbody>
+      <tr><td class="b">Input</td><td>Perspective warp to 800 × 144 grayscale, 25 fps, 1-second windows</td></tr>
+      <tr><td class="b">Visual features</td><td>ResNet-18 from scratch with a learned slope prior and 5-frame aggregation (the S2S-style extractor)</td></tr>
+      <tr><td class="b">Temporal model</td><td>3 Conformer ConvModule blocks (no self-attention), kernel 31, over all 25 frames</td></tr>
+      <tr><td class="b">Heads</td><td>Onset, offset (soft triangular targets), key hold (binary), velocity (regression) — per-frame supervision</td></tr>
+      <tr><td class="b">Loss</td><td>2 × onset + offset + key hold + velocity</td></tr>
+      <tr><td class="b">Training</td><td>AdamW 5e-4, weight decay 0.01, cosine with 5% warm-up, bfloat16, batch 16, 100k steps on PianoVAM (200k on R3)</td></tr>
+      <tr><td class="b">Augmentation</td><td>brightness ±10%, rotation ±0.2°, random erasing, Gaussian noise</td></tr>
+      <tr><td class="b">Decoding</td><td>peaks above fixed thresholds 0.5; a note ends at the next offset peak or when onset and key hold both drop</td></tr>
+      <tr><td class="b">PianoVAM split</td><td>v1.1: train + ext-train (81) for training, valid 9, test 9 (1.63 h, 42,241 notes)</td></tr>
+      <tr><td class="b">Scoring</td><td>mir_eval; onset within τ ∈ {50, 100} ms; “++Off” = offset within the same τ; frame F1 on a 60 Hz grid; paired Wilcoxon one-sided, p &lt; 0.01</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Their numbers (exact)</h3>
+  <h4>Table 1 · Trained on PianoVAM, tested on PianoVAM (F1 %)</h4>
+  <div class="tbl"><table>
+    <thead><tr><th>Model</th><th class="num">Frame 60 Hz</th><th class="num">Onset 50</th><th class="num">Onset 100</th><th class="num">++Off 50</th><th class="num">++Off 100</th><th class="num">++Vel 50</th><th class="num">++Vel 100</th><th class="num">++Off++Vel 50</th><th class="num">++Off++Vel 100</th></tr></thead>
+    <tbody>
+      <tr><td>S2S</td><td class="num">41.7</td><td class="num">60.1</td><td class="num">94.5</td><td class="num">21.8</td><td class="num">49.6</td><td class="num">(39.4)</td><td class="num">(63.2)</td><td class="num">(14.3)</td><td class="num">(32.7)</td></tr>
+      <tr><td>V2R</td><td class="num">82.2</td><td class="num">86.5</td><td class="num">89.8</td><td class="num">55.4</td><td class="num">81.8</td><td class="num">(58.5)</td><td class="num">(60.4)</td><td class="num">(36.8)</td><td class="num">(54.6)</td></tr>
+      <tr><td>Li et al. (video branch)</td><td class="num">(25.2)</td><td class="num">94.2</td><td class="num">97.4</td><td class="num">(21.0)</td><td class="num">(40.0)</td><td class="num">(63.6)</td><td class="num">(65.2)</td><td class="num">(12.8)</td><td class="num">(25.8)</td></tr>
+      <tr><td>PPAN</td><td class="num">80.4</td><td class="num">84.9</td><td class="num">94.1</td><td class="num">45.9</td><td class="num">82.8</td><td class="num">(57.0)</td><td class="num">(62.5)</td><td class="num">(29.7)</td><td class="num">(55.3)</td></tr>
+      <tr><td class="b">V2N</td><td class="num">90.9*</td><td class="num">94.7</td><td class="num">97.0</td><td class="num">89.5*</td><td class="num">95.5*</td><td class="num">82.8*</td><td class="num">84.5*</td><td class="num">78.3*</td><td class="num">83.2*</td></tr>
+      <tr class="us"><td class="b">Ours (E1), same script</td><td class="num b">91.6</td><td class="num b">95.2</td><td class="num b">98.0</td><td class="num b">90.3</td><td class="num b">97.1</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+    </tbody>
+  </table></div>
+  <p class="tcap">V2N’s caption: parentheses = “degenerate/absent baseline head” (constant velocity; near-zero-length offsets for Li et al.); * = p &lt; 0.01 vs the runner-up, paired one-sided Wilcoxon, n = 9 on PianoVAM. All baselines were retrained from scratch by V2N. Note that V2N’s onset scores carry no star: they are not significantly above the runner-up (Li et al., which is even higher at 100 ms: 97.4). Our row comes from <code>score_midi</code> on the same 9 recordings; we predict no velocity.</p>
+
+  <details><summary>Table 1, R3 rows (trained on R3s + R3x)</summary>
+    <div class="tbl"><table>
+      <thead><tr><th>Model · test</th><th class="num">Frame</th><th class="num">On 50</th><th class="num">On 100</th><th class="num">++Off 50</th><th class="num">++Off 100</th><th class="num">++Vel 50</th><th class="num">++Vel 100</th><th class="num">++O++V 50</th><th class="num">++O++V 100</th></tr></thead>
+      <tbody>
+        <tr><td>S2S · R3s</td><td class="num">60.5</td><td class="num">44.0</td><td class="num">84.7</td><td class="num">17.2</td><td class="num">64.7</td><td class="num">(24.9)</td><td class="num">(46.5)</td><td class="num">(9.8)</td><td class="num">(35.2)</td></tr>
+        <tr><td>V2R · R3s</td><td class="num">54.7</td><td class="num">38.7</td><td class="num">76.1</td><td class="num">15.8</td><td class="num">54.9</td><td class="num">(21.6)</td><td class="num">(41.4)</td><td class="num">(8.8)</td><td class="num">(29.6)</td></tr>
+        <tr><td>PPAN · R3s</td><td class="num">57.0</td><td class="num">40.7</td><td class="num">83.4</td><td class="num">14.9</td><td class="num">60.3</td><td class="num">(23.4)</td><td class="num">(46.1)</td><td class="num">(8.7)</td><td class="num">(33.2)</td></tr>
+        <tr><td class="b">V2N · R3s</td><td class="num">80.4*</td><td class="num">78.8*</td><td class="num">91.7*</td><td class="num">69.5*</td><td class="num">88.9*</td><td class="num">57.9*</td><td class="num">65.9*</td><td class="num">51.2*</td><td class="num">64.1*</td></tr>
+        <tr><td>S2S · R3x</td><td class="num">58.7</td><td class="num">46.6</td><td class="num">83.9</td><td class="num">14.7</td><td class="num">63.6</td><td class="num">(33.5)</td><td class="num">(57.1)</td><td class="num">(10.3)</td><td class="num">(44.2)</td></tr>
+        <tr><td>V2R · R3x</td><td class="num">57.0</td><td class="num">46.4</td><td class="num">80.8</td><td class="num">14.9</td><td class="num">60.8</td><td class="num">(33.7)</td><td class="num">(55.7)</td><td class="num">(10.3)</td><td class="num">(42.6)</td></tr>
+        <tr><td>PPAN · R3x</td><td class="num">56.6</td><td class="num">47.7</td><td class="num">83.2</td><td class="num">13.9</td><td class="num">59.3</td><td class="num">(33.7)</td><td class="num">(57.0)</td><td class="num">(9.3)</td><td class="num">(41.3)</td></tr>
+        <tr><td class="b">V2N · R3x</td><td class="num">76.5*</td><td class="num">73.3*</td><td class="num">86.6*</td><td class="num">68.5*</td><td class="num">85.2*</td><td class="num">59.7*</td><td class="num">69.8*</td><td class="num">56.6*</td><td class="num">69.0*</td></tr>
+      </tbody>
+    </table></div>
+  </details>
+
+  <div class="two">
+    <div>
+      <h4>Table 4 · Cross-dataset transfer, onset F1 % (50 / 100 ms)</h4>
+      <div class="tbl"><table>
+        <thead><tr><th>Train → test</th><th class="num">S2S</th><th class="num">V2R</th><th class="num">PPAN</th><th class="num">V2N</th></tr></thead>
+        <tbody>
+          <tr><td>PianoVAM → R3s</td><td class="num">0.6/2.4</td><td class="num">0.3/0.5</td><td class="num">0.0/0.0</td><td class="num">1.5/5.6</td></tr>
+          <tr><td>PianoVAM → R3x</td><td class="num">0.2/1.8</td><td class="num">0.0/0.0</td><td class="num">0.0/0.0</td><td class="num">0.9/2.7</td></tr>
+          <tr><td>R3s+R3x → PianoVAM</td><td class="num">0.1/0.1</td><td class="num">0.0/0.0</td><td class="num">0.3/0.6</td><td class="num">1.1/4.9</td></tr>
+          <tr class="us"><td>Ours: PianoVAM → PianoYT (E3b)</td><td colspan="4" class="num">6.1 / 14.7 — different target dataset</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div>
+      <h4>Tables 2–3 · Ablations on PianoVAM (F1 %)</h4>
+      <div class="tbl"><table>
+        <thead><tr><th>Architecture step (window)</th><th class="num">Onset 50</th><th class="num">++Off 50</th><th class="num">++Vel 50</th></tr></thead>
+        <tbody>
+          <tr><td>Centre-frame loss (0.2 s)</td><td class="num">90.5</td><td class="num">78.5</td><td class="num">77.4</td></tr>
+          <tr><td>+ multi-frame loss (0.2 s)</td><td class="num">91.8</td><td class="num">83.0</td><td class="num">78.5</td></tr>
+          <tr><td>+ sequence model (0.2 s)</td><td class="num">94.3</td><td class="num">88.7</td><td class="num">80.5</td></tr>
+          <tr><td>+ longer context = V2N (1.0 s)</td><td class="num">94.7</td><td class="num">89.5</td><td class="num">82.8</td></tr>
+        </tbody>
+      </table></div>
+      <p class="tcap">Table 2 (heads): key hold alone already gives onset 92.8 / 95.2; adding velocity, onset and offset heads brings it to 94.7 / 97.0.</p>
+    </div>
+  </div>
+
+  <h3>Same or different?</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Point</th><th>V2N</th><th>Us</th><th>Comparable?</th></tr></thead>
+    <tbody>
+      <tr><td>Test recordings</td><td>PianoVAM v1.1 test, 9 recordings, 42,241 notes</td><td>the same 9, 42,241 notes</td><td class="yes">yes</td></tr>
+      <tr><td>Labels</td><td>PianoVAM (corrected)</td><td>the same — their released MIDI re-scores to their published onsets exactly</td><td class="yes">yes</td></tr>
+      <tr><td>Scoring</td><td>mir_eval, ++Off within τ, frame 60 Hz</td><td>the same rules (<code>score_midi</code>) on both systems’ MIDI</td><td class="yes">yes</td></tr>
+      <tr><td>Significance</td><td>Wilcoxon one-sided, n = 9</td><td>Wilcoxon two-sided, n = 9 (stricter)</td><td class="yes">yes</td></tr>
+      <tr><td>Training recordings</td><td>81</td><td>80 (2024-09-05_21-37-08 does not decode on our server)</td><td class="part">almost</td></tr>
+      <tr><td>Frame rate</td><td>25 fps</td><td>30 fps</td><td class="no">different</td></tr>
+      <tr><td>Input</td><td>grayscale 800 × 144, 5-frame windows, 1 s context</td><td>colour 1408 × 112, per-frame CNN, 32-frame clips</td><td class="no">different</td></tr>
+      <tr><td>Outputs</td><td>onset, offset, key hold, velocity</td><td>onset, frame</td><td class="no">they do more (velocity)</td></tr>
+      <tr><td>Thresholds</td><td>fixed 0.5</td><td>tuned on valid (0.90 / 0.70)</td><td class="no">different (both legitimate)</td></tr>
+      <tr><td>Size</td><td>28.2 M parameters</td><td>1.30 M</td><td class="no">22× smaller</td></tr>
+      <tr><td>Other datasets</td><td>R3 (in-domain + cross)</td><td>PianoYT (in-domain + cross)</td><td class="no">different</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>What we do differently, and why</h3>
+  <ol>
+    <li><b>We fix the keyboard, not only the pixel grid.</b> V2N names “geometry-invariant keyboard localization” as future work. Our warp maps the four keyboard corners to the full strip, so every key sits in the same 16-px column in every video — and our crop check confirms it on both datasets (median error 0.36 and 0.21 white keys).</li>
+    <li><b>…and show that geometry is not enough.</b> Our zero-shot still drops (14.7% at 100 ms). Our timing analysis explains part of it: a ~110 ms label delay on PianoYT (0.147 → 0.266 with one shift). The rest is appearance (pianos, light, cameras). V2N does not separate these causes; we can.</li>
+    <li><b>Per-key tiles instead of a global feature.</b> 1.3 M parameters instead of 28.2 M, with equal or better onset and offset scores on the same test.</li>
+    <li><b>PianoYT.</b> V2N does not use it. Clean vs noisy labels, fine-tuning and label sync are our territory.</li>
+    <li><b>Sync as a topic.</b> V2N found MIDI–video offsets above 200 ms in 70 of 895 R3 files (“all with MIDI preceding video”) and lists “joint sync alignment for noisy training data” as future work — that is our E6.</li>
+  </ol>
+
+  <h3>What we can say — and what not</h3>
+  <div class="two">
+    <div><h4 class="yes">We can say</h4><ul class="small">
+      <li>On the same 9 test recordings, labels and scoring script, our 1.3 M model matches V2N at 50 ms (95.2 vs 94.7, p = 0.91) and beats it at 100 ms (98.0 vs 97.0, p = 0.008) and on onset + offset at 100 ms (97.1 vs 95.5, p = 0.004).</li>
+      <li>Our 98.0 at 100 ms is above every number in V2N’s table (best: Li et al. video branch, 97.4) — but we only tested significance against V2N.</li>
+    </ul></div>
+    <div><h4 class="no">We cannot say</h4><ul class="small">
+      <li>“Better than V2N at 50 ms” — it is a tie.</li>
+      <li>“Better overall” — V2N also predicts velocity (82.8 / 84.5) and was tested on R3; we did neither.</li>
+      <li>Anything strong from n = 9 alone: say “on the 9 test recordings”, and add PianoYT and the ablations as extra evidence.</li>
+    </ul></div>
+  </div>
+
+  <div class="pager"><a href="#pianovam"><span>Previous</span>← Paper: PianoVAM</a><a href="#variables"><span>Next</span>Variables →</a></div>
+</section>
+
+<!-- ================================================================ VARIABLES -->
+<section id="variables" hidden>
+  <h2>What every variable means</h2>
+  <p>Every word and number you see in <code>report.sh</code> and in the result files, with the real values from today as examples.</p>
+
+  <h3>Training lines (<code>===== trainings</code>)</h3>
+  <div class="code"><pre>=== yt_finetune  [RUNNING (pid 3421525)] ===
+    epoch 2:  35%|███▍      | 2228/6386 [20:57&lt;59:10,  1.17it/s, loss=0.1840, lr=1.89e-04]
+    [epoch 1] valid {'onset_f1': 0.3103, 'frame_f1': 0.5105, 'onset_p': 0.2184, 'onset_r': 0.5362,
+                     'onset_f1_best': 0.3209, 'onset_thr_best': 0.6, 'frame_f1_best': 0.5173, 'frame_thr_best': 0.4}</pre></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Item</th><th>Example</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>yt_finetune</code></td><td></td><td>Run name = folder <code>runs/yt_finetune/</code>.</td></tr>
+      <tr><td><code>RUNNING (pid …)</code> / <code>stopped/done</code></td><td>pid 3421525</td><td>Whether the training process is alive. “stopped/done” cannot tell finished from killed — look at the last epoch.</td></tr>
+      <tr><td><code>epoch 2</code></td><td>2</td><td>Which pass over the training data. Counting starts at 0, so this is the 3rd of 12.</td></tr>
+      <tr><td><code>35%</code>, <code>2228/6386</code></td><td></td><td>Steps done in this epoch / steps per epoch. One step = one batch of 8 clips × 32 frames.</td></tr>
+      <tr><td><code>[20:57&lt;59:10]</code></td><td></td><td>Time spent in this epoch &lt; estimated time left in it.</td></tr>
+      <tr><td><code>1.17it/s</code> (or <code>s/it</code>)</td><td>1.17</td><td>Steps per second (or seconds per step). Alone on the GPU this run did 2.87.</td></tr>
+      <tr><td><code>loss</code></td><td>0.1840</td><td>Training error of the latest batches (onset + frame cross-entropy). Lower = fits the training labels better. Compare only inside one run: PianoYT’s loss is always higher because its labels are noisier.</td></tr>
+      <tr><td><code>lr</code></td><td>1.89e-04</td><td>Learning rate now: how big each weight update is. It rises during warm-up, then falls along a cosine curve.</td></tr>
+      <tr><td><code>[epoch 1] valid</code></td><td></td><td>Scores on the valid split after epoch 1, <b>per frame</b> on 32-frame clips (see the box below).</td></tr>
+      <tr><td><code>onset_f1</code></td><td>0.3103</td><td>F1 of the onset output at threshold 0.5. The target marks the 2 frames where each note starts.</td></tr>
+      <tr><td><code>frame_f1</code></td><td>0.5105</td><td>F1 of “key is down” at threshold 0.5.</td></tr>
+      <tr><td><code>onset_p</code>, <code>onset_r</code></td><td>0.2184, 0.5362</td><td>Precision and recall behind <code>onset_f1</code>. Low precision + higher recall = the model marks too many frames as onsets at 0.5 (expected: onsets have positive weight 8).</td></tr>
+      <tr><td><code>onset_f1_best</code>, <code>onset_thr_best</code></td><td>0.3209 at 0.6</td><td>Best onset F1 over thresholds 0.1 … 0.9, and where. <b>This picks <code>best.pt</code>.</b></td></tr>
+      <tr><td><code>frame_f1_best</code>, <code>frame_thr_best</code></td><td>0.5173 at 0.4</td><td>The same for the frame output.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="call info"><span class="tag">Per frame ≠ per note</span>Validation scores count every key × every frame. A note detected one frame late is two wrong frames here, but a correct note in the test score (50 ms = 1.5 frames of tolerance). That is why vam_full’s best valid onset F1 is 0.814 while its test note F1 is 0.953. Use valid numbers to compare epochs of <em>one</em> run, never to compare with papers.</div>
+
+  <h3>Evaluation lines (<code>===== evaluations</code>)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Line</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>--- E2_yt_full [RUNNING]</code></td><td>Evaluation name and state. New since <code>5279b5b</code>: <code>[WAITING for another evaluation]</code> when it queues behind another one.</td></tr>
+      <tr><td><code>calibrating on valid (target onset_f1)</code></td><td>Step 1: find the best thresholds on the valid split. <b>Target</b> = which score to maximise: <code>onset_f1</code> (onset + pitch; used for PianoYT because its offsets include the pedal) or <code>full_f1</code> (onset + offset + pitch; used for PianoVAM, whose offsets are real key releases).</td></tr>
+      <tr><td><code>calibration progress: 21 videos predicted, 18 thresholds tried</code></td><td>While running: valid videos already passed through the model, and threshold pairs already scored.</td></tr>
+      <tr><td><code>reusing the thresholds calibrated in …</code></td><td>No calibration: thresholds copied from another run (E3a, E5a — “the thresholds of the training dataset”).</td></tr>
+      <tr><td><code>scoring test with onset=0.90 frame=0.70</code></td><td>Step 2: the test split, with those thresholds.</td></tr>
+      <tr><td><code>headline: Note F1 (onset+pitch, 50 ms) = 0.9528 | 100 ms = 0.9797</code></td><td>The two main numbers: mean over test recordings.</td></tr>
+      <tr><td><code>FAILED: calibration -- see …</code></td><td>The step crashed; the named file says why (E5b: “CUDA out of memory”).</td></tr>
+      <tr><td><code>best timing: centroid, shift -10 ms, black keys -10 ms more (onset_f1 … -&gt; …)</code></td><td>(TIMING=1) The result of the timing search on valid: the onset rule (<code>first</code> frame above the threshold, or <code>centroid</code> = sub-frame centre of the onset peak), one shift for all keys, and an extra shift for black keys — with the valid F1 before → after.</td></tr>
+      <tr><td><code>decode settings: decode.onset_threshold=… decode.onset_timing=…</code></td><td>The complete decoding used on test when it includes timing settings.</td></tr>
+      <tr><td><code>loaded rolls for …</code></td><td>The model’s outputs for that recording were read from <code>rolls/</code> instead of running the model again.</td></tr>
+      <tr><td><code>=== … done</code></td><td>Finished, with the time.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Queue, GPU and disk lines</h3>
+  <div class="tbl"><table>
+    <tbody>
+      <tr><td><code>waiting for 'E2_yt_full' (pid 3588908)</code></td><td><code>after.sh</code> is waiting for that job to end.</td></tr>
+      <tr><td><code>'yt_full' finished; running: …</code></td><td>The waited-for job ended and the queued command started.</td></tr>
+      <tr><td><code>done (exit 0)</code></td><td>The queued command was <em>launched</em> without error. Evaluations and trainings run in the background, so this means “started”, not “finished”.</td></tr>
+      <tr><td><code>98 %, 17866 MiB, 24576 MiB</code></td><td>GPU busy right now (one instant — 0% can appear between batches), GPU memory used by all jobs, total GPU memory (24 GB).</td></tr>
+      <tr><td><code>raid_storage 1,8T 1,7T 82G 96%</code></td><td>Disk size, used, free, percent used. 82 GB free: enough for results, not for new strip caches.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Result files</h3>
+  <div class="code"><pre>2024-02-14_19-55-17: onset_f1@50=0.963 @100=0.981 | onset+offset_f1=0.919 | frame_f1=0.925 (ref=5629 est=5509, 755s)</pre></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Item</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>onset_f1@50</code>, <code>@100</code></td><td>Note F1: right pitch and onset within ±50 / ±100 ms.</td></tr>
+      <tr><td><code>onset+offset_f1</code></td><td>Note F1 that also needs the offset right (mir_eval default rule), at 50 ms.</td></tr>
+      <tr><td><code>frame_f1</code></td><td>“Key down” F1 on a 30 fps grid (in <code>score_midi</code>: 60 Hz).</td></tr>
+      <tr><td><code>ref</code> / <code>est</code> / <code>755s</code></td><td>True notes / predicted notes / length of the video in seconds.</td></tr>
+      <tr><td><code>P</code>, <code>R</code>, <code>F1</code></td><td>Precision: of the notes we played, the share that is right. Recall: of the true notes, the share we found. F1 = 2·P·R / (P + R), one number that is high only if both are.</td></tr>
+      <tr><td><code>[mir_eval default offset]</code></td><td>Offset must be within 20% of the note’s length, or 50 ms if that is larger.</td></tr>
+      <tr><td><code>[offset within 50 ms]</code></td><td>Offset within the same tolerance as the onset — V2N’s stricter “++Off”.</td></tr>
+      <tr><td><code>evaluated 20 recording(s) … skipped 1</code></td><td>How many test videos were scored; skipped = video missing or not decodable (163).</td></tr>
+      <tr><td>CSV: <code>full_*</code> / <code>offtol_*</code></td><td>Per-recording P / R / F1 with the default offset rule / the “within τ” rule.</td></tr>
+      <tr><td><code>predicted rolls for 101 (28785 frames, 9166 ref notes in window)</code></td><td>Calibration ran the model on valid video 101: 28,785 frames at 30 fps (16 min), with 9,166 true notes.</td></tr>
+      <tr><td><code>onset 0.50 frame 0.50: onset_f1 0.3573 full_f1 0.1178</code></td><td>Valid note F1 at 50 ms for that threshold pair.</td></tr>
+      <tr><td><code>skipped (cannot exceed 0.879)</code></td><td>That pair predicts so many (or few) notes that even perfect matching could not beat the current best, so it is not scored. Exact, not an approximation.</td></tr>
+      <tr><td><code>Wilcoxon p</code></td><td>Paired test over the recordings: how likely a difference this consistent is by luck. Below 0.05 we call it significant.</td></tr>
+      <tr><td><code>pred beats baseline … in 6/9 recordings</code></td><td>In how many test recordings ours is higher.</td></tr>
+      <tr><td><code>err_A0_end_keys</code>, <code>err_C8_end_keys</code></td><td>(alignment CSV) How far the crop’s left / right end is from the real keyboard end, in white keys.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Concepts</h3>
+  <div class="tbl"><table>
+    <tbody>
+      <tr><td class="b">Onset / offset</td><td>The moment a key goes down / comes up.</td></tr>
+      <tr><td class="b">Frame (output)</td><td>“Is this key down at this moment?” — one yes/no per key per 1/30 s.</td></tr>
+      <tr><td class="b">Tolerance</td><td>How far in time a predicted onset may be from the true one and still count. 50 ms ≈ 1.5 frames at 30 fps; 100 ms ≈ 3 frames.</td></tr>
+      <tr><td class="b">Threshold</td><td>A probability above which we say “yes”. Calibration = choosing it on valid.</td></tr>
+      <tr><td class="b">Train / valid / test</td><td>Learn from train; choose epochs and thresholds on valid; report test, touched once.</td></tr>
+      <tr><td class="b">Epoch, step, clip</td><td>Epoch = one pass over the training clips; step = one batch; clip = 32 consecutive frames of one video.</td></tr>
+      <tr><td class="b"><code>best.pt</code> / <code>last.pt</code></td><td>Weights of the best-valid epoch / of the latest epoch (used to resume).</td></tr>
+      <tr><td class="b">From scratch</td><td>Training starts from random weights.</td></tr>
+      <tr><td class="b">Zero-shot</td><td>Testing on a dataset the model never trained on.</td></tr>
+      <tr><td class="b">Fine-tuning</td><td>Continue training a model on a new dataset, usually with a smaller learning rate.</td></tr>
+      <tr><td class="b">Strip, warp, corners</td><td>The flattened keyboard image; the perspective transform that makes it; the 4 keyboard corners that define it.</td></tr>
+      <tr><td class="b">Tile / ROI</td><td>One of the 88 key columns of the strip.</td></tr>
+      <tr><td class="b">Strip cache</td><td>Pre-computed strips on disk, so training does not decode videos (51 GB for PianoYT).</td></tr>
+      <tr><td class="b">Label offset / sync</td><td>A constant time shift between video and labels. <code>data.label_offsets</code> can correct it per video.</td></tr>
+      <tr><td class="b">Parameters</td><td>The numbers (weights) the model learns. Ours: 1,299,491.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="pager"><a href="#v2n"><span>Previous</span>← Paper: V2N</a><a href="#next"><span>Next</span>Next steps &amp; logs →</a></div>
+</section>
+
+<!-- ================================================================ NEXT -->
+<section id="next" hidden>
+  <h2>Next steps, commands and logs</h2>
+  <p>Run these in PuTTY on gondor. Each block can be pasted as is. Every evaluation-type GPU job waits its turn automatically.</p>
+
+  <h3>What to change — and what not</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Area</th><th>Change?</th><th>Why (evidence)</th></tr></thead>
+    <tbody>
+      <tr><td>PianoVAM key detection (warp, corners, black keys)</td><td class="yes">No</td><td>Only 19 of 42,241 notes are wrong-key errors (R10); crop check 98/98 OK.</td></tr>
+      <tr><td>Onset timing, both datasets</td><td class="no">Yes — decoding only</td><td>Half of the 50 ms errors are timing; black keys are seen ~12 ms late (R10); fixed offsets per recording (R8). New: <code>TIMING=1</code>.</td></tr>
+      <tr><td>PianoYT training labels</td><td class="no">Yes — E6</td><td>Per-video offsets (302: +130–150 ms) and a large 50 → 100 ms gap in E2 (0.392 → 0.639). <code>sync_check</code> + <code>configs/yt_sync.yaml</code>.</td></tr>
+      <tr><td>Zero-shot scoring</td><td class="no">Yes — E3c</td><td>PianoYT labels sit ~110 ms after the key press a PianoVAM model sees (R8); the shift must be chosen on valid.</td></tr>
+      <tr><td>Model size, more epochs</td><td class="yes">No, for now</td><td>Validation curves are flat; the strip ablation (A1) tests the architecture.</td></tr>
+      <tr><td>Hands</td><td class="no">Start now, on the CPU</td><td>Labels published (v1.2); a first baseline already works once the mirrored tags are swapped (R11).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>1 · Get the new code</h3>
+  <div class="code"><pre>cd /home/achatzigiannis/tivit_pianoyt/vision_transcription
+source /home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/.venv/bin/activate
+git pull</pre></div>
+  <p class="small muted">Safe while jobs run. New: the onset-timing search (<code>TIMING=1</code>), model outputs kept in <code>rolls/&lt;name&gt;/</code> (so the same run can be re-decoded without the GPU), <code>configs/yt_sync.yaml</code>, and this report in <code>reports/</code>.</p>
+
+  <h3>2 · Tonight: the two timing evaluations (they queue behind E5)</h3>
+  <div class="code"><pre><span class="cm"># E1t: PianoVAM, onset timing tuned on valid, compared with V2N again</span>
+TIMING=1 BASELINE_MIDI=~/V2N/predicted_midi/pianovam_test bash scripts/evaluate_run.sh E1t_vam_timing configs/vam_full.yaml runs/vam_full/best.pt full_f1
+<span class="cm"># E3c: fair zero-shot: the time shift is chosen on PianoYT valid (wide range)</span>
+DATA_CONFIG=configs/yt_full.yaml TIMING=1 TIMING_GRID=-0.05:0.20:0.01 bash scripts/evaluate_run.sh E3c_zeroshot_timing configs/vam_full.yaml runs/vam_full/best.pt onset_f1</pre></div>
+  <p class="small muted">Each needs one model pass over valid and test (~2–3 h). <code>bash scripts/report.sh</code> shows them as WAITING, then RUNNING. The saved outputs take ~50–150 MB per run in <code>rolls/</code>; <code>rm -rf rolls/&lt;name&gt;</code> frees them.</p>
+
+  <h3>3 · Tonight: download the hand labels (CPU only, ~30 MB)</h3>
+  <div class="code"><pre>pip install -q huggingface_hub
+python - &lt;&lt;'EOF'
+from huggingface_hub import snapshot_download
+snapshot_download("PianoVAM/PianoVAM_v1.0", repo_type="dataset",
+                  allow_patterns=["Fingering/*", "Fingering_GT/*"],
+                  local_dir="/raid_storage/data_achatzigiannis/PianoVAM_v1.0")
+EOF
+ls /raid_storage/data_achatzigiannis/PianoVAM_v1.0/Fingering | wc -l
+ls /raid_storage/data_achatzigiannis/PianoVAM_v1.0/Fingering_GT | wc -l</pre></div>
+  <p class="small muted">Expected: 106 and 11 files. Only the two new folders are added.</p>
+
+  <h3>4 · Tomorrow morning: measure the PianoYT sync (E6, step 1)</h3>
+  <div class="code"><pre>PYTHONUNBUFFERED=1 nohup flock logs/.evaluate.lock python -m pianovam_vision.sync_check \
+    --config configs/yt_full.yaml --checkpoint runs/yt_full/best.pt \
+    --csv results/sync_yt.csv --write_offsets results/pianoyt_label_offsets.json \
+    decode.onset_threshold=0.50 decode.frame_threshold=0.70 &gt; logs/E6_sync_check.log 2&gt;&amp;1 &amp;
+echo $! &gt; logs/E6_sync_check.pid</pre></div>
+  <p class="small muted">~6 h (2 minutes of every PianoYT video); it waits for any evaluation still running. Then queue the E6 training behind the strip ablation (this works once <code>runs/vam_strip/</code> exists): <code>bash scripts/after.sh vam_strip "CONFIG=configs/yt_sync.yaml bash scripts/run_experiment.sh yt_sync tiled"</code>.</p>
+
+  <h3>5 · Check before you sleep</h3>
+  <div class="code"><pre>bash scripts/report.sh</pre></div>
+  <p class="small">You should see: <b>yt_finetune</b> RUNNING; <b>E5a_reverse</b> RUNNING (or finished); <b>E5b_reverse</b>, <b>E1t_vam_timing</b> and <b>E3c_zeroshot_timing</b> WAITING or RUNNING; <b>after_yt_finetune.log</b> “waiting for …”.</p>
+
+  <h3>6 · What happens next (automatically)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>When (estimate)</th><th>What</th></tr></thead>
+    <tbody>
+      <tr><td>Tonight</td><td>E5a → E5b → E1t → E3c, one at a time (~1–3 h each; the order among waiting jobs can vary)</td></tr>
+      <tr><td>~1–3 am</td><td>Fine-tuning ends → E4 evaluation joins the queue; the strip ablation (A1) starts training (~20 h)</td></tr>
+      <tr><td>Tomorrow, late morning</td><td>E4, E5, E1t, E3c done — the complete E1–E5 picture, plus the timing results</td></tr>
+      <tr><td>Tomorrow</td><td>sync check (~6 h); E6 training queued behind A1</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>7 · What to send me</h3>
+  <ol>
+    <li><b>Tomorrow morning:</b> make the training-curve files, then download (commands below).</li>
+    <li><b>When the sync check is done:</b> <code>tail -n 40 logs/E6_sync_check.log</code></li>
+  </ol>
+  <div class="code"><pre><span class="cm"># on the server: one clean file per training run with all epoch lines</span>
+for r in vam_full yt_full yt_finetune; do tr -d '\000' &lt; runs/$r/train.log | tr '\r' '\n' | grep -aE "recordings=|^\[epoch [0-9]+\]" &gt; results/${r}_epochs.txt; done
+bash scripts/report.sh | tee results/report.txt</pre></div>
+  <div class="code"><pre><span class="cm"># on your PC, in PowerShell</span>
+pscp -r achatzigiannis@195.251.56.65:/home/achatzigiannis/tivit_pianoyt/vision_transcription/results C:\Users\User\Desktop\PHD\server
+pscp -r achatzigiannis@195.251.56.65:/home/achatzigiannis/tivit_pianoyt/vision_transcription/logs C:\Users\User\Desktop\PHD\server
+pscp -r achatzigiannis@195.251.56.65:/home/achatzigiannis/tivit_pianoyt/vision_transcription/out C:\Users\User\Desktop\PHD\server</pre></div>
+  <p class="small muted">Do not download <code>runs/</code> (checkpoints) or <code>rolls/</code> (saved model outputs): both are large.</p>
+
+  <h3>8 · Where every log lives</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>What</th><th>File (inside <code>vision_transcription/</code>)</th><th>Watch it live</th></tr></thead>
+    <tbody>
+      <tr><td>One-screen overview</td><td><code>bash scripts/report.sh</code></td><td><code>watch -n 60 bash scripts/report.sh</code></td></tr>
+      <tr><td>Training progress</td><td><code>runs/&lt;name&gt;/train.log</code></td><td><code>tail -f runs/yt_finetune/train.log</code></td></tr>
+      <tr><td>Checkpoints (don’t download)</td><td><code>runs/&lt;name&gt;/best.pt</code>, <code>last.pt</code></td><td></td></tr>
+      <tr><td>Evaluation progress</td><td><code>logs/&lt;name&gt;.log</code></td><td><code>tail -f logs/E1t_vam_timing.log</code></td></tr>
+      <tr><td>Threshold + timing search</td><td><code>results/&lt;name&gt;_calibrate.txt</code></td><td><code>tail -f results/E1t_vam_timing_calibrate.txt</code></td></tr>
+      <tr><td>Test scores</td><td><code>results/&lt;name&gt;_test.txt</code> and <code>.csv</code></td><td></td></tr>
+      <tr><td>Comparison with V2N</td><td><code>results/&lt;name&gt;_vs_baseline.txt</code> and <code>.csv</code></td><td></td></tr>
+      <tr><td>Predicted MIDI</td><td><code>out/&lt;name&gt;_test/*.mid</code></td><td></td></tr>
+      <tr><td>Saved model outputs (don’t download)</td><td><code>rolls/&lt;name&gt;/valid</code>, <code>rolls/&lt;name&gt;/test</code></td><td></td></tr>
+      <tr><td>PianoYT sync check (E6)</td><td><code>logs/E6_sync_check.log</code>, <code>results/sync_yt.csv</code>, <code>results/pianoyt_label_offsets.json</code></td><td><code>tail -f logs/E6_sync_check.log</code></td></tr>
+      <tr><td>Queued commands</td><td><code>logs/after_&lt;name&gt;.log</code></td><td><code>cat logs/after_yt_finetune.log</code></td></tr>
+      <tr><td>Phase 0, dataset checks</td><td><code>logs/phase0.log</code>, <code>results/phase0_*.txt</code>, <code>results/alignment_*.csv</code></td><td></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>9 · The plan after that</h3>
+  <ol>
+    <li><b>Read E4, E5, E1t, E3c</b> (tomorrow): E4 against PPAN’s 0.68 and E2’s 0.639; E1t against V2N at 50 ms; E3c = the fair zero-shot number.</li>
+    <li><b>E6 — PianoYT sync</b>: sync check → train <code>yt_sync</code> → evaluate on the <em>original</em> test labels (<code>DATA_CONFIG=configs/yt_full.yaml</code>), so it stays comparable with E2 and PPAN.</li>
+    <li><b>E7 — hands</b>: (a) swap the mirrored tags in <code>hands.py</code>; (b) a hand for every predicted note of the whole test split, scored on the automatic labels and on the 300 manual test notes; (c) fingers 1–5; (d) a learned head only if it beats the 97.7% of the fingertip rule.</li>
+    <li><b>Ablations</b>: A1 strip vs tiles (queued), no augmentation, 360p (needs disk space).</li>
+    <li><b>Optional</b>: an audio-only model on the same 9 PianoVAM test recordings, to say “video vs audio” fairly.</li>
+  </ol>
+
+  <h3>10 · The paper’s story, as it stands</h3>
+  <ol>
+    <li>A 1.3 M-parameter per-key model matches or beats the state of the art (V2N, 28.2 M) on PianoVAM, on the same test and scoring.</li>
+    <li>The training recipe matters as much as the architecture (84 → 95% with the same model).</li>
+    <li>On PianoYT, trained from scratch, it reaches 0.639 at 100 ms — the level of R3-pre-trained S2S/V2R; E4 tests clean pre-training against PPAN’s 0.68.</li>
+    <li>Cross-dataset: the warp solves per-key geometry, but that is not enough; more than a third of the zero-shot gap is label timing (~110 ms), the rest is appearance.</li>
+    <li>Timing decides the 50 ms score: black keys are seen ~12 ms later; timing tuned on valid (E1t, E3c).</li>
+    <li>Sync-corrected PianoYT labels (E6) and the audit document the dataset’s problems.</li>
+    <li>Hands: PianoVAM’s skeleton tags are mirrored; with them fixed, notes + hands reach 97.7–100% hand accuracy on manual labels; E7 adds fingers and the hard cases.</li>
+  </ol>
+
+  <div class="pager"><a href="#variables"><span>Previous</span>← Variables</a><a href="#summary"><span>Back to start</span>Summary →</a></div>
+</section>
+</main>
+
+<footer class="wrap">Numbers: parsed by script from the files you downloaded on 29 Sep 2026 (report.sh, results/, logs/, out/). Papers: arXiv 2411.09037v2, 2509.08800v1, 2608.03419v1; tables extracted twice and compared. Timing analysis: mir_eval on the downloaded MIDI, run on your PC.</footer>
+
+<script>
+// ------------------------------------------------------------- navigation
+(function(){
+  const PAGES=['summary','method','results','ppan','pianovam','v2n','variables','next'];
+  function show(id, scroll){
+    let target=null;
+    if(!PAGES.includes(id)){ const el=id&&document.getElementById(id); const sec=el&&el.closest('section'); if(sec){target=el; id=sec.id;} else id='summary'; }
+    PAGES.forEach(p=>{ document.getElementById(p).hidden=(p!==id); });
+    document.querySelectorAll('nav.tabs a').forEach(a=>a.setAttribute('aria-current', a.getAttribute('href')==='#'+id?'page':'false'));
+    const cur=document.querySelector('nav.tabs a[aria-current="page"]'); if(cur&&cur.scrollIntoView) cur.scrollIntoView({block:'nearest',inline:'nearest'});
+    if(target) target.scrollIntoView(); else if(scroll) window.scrollTo(0, document.querySelector('nav.tabs').offsetTop);
+  }
+  window.addEventListener('hashchange',()=>show(location.hash.slice(1), true));
+  show(location.hash.slice(1), false);
+  document.querySelectorAll('.code').forEach(box=>{
+    const b=document.createElement('button'); b.className='copy'; b.type='button'; b.textContent='Copy';
+    b.addEventListener('click',async()=>{
+      const pre=box.querySelector('pre');
+      try{ await navigator.clipboard.writeText(pre.innerText); b.textContent='Copied'; }
+      catch(e){ const r=document.createRange(); r.selectNodeContents(pre); const s=getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent='Selected: Ctrl+C'; }
+      setTimeout(()=>{b.textContent='Copy';},2200);
+    });
+    box.appendChild(b);
+  });
+})();
+</script>
+<script>
+// ------------------------------------------------------------- charts
+const D = {"vam":[[0,0.752,0.8635,0.6637,0.863,0.105,70.4],[1,0.7816,0.893,0.6677,0.8879,0.0414,55.1],[2,0.783,0.8943,0.6899,0.8912,0.0355,53.5],[3,0.7918,0.9071,0.6865,0.902,0.0323,50.2],[4,0.7915,0.9027,0.7018,0.898,0.0302,46.7],[5,0.8027,0.9107,0.7005,0.9035,0.0284,47.0],[6,0.7742,0.8984,0.6771,0.8887,0.0273,47.4],[7,0.7945,0.9047,0.7045,0.899,0.026,47.0],[8,0.797,0.9094,0.7134,0.9013,0.0252,52.0],[9,0.8003,0.9123,0.7185,0.9038,0.0244,48.0],[10,0.813,0.9176,0.7454,0.914,0.0235,47.3],[11,0.8097,0.9158,0.7368,0.9113,0.0228,47.6],[12,0.8015,0.9114,0.737,0.9073,0.0222,47.2],[13,0.804,0.9166,0.7377,0.9111,0.0216,47.2],[14,0.814,0.9196,0.7483,0.9147,0.021,47.1],[15,0.8088,0.9176,0.7442,0.9124,0.0203,47.2],[16,0.8037,0.9153,0.7459,0.9121,0.0199,47.2],[17,0.8112,0.9182,0.7524,0.9151,0.0194,46.9],[18,0.8097,0.9186,0.7568,0.9165,0.019,46.9],[19,0.8087,0.9185,0.7563,0.9142,0.0186,47.0],[20,0.8111,0.9188,0.7569,0.9148,0.0185,47.0],[21,0.8132,0.9196,0.759,0.9166,0.0182,47.0],[22,0.8068,0.9177,0.7579,0.9148,0.018,46.9],[23,0.8084,0.9183,0.7585,0.9151,0.0179,47.2],[24,0.8137,0.9196,0.7639,0.9172,0.0178,46.9]],"yt":[[0,0.3097,0.5079,0.3039,0.4897,0.2713,55.3],[1,0.2693,0.4688,0.2601,0.4597,0.1991,69.3],[2,0.3133,0.5181,0.2983,0.5153,0.1834,69.6],[3,0.3311,0.5325,0.3153,0.5314,0.1748,68.8],[4,0.3061,0.5256,0.296,0.5216,0.1686,64.3],[5,0.3392,0.5532,0.3284,0.5525,0.1649,67.9],[6,0.3513,0.556,0.341,0.5556,0.1594,70.9],[7,0.3482,0.5557,0.3396,0.5557,0.1564,67.0],[8,0.3453,0.5529,0.3316,0.5513,0.1527,71.3],[9,0.3361,0.544,0.3247,0.544,0.1507,68.7],[10,0.34,0.5436,0.3299,0.5436,0.1478,61.5],[11,0.3456,0.5605,0.3377,0.5605,0.1459,55.9],[12,0.3541,0.561,0.3451,0.5585,0.1434,48.7],[21,0.3542,0.5602,0.3433,0.5602,null,null],[24,0.3505,0.5605,0.3404,0.5605,null,null]],"ft":[[0,0.336,0.536],[1,0.3209,0.5173],[5,0.3422,0.5543]],"e1":[{"rec":"2024-02-14_19-55-17","s":"02-14 19:55","ref":5629,"est":5509,"sec":755,"f50":0.9627,"f100":0.9811,"ot50":0.914,"frame":0.9249,"s50":0.9625,"s100":0.9811,"so50":0.9117,"so100":0.9711,"sf":0.9149,"v50":0.9359,"v100":0.9573,"vo50":0.8641,"vo100":0.9395,"vf":0.884,"o50":0.7368,"o100":0.8859},{"rec":"2024-02-14_20-10-08","s":"02-14 20:10","ref":9357,"est":9210,"sec":1300,"f50":0.9317,"f100":0.9858,"ot50":0.8053,"frame":0.8565,"s50":0.9278,"s100":0.9858,"so50":0.7979,"so100":0.9759,"sf":0.8564,"v50":0.9649,"v100":0.9717,"vo50":0.8415,"vo100":0.9537,"vf":0.8862,"o50":0.8403,"o100":0.8842},{"rec":"2024-02-15_20-17-26","s":"02-15 20:17","ref":5045,"est":4982,"sec":536,"f50":0.9827,"f100":0.9833,"ot50":0.966,"frame":0.9263,"s50":0.9827,"s100":0.9833,"so50":0.9648,"so100":0.9804,"sf":0.9104,"v50":0.9454,"v100":0.9729,"vo50":0.9283,"vo100":0.9655,"vf":0.8741,"o50":0.8425,"o100":0.8795},{"rec":"2024-02-15_20-47-59","s":"02-15 20:47","ref":1662,"est":1654,"sec":308,"f50":0.9783,"f100":0.9807,"ot50":0.9331,"frame":0.8899,"s50":0.9783,"s100":0.9807,"so50":0.9324,"so100":0.9765,"sf":0.8866,"v50":0.9562,"v100":0.9693,"vo50":0.9425,"vo100":0.9651,"vf":0.8982,"o50":0.8947,"o100":0.9057},{"rec":"2024-02-17_21-44-37","s":"02-17 21:44","ref":563,"est":536,"sec":178,"f50":0.8735,"f100":0.9718,"ot50":0.7934,"frame":0.947,"s50":0.8717,"s100":0.9718,"so50":0.7898,"so100":0.9609,"sf":0.9465,"v50":0.9446,"v100":0.9718,"vo50":0.8919,"vo100":0.9519,"vf":0.9551,"o50":0.7912,"o100":0.8319},{"rec":"2024-09-02_14-10-41","s":"09-02 14:10","ref":1292,"est":1222,"sec":293,"f50":0.9133,"f100":0.9682,"ot50":0.8656,"frame":0.9418,"s50":0.9109,"s100":0.9682,"so50":0.864,"so100":0.9531,"sf":0.9385,"v50":0.9532,"v100":0.9619,"vo50":0.8644,"vo100":0.935,"vf":0.922,"o50":0.823,"o100":0.8524},{"rec":"2024-09-02_21-04-45","s":"09-02 21:04","ref":2729,"est":2562,"sec":474,"f50":0.9416,"f100":0.9541,"ot50":0.8996,"frame":0.917,"s50":0.9412,"s100":0.9541,"so50":0.8985,"so100":0.9393,"sf":0.912,"v50":0.8808,"v100":0.935,"vo50":0.8197,"vo100":0.9031,"vf":0.8909,"o50":0.738,"o100":0.8155},{"rec":"2024-09-03_00-07-46","s":"09-03 00:07","ref":10929,"est":10875,"sec":1608,"f50":0.9928,"f100":0.9935,"ot50":0.9775,"frame":0.9589,"s50":0.9928,"s100":0.9935,"so50":0.9772,"so100":0.9885,"sf":0.9522,"v50":0.9655,"v100":0.9904,"vo50":0.9417,"vo100":0.9817,"vf":0.9334,"o50":0.9398,"o100":0.9622},{"rec":"2024-09-03_00-44-45","s":"09-03 00:44","ref":5035,"est":5031,"sec":603,"f50":0.9982,"f100":0.9984,"ot50":0.9946,"frame":0.9375,"s50":0.9982,"s100":0.9984,"so50":0.9944,"so100":0.9976,"sf":0.9247,"v50":0.9742,"v100":0.9982,"vo50":0.9661,"vo100":0.9966,"vf":0.9009,"o50":0.9799,"o100":0.992}],"cal":{"E1":[[0.05,0.7264],[0.1,0.776],[0.15,0.805],[0.2,0.8254],[0.3,0.857],[0.4,0.8797],[0.5,0.8992],[0.6,0.9144],[0.7,0.9294],[0.8,0.9427],[0.9,0.9516],[0.95,0.9422],[0.98,0.8744]],"E2":[[0.05,0.1314],[0.1,0.1865],[0.15,0.2273],[0.2,0.2582],[0.3,0.3065],[0.4,0.3437],[0.5,0.3573],[0.6,0.3441],[0.7,0.2832],[0.8,0.1533],[0.9,0.0397],[0.95,0.001],[0.98,0.0]],"E3b":[[0.05,0.0475],[0.1,0.05],[0.15,0.0519],[0.2,0.0523],[0.3,0.0518],[0.4,0.0493],[0.5,0.0471],[0.6,0.0446],[0.7,0.0434],[0.8,0.0384],[0.9,0.0309],[0.95,0.023],[0.98,0.0124]]},"zs":[{"v":"116","sec":350,"ref":879,"b50":0.0399,"b100":0.0968,"best":526,"a50":0.0236,"a100":0.0321,"aest":55,"y50":0.4931,"y100":0.7396,"yest":784},{"v":"130","sec":410,"ref":1154,"b50":0.0123,"b100":0.0278,"best":790,"a50":0.0062,"a100":0.0171,"aest":132,"y50":0.266,"y100":0.41,"yest":763},{"v":"161","sec":449,"ref":2669,"b50":0.0699,"b100":0.144,"best":1651,"a50":0.0394,"a100":0.0901,"aest":373,"y50":0.2367,"y100":0.4428,"yest":1970},{"v":"162","sec":275,"ref":1596,"b50":0.0462,"b100":0.1835,"best":1826,"a50":0.0493,"a100":0.1221,"aest":353,"y50":0.5408,"y100":0.6936,"yest":1100},{"v":"164","sec":546,"ref":3952,"b50":0.1156,"b100":0.2365,"best":4125,"a50":0.1224,"a100":0.1953,"aest":1065,"y50":0.2425,"y100":0.4294,"yest":3883},{"v":"165","sec":294,"ref":488,"b50":0.0053,"b100":0.0293,"best":262,"a50":0.0,"a100":0.0436,"aest":63,"y50":0.2884,"y100":0.4085,"yest":261},{"v":"166","sec":206,"ref":600,"b50":0.0381,"b100":0.0787,"best":239,"a50":0.0032,"a100":0.0226,"aest":20,"y50":0.3818,"y100":0.5051,"yest":390},{"v":"167","sec":272,"ref":1628,"b50":0.0849,"b100":0.1717,"best":1739,"a50":0.0741,"a100":0.1281,"aest":370,"y50":0.23,"y100":0.4342,"yest":1007},{"v":"168","sec":304,"ref":2078,"b50":0.0778,"b100":0.1938,"best":1803,"a50":0.0643,"a100":0.127,"aest":347,"y50":0.2854,"y100":0.4302,"yest":1720},{"v":"169","sec":281,"ref":1902,"b50":0.0817,"b100":0.2166,"best":961,"a50":0.0614,"a100":0.1503,"aest":280,"y50":0.3842,"y100":0.5311,"yest":1721},{"v":"216","sec":276,"ref":1516,"b50":0.0685,"b100":0.1753,"best":1668,"a50":0.0753,"a100":0.1665,"aest":502,"y50":0.4966,"y100":0.7439,"yest":1315},{"v":"300","sec":114,"ref":744,"b50":0.1871,"b100":0.3597,"best":496,"a50":0.0692,"a100":0.1718,"aest":94,"y50":0.6072,"y100":0.8239,"yest":613},{"v":"302","sec":320,"ref":2862,"b50":0.0161,"b100":0.0322,"best":617,"a50":0.0013,"a100":0.002,"aest":116,"y50":0.0974,"y100":0.2379,"yest":2191},{"v":"303","sec":194,"ref":589,"b50":0.03,"b100":0.0791,"best":144,"a50":0.0033,"a100":0.0164,"aest":21,"y50":0.4881,"y100":0.6355,"yest":374},{"v":"306","sec":125,"ref":729,"b50":0.0503,"b100":0.1851,"best":265,"a50":0.0353,"a100":0.0883,"aest":64,"y50":0.4256,"y100":0.6682,"yest":615},{"v":"307","sec":222,"ref":1750,"b50":0.0987,"b100":0.173,"best":539,"a50":0.0176,"a100":0.0319,"aest":70,"y50":0.3857,"y100":0.6402,"yest":1418},{"v":"308","sec":205,"ref":988,"b50":0.1088,"b100":0.2498,"best":629,"a50":0.109,"a100":0.2148,"aest":278,"y50":0.1212,"y100":0.2082,"yest":184},{"v":"309","sec":357,"ref":2474,"b50":0.0891,"b100":0.2015,"best":1388,"a50":0.0599,"a100":0.1198,"aest":465,"y50":0.0046,"y100":0.0084,"yest":149},{"v":"416","sec":257,"ref":1326,"b50":0.0062,"b100":0.0811,"best":622,"a50":0.0025,"a100":0.1337,"aest":289,"y50":0.6664,"y100":0.7759,"yest":883},{"v":"430","sec":382,"ref":1712,"b50":0.0022,"b100":0.0187,"best":102,"a50":0.0,"a100":0.0,"aest":2,"y50":0.0216,"y100":0.0261,"yest":48}],"tim":{"med":[{"rec":"2024-02-14_19-55-17","s":"02-14 19:55","e1":6.3,"old":32.6,"sd":16.7,"f50":0.9625,"best":0.977,"lag":16.3},{"rec":"2024-02-14_20-10-08","s":"02-14 20:10","e1":30.5,"old":20.5,"sd":12.8,"f50":0.9278,"best":0.9852,"lag":25.5},{"rec":"2024-02-15_20-17-26","s":"02-15 20:17","e1":4.9,"old":-15.3,"sd":12.5,"f50":0.9827,"best":0.9827,"lag":0.0},{"rec":"2024-02-15_20-47-59","s":"02-15 20:47","e1":15.8,"old":-3.9,"sd":12.6,"f50":0.9783,"best":0.9789,"lag":10.8},{"rec":"2024-02-17_21-44-37","s":"02-17 21:44","e1":4.3,"old":-14.4,"sd":29.4,"f50":0.8717,"best":0.9299,"lag":-10.7},{"rec":"2024-09-02_14-10-41","s":"09-02 14:10","e1":11.7,"old":2.8,"sd":21.2,"f50":0.9109,"best":0.9467,"lag":16.7},{"rec":"2024-09-02_21-04-45","s":"09-02 21:04","e1":-5.5,"old":-17.4,"sd":20.0,"f50":0.9412,"best":0.9412,"lag":0.0},{"rec":"2024-09-03_00-07-46","s":"09-03 00:07","e1":-1.3,"old":-9.1,"sd":15.0,"f50":0.9928,"best":0.9928,"lag":0.0},{"rec":"2024-09-03_00-44-45","s":"09-03 00:44","e1":-5.5,"old":-6.2,"sd":14.5,"f50":0.9982,"best":0.9984,"lag":-10.5}],"drift":{"02-14 19:55":[6.0,11.7,1.8,7.3,4.2,4.5,6.5,10.1,3.4,4.9,3.4,8.0,7.3],"02-14 20:10":[30.2,28.4,31.0,29.9,29.5,31.2,30.5,29.7,28.9,29.9,31.0,29.9,31.0,32.3,31.2,28.4,30.5,29.9,31.5,31.2,34.1,33.0],"02-15 20:17":[6.2,4.2,4.9,6.0,2.8,6.0,4.2,4.9,4.2],"02-15 20:47":[16.7,16.1,15.5,15.6,14.6,null],"02-17 21:44":[-2.1,6.1,4.9],"09-02 14:10":[11.5,13.3,14.4,8.5,12.8],"09-02 21:04":[-10.4,-2.2,-5.5,-8.3,-7.6,-3.9,-5.1,-1.3],"09-03 00:07":[-6.3,-2.1,-3.9,-1.6,-2.4,-0.3,-3.1,-5.5,-2.1,-2.8,-2.1,0.8,-5.5,-0.3,-0.8,0.3,-1.8,-1.3,-4.2,-0.3,1.3,0.9,0.3,-1.3,2.1,0.8,0.5],"09-03 00:44":[-4.9,-8.6,-4.9,-7.1,-5.2,-3.9,-5.5,-3.1,-4.5,-8.6]},"hist":[3,1,7,17,61,149,710,2081,4819,7132,7805,7128,5331,3388,1920,621,93,26,11,0],"histOld":[31,40,73,153,434,1161,2454,3887,5085,5556,5360,4874,3991,3034,1858,942,397,101,56,28],"gscan":[[-40.0,0.5511653146721223],[-35.0,0.65402257023628],[-30.000000000000007,0.7318307910046409],[-25.000000000000007,0.8052275486027324],[-20.00000000000001,0.8598185205518093],[-15.000000000000014,0.898433578415784],[-10.000000000000016,0.9273498777177309],[-5.000000000000019,0.9441967282526846],[-2.0816681711721685e-14,0.9517953542226861],[4.999999999999977,0.9530146453331481],[9.999999999999973,0.9500302493234509],[14.999999999999972,0.9434338646410829],[19.999999999999968,0.9300272375202666],[24.999999999999975,0.9126275578781371],[29.999999999999964,0.8858275483313427],[34.99999999999996,0.8440634538089024],[39.99999999999996,0.783968326924072]],"yscan":{"E3b":[[-200,0.09737645014600227,0.20528532082173379],[-190,0.10707433984227874,0.21940574745664096],[-180,0.11911364332236637,0.22765286848383076],[-170,0.13425906528111786,0.24155605328831062],[-160,0.14307552831871392,0.24842240024483614],[-150,0.15721584366692037,0.25704967777608634],[-140,0.16358944386127988,0.26123466107453425],[-130,0.16555023566836538,0.2641361389434707],[-120,0.17016075441013662,0.2657880048273061],[-110,0.1691808060718826,0.26596581967373983],[-100,0.1685944291153592,0.2641621089600357],[-90,0.15761070745148772,0.25795011648789956],[-80,0.1483778911670047,0.2523769472715506],[-70,0.13507442659995697,0.24369134713323146],[-60,0.12640541654479617,0.23569895654974932],[-50,0.11250884017666467,0.22620740235962872],[-40,0.0979474756955597,0.20807914405454117],[-30,0.09037188906692642,0.1942277683927579],[-20,0.07719282295713711,0.17562758331404932],[-10,0.07002310690356023,0.16373525092390445],[0,0.06318737428035902,0.14670209697544662],[10,0.053212447605866596,0.13037277856188811],[20,0.04837409219058413,0.12148135152465359],[30,0.0433587964424185,0.10635090045572153],[40,0.04053241571413169,0.09881922389355745],[50,0.03798451387989367,0.09113889577604015]],"E3a":[[-200,0.02674426204402326,0.07532931496945097],[-190,0.030917107069103354,0.08361239807810286],[-180,0.036489403396916316,0.09152423433892433],[-170,0.04301439111383891,0.10233118835232935],[-160,0.049547007991739306,0.10829267447040611],[-150,0.06177921037279991,0.11644357516991763],[-140,0.06788283794418985,0.12136732154419723],[-130,0.07477151721864234,0.12533825495642037],[-120,0.08340229053455589,0.12927843394796806],[-110,0.08656630089421989,0.1316772460101111],[-100,0.09211176298818814,0.13518577098555112],[-90,0.09136564049392794,0.13614547533701304],[-80,0.08945304223612552,0.1372904642606548],[-70,0.08681800060136982,0.1363281140665819],[-60,0.0827052645598337,0.13374312319685205],[-50,0.07536358163598121,0.1321762521190149],[-40,0.06869935481617598,0.1263374963184627],[-30,0.06304995950857747,0.12064682927428075],[-20,0.053456157103085364,0.11293243548007792],[-10,0.04767214304916302,0.10523577558632861],[0,0.04216701941223598,0.09367994867079732],[10,0.0356049435667761,0.08388344238828241],[20,0.03164973321372715,0.07626420827106453],[30,0.026484702604271115,0.06554585760383355],[40,0.023053990547390785,0.05928347922859839],[50,0.019234756557079777,0.052465971014333965]],"oldYT":[[-200,0.04407590815825998,0.09663921507811775],[-190,0.04673041424403534,0.10423526798830958],[-180,0.04904056640893844,0.11072740527868348],[-170,0.053181568550121364,0.12264606633580301],[-160,0.05803272495778772,0.1351784875327299],[-150,0.06489868934864619,0.15825606209217777],[-140,0.07075420192249897,0.1807292002517985],[-130,0.07635994865276198,0.20460545118146004],[-120,0.08658605604409278,0.23763152076170074],[-110,0.09768859858020694,0.26277230164592863],[-100,0.11884437087481318,0.304519506609048],[-90,0.13711411956654146,0.3360991650775991],[-80,0.15866732695574687,0.361509855990164],[-70,0.18758086773710228,0.40024264395754505],[-60,0.2081042102519226,0.41876943975290876],[-50,0.24479585788066097,0.4461067822440942],[-40,0.2687589793831108,0.45891553802169155],[-30,0.28846065446939395,0.4687704941751766],[-20,0.31655981352279283,0.4789673234926158],[-10,0.32426890689886695,0.47929822681132034],[0,0.33812529257897067,0.48170404895217434],[10,0.32440654264187624,0.47630396029792105],[20,0.312327896517276,0.47107035535637903],[30,0.2931064004018977,0.45973742866946443],[40,0.27279297579035633,0.4471569559276578],[50,0.24310306353926708,0.43158597411693017]]},"yor":{"E3b":{"vids":["116","130","161","162","164","165","166","167","168","169","216","300","302","303","306","307","308","309","416","430"],"lag":[-100,-155,-175,-110,-75,-150,-100,-75,-90,-105,-135,-75,-235,-100,-100,-60,-125,-125,-135,-140],"f50":[0.1167,0.036,0.1509,0.2829,0.1922,0.2747,0.1263,0.1515,0.151,0.2529,0.2349,0.3516,0.0903,0.1146,0.2314,0.118,0.2758,0.1895,0.3778,0.0783],"f100":[0.158,0.0504,0.2449,0.3933,0.3056,0.328,0.1621,0.24,0.2427,0.3542,0.3612,0.4871,0.146,0.161,0.334,0.1905,0.4391,0.3268,0.4405,0.0948]},"E3a":{"vids":["116","130","161","162","164","165","166","167","168","169","216","300","302","303","306","307","308","309","416","430"],"lag":[-25,-115,-125,-75,-25,-125,0,-80,-55,-75,-100,-50,-210,0,-90,-30,-100,-125,-110,0],"f50":[0.0278,0.0171,0.1078,0.1242,0.1391,0.1706,0.0032,0.1001,0.1056,0.1632,0.1506,0.1551,0.0282,0.0033,0.0984,0.0242,0.2133,0.0912,0.317,0.0],"f100":[0.0364,0.0202,0.1604,0.1591,0.2101,0.1815,0.0226,0.1672,0.1493,0.2071,0.2319,0.179,0.039,0.0164,0.1387,0.0319,0.3191,0.1592,0.3406,0.0]},"oldYT":{"vids":["116","130","161","162","164","165","166","167","168","169","216","300","302","303","306","308","309","416","430"],"lag":[25,25,25,0,25,-30,25,25,-5,-20,-25,25,-150,0,0,25,-180,-25,5],"f50":[0.5424,0.2806,0.2544,0.5497,0.2961,0.3765,0.4828,0.2421,0.2891,0.403,0.5567,0.6883,0.4215,0.4984,0.4375,0.1451,0.0069,0.7334,0.0227],"f100":[0.7709,0.409,0.4449,0.6936,0.4424,0.4166,0.5111,0.4114,0.4344,0.5322,0.7828,0.843,0.6467,0.6355,0.6682,0.2235,0.0084,0.7759,0.0261]}}}};
+const NS='http://www.w3.org/2000/svg';
+function S(tag,attrs,parent){const e=document.createElementNS(NS,tag);if(attrs){for(const k in attrs)e.setAttribute(k,attrs[k]);}if(parent)parent.appendChild(e);return e;}
+function T(parent,x,y,str,cls,anchor){const t=S('text',{x:x,y:y,class:cls||'ax','text-anchor':anchor||'start'},parent);t.textContent=str;return t;}
+function tip(node,str){const t=S('title',null,node);t.textContent=str;}
+function mount(id,svg){const h=document.getElementById(id);if(!h)return;h.innerHTML='';h.appendChild(svg);}
+function newSvg(W,H,label,cls){return S('svg',{viewBox:'0 0 '+W+' '+H,class:cls||'chart',role:'img','aria-label':label});}
+const pct=v=>(v*100).toFixed(1);
+const f2=v=>v.toFixed(2);
+
+function lineChart(id,o){
+  const W=o.w||760,H=o.h||320,m={l:58,r:20,t:16,b:48};
+  const svg=newSvg(W,H,o.label);
+  const X=v=>m.l+(v-o.x[0])/(o.x[1]-o.x[0])*(W-m.l-m.r);
+  const Y=v=>H-m.b-(v-o.y[0])/(o.y[1]-o.y[0])*(H-m.t-m.b);
+  o.yt.forEach(t=>{S('line',{x1:m.l,x2:W-m.r,y1:Y(t),y2:Y(t),class:(o.zeroLine&&t===0)?'zero':'grid'},svg);T(svg,m.l-8,Y(t)+4,o.yf?o.yf(t):String(t),'ax','end');});
+  o.xt.forEach(t=>T(svg,X(t),H-m.b+18,o.xf?o.xf(t):String(t),'ax','middle'));
+  T(svg,(m.l+W-m.r)/2,H-8,o.xl,'axl','middle');
+  const cy=(m.t+H-m.b)/2;const yl=T(svg,15,cy,o.yl,'axl','middle');yl.setAttribute('transform','rotate(-90 15 '+cy+')');
+  (o.vlines||[]).forEach(v=>{S('line',{x1:X(v.x),x2:X(v.x),y1:m.t,y2:H-m.b,class:'vline'},svg);T(svg,X(v.x)+(v.anchor==='end'?-6:6),m.t+13,v.label,'note',v.anchor||'start');});
+  o.series.forEach(s=>{
+    const pts=s.pts.filter(p=>p[1]!==null&&p[1]!==undefined);
+    let d='',prev=null;
+    pts.forEach(p=>{const brk=(prev===null)||(s.maxGap&&(p[0]-prev)>s.maxGap);d+=(brk?'M':'L')+X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)+' ';prev=p[0];});
+    if(d)S('path',{d:d,class:'ln '+s.cls+(s.dash?' dash':'')+(s.thin?' thin':'')},svg);
+    if(s.dots!==false)pts.forEach(p=>{const c=S('circle',{cx:X(p[0]),cy:Y(p[1]),r:s.r||3,class:s.cls},svg);tip(c,s.name+': '+(o.xf?o.xf(p[0]):p[0])+' → '+(o.tf?o.tf(p[1]):p[1]));});
+  });
+  (o.marks||[]).forEach(k=>{S('circle',{cx:X(k.x),cy:Y(k.y),r:7,class:'ring '+k.cls},svg);T(svg,X(k.x)+(k.dx||10),Y(k.y)+(k.dy||-10),k.label,'note',k.anchor||'start');});
+  mount(id,svg);
+}
+
+function hbars(id,o){
+  const W=o.w||760,lw=o.lw||230,m={l:lw,r:64,t:8,b:36},bh=o.bh||13,bg=4,rg=o.rg||12;
+  let y=m.t;const lay=o.rows.map(r=>{if(r.group){const g={group:r.group,y:y};y+=28;return g;}const h=r.bars.length*(bh+bg)-bg;const L={r:r,y:y,h:h};y+=h+rg;return L;});
+  const H=y-rg+m.b;
+  const svg=newSvg(W,H,o.label);
+  const X=v=>m.l+(Math.max(o.x[0],Math.min(o.x[1],v))-o.x[0])/(o.x[1]-o.x[0])*(W-m.l-m.r);
+  o.xt.forEach(t=>{S('line',{x1:X(t),x2:X(t),y1:m.t,y2:H-m.b,class:'grid'},svg);T(svg,X(t),H-m.b+17,o.fmt?o.fmt(t):String(t),'ax','middle');});
+  if(o.xl)T(svg,(m.l+W-m.r)/2,H-3,o.xl,'axl','middle');
+  lay.forEach(L=>{
+    if(L.group){T(svg,6,L.y+18,L.group,'grp','start');return;}
+    const cy=L.y+L.h/2;
+    T(svg,lw-12,cy+(L.r.sub?-2:4),L.r.label,'rl','end');
+    if(L.r.sub)T(svg,lw-12,cy+13,L.r.sub,'rs','end');
+    L.r.bars.forEach((b,i)=>{
+      const yy=L.y+i*(bh+bg);
+      if(b.pending){S('rect',{x:X(o.x[0]),y:yy,width:X(o.x[1])-X(o.x[0]),height:bh,rx:3,class:'pend'},svg);T(svg,X(o.x[0])+8,yy+bh-3,b.text,'pendt','start');return;}
+      const r=S('rect',{x:X(o.x[0]),y:yy,width:Math.max(1.5,X(b.v)-X(o.x[0])),height:bh,rx:2,class:b.cls+(b.lite?' lite':'')},svg);
+      const vs=(o.vfmt||o.fmt||String)(b.v);tip(r,L.r.label+(b.tag?' — '+b.tag:'')+': '+vs);
+      T(svg,X(b.v)+6,yy+bh-2.5,vs+(b.tag?'  '+b.tag:''),'val','start');
+    });
+  });
+  mount(id,svg);
+}
+
+function vbars(id,o){
+  const W=o.w||760,H=o.h||300,m={l:58,r:14,t:16,b:o.bottom||56};
+  const svg=newSvg(W,H,o.label);
+  const n=o.items.length,bw=(W-m.l-m.r)/n,k=o.items[0].vals.length;
+  const Y=v=>H-m.b-(v-o.y[0])/(o.y[1]-o.y[0])*(H-m.t-m.b);
+  o.yt.forEach(t=>{S('line',{x1:m.l,x2:W-m.r,y1:Y(t),y2:Y(t),class:t===0?'zero':'grid'},svg);T(svg,m.l-8,Y(t)+4,(o.yf||String)(t),'ax','end');});
+  const cy=(m.t+H-m.b)/2;const yl=T(svg,15,cy,o.yl,'axl','middle');yl.setAttribute('transform','rotate(-90 15 '+cy+')');
+  o.items.forEach((it,i)=>{
+    const inner=bw*0.72,w=inner/k,x0=m.l+i*bw+(bw-inner)/2;
+    it.vals.forEach((b,j)=>{
+      if(b.v===null||b.v===undefined)return;
+      const x=x0+j*w+w*0.08,ww=w*0.84,v=Math.max(o.y[0],Math.min(o.y[1],b.v)),y0=Y(0),y1=Y(v);
+      const r=S('rect',{x:x,y:Math.min(y0,y1),width:ww,height:Math.max(1.5,Math.abs(y1-y0)),rx:2,class:b.cls},svg);
+      tip(r,it.label+' — '+b.name+': '+(b.v>0?'+':'')+b.v+(o.unit||''));
+      if(o.showVals!==false)T(svg,x+ww/2,b.v>=0?y1-5:y1+13,(b.v>0?'+':'')+Math.round(b.v),'val','middle');
+    });
+    T(svg,m.l+i*bw+bw/2,H-m.b+17,it.label,'ax','middle');
+    if(it.label2)T(svg,m.l+i*bw+bw/2,H-m.b+31,it.label2,'ax','middle');
+  });
+  if(o.xl)T(svg,(m.l+W-m.r)/2,H-6,o.xl,'axl','middle');
+  mount(id,svg);
+}
+
+function dumbbell(id,o){
+  const W=760,lw=150,m={l:lw,r:62,t:8,b:40},rh=28;
+  const H=m.t+o.rows.length*rh+m.b;
+  const svg=newSvg(W,H,o.label);
+  const X=v=>m.l+(v-o.x[0])/(o.x[1]-o.x[0])*(W-m.l-m.r);
+  o.xt.forEach(t=>{S('line',{x1:X(t),x2:X(t),y1:m.t,y2:H-m.b,class:'grid'},svg);T(svg,X(t),H-m.b+17,t.toFixed(2),'ax','middle');});
+  T(svg,(m.l+W-m.r)/2,H-4,o.xl,'axl','middle');
+  o.rows.forEach((r,i)=>{
+    const y=m.t+i*rh+rh/2;
+    T(svg,lw-12,y+4,r.label,'rl','end');
+    S('line',{x1:X(r.a),x2:X(r.b),y1:y,y2:y,class:'conn'},svg);
+    const cb=S('circle',{cx:X(r.b),cy:y,r:6,class:'c-v2n'},svg);tip(cb,r.label+' — V2N: '+r.b.toFixed(3));
+    const ca=S('circle',{cx:X(r.a),cy:y,r:6,class:'c-ours'},svg);tip(ca,r.label+' — ours: '+r.a.toFixed(3));
+    T(svg,W-6,y+4,(r.a>=r.b?'+':'')+((r.a-r.b)*100).toFixed(1),'val','end');
+  });
+  mount(id,svg);
+}
+
+function keyboardHero(){
+  const W=1408,KH=110,top=4,ty=146,th=20;
+  const svg=newSvg(W,196,'An 88-key keyboard flattened into a 1408-pixel strip; below it, 88 equal 16-pixel columns, one per key. Middle C and its column are highlighted.','kbd');
+  const black=p=>[1,3,6,8,10].indexOf(p%12)>=0;
+  const ww=W/52;let wi=0;const whites=[],blacks=[];
+  for(let p=21;p<=108;p++){if(black(p))blacks.push({p:p,x:wi*ww});else{whites.push({p:p,x:wi*ww});wi++;}}
+  const HL=60;
+  whites.forEach(k=>S('rect',{x:k.x+1,y:top,width:ww-2,height:KH,rx:3,class:'kw'+(k.p===HL?' hl':'')},svg));
+  blacks.forEach(k=>S('rect',{x:k.x-ww*0.3,y:top,width:ww*0.6,height:KH*0.63,rx:2,class:'kb'},svg));
+  for(let i=0;i<88;i++)S('rect',{x:i*16+1,y:ty,width:14,height:th,rx:2,class:'tl'+(i===HL-21?' hl':'')},svg);
+  const kc=whites.filter(k=>k.p===HL)[0],kx=kc.x+ww/2,tx=(HL-21)*16+8;
+  S('path',{d:'M'+kx+','+(top+KH+3)+' L'+kx+','+(top+KH+14)+' L'+tx+','+(ty-12)+' L'+tx+','+(ty-3),class:'conn'},svg);
+  T(svg,2,ty+th+26,'A0','kbl','start');T(svg,W-2,ty+th+26,'C8','kbl','end');
+  T(svg,tx+22,ty+th+26,'middle C → its own 16-px column','kbt','start');
+  const h=document.getElementById('kbd');if(h)h.appendChild(svg);
+}
+
+function tilesDiagram(){
+  const W=920,H=230,x0=38,cw=8,HL=39;
+  const svg=newSvg(W,H,'The 1408 by 112 strip, the 88 by 7 feature map after the CNN, and the 88 key vectors after column pooling.');
+  // strip (scaled 1:2 → 704 x 56)
+  S('rect',{x:x0,y:14,width:704,height:56,rx:3,class:'c-old',opacity:.35},svg);
+  for(let i=1;i<88;i++)S('line',{x1:x0+i*cw,x2:x0+i*cw,y1:14,y2:70,class:'grid'},svg);
+  S('rect',{x:x0+HL*cw,y:14,width:cw,height:56,class:'c-ours'},svg);
+  T(svg,x0,10,'strip 1408 × 112 px  (drawn at half size; each column = 16 px)','note','start');
+  // arrow
+  T(svg,x0+704+8,90,'CNN ÷16','note','start');
+  S('line',{x1:x0+352,x2:x0+352,y1:74,y2:96,class:'conn'},svg);
+  // feature map 88 x 7 (cell 8 x 8 → 704 x 56? use 8 x 6)
+  for(let r=0;r<7;r++)for(let c=0;c<88;c++){S('rect',{x:x0+c*cw+0.5,y:100+r*6,width:cw-1,height:5,class:c===HL?'c-ours':'c-old',opacity:c===HL?1:.55},svg);}
+  T(svg,x0+704+8,124,'88 × 7 × 192','note','start');
+  S('line',{x1:x0+352,x2:x0+352,y1:146,y2:166,class:'conn'},svg);
+  T(svg,x0+704+8,160,'average each column','note','start');
+  for(let c=0;c<88;c++)S('rect',{x:x0+c*cw+0.5,y:172,width:cw-1,height:cw-1,rx:1,class:c===HL?'c-ours':'c-old'},svg);
+  T(svg,x0+704+8,181,'88 keys × 64','note','start');
+  T(svg,x0,204,'→ one BiGRU (shared weights) reads each key over time → onset + frame for each key','note','start');
+  T(svg,x0+HL*cw+cw/2,224,'middle C','note','middle');
+  mount('ch-tiles',svg);
+}
+
+function draw(){
+  const safe=f=>{try{f();}catch(e){console.error(e);}};
+  safe(keyboardHero);
+  safe(tilesDiagram);
+  // summary: PianoVAM systems
+  safe(()=>{
+    const rows=[
+      ['Ours, per-key (1.3 M)','E1 · same script as V2N',95.2,98.0,'c-ours'],
+      ['V2N (28.2 M)','ISMIR 2026 · same script',94.7,97.0,'c-v2n'],
+      ['Li et al., video branch','V2N Table 1',94.2,97.4,'c-other'],
+      ['V2R','V2N Table 1',86.5,89.8,'c-other'],
+      ['PPAN','V2N Table 1',84.9,94.1,'c-ppan'],
+      ['Ours, old recipe','tiled_best_v2 · same script',84.1,89.0,'c-old'],
+      ['S2S','V2N Table 1',60.1,94.5,'c-other']];
+    hbars('ch-sota',{label:'Onset F1 on the PianoVAM test set for seven systems at 50 and 100 ms',x:[50,100],xt:[50,60,70,80,90,100],fmt:v=>v.toFixed(0),vfmt:v=>v.toFixed(1),xl:'onset F1 (%)',
+      rows:rows.map(r=>({label:r[0],sub:r[1],bars:[{v:r[2],cls:r[4],tag:'50 ms'},{v:r[3],cls:r[4],lite:true,tag:'100 ms'}]}))});
+  });
+  // E1 per recording dumbbell with toggle
+  safe(()=>{
+    function render(tol){
+      const rows=D.e1.map(r=>({label:r.s,a:tol===50?r.s50:r.s100,b:tol===50?r.v50:r.v100})).sort((p,q)=>q.a-p.a);
+      dumbbell('ch-e1rec',{label:'Per-recording onset F1, ours versus V2N',rows:rows,x:[0.85,1.0],xt:[0.85,0.9,0.95,1.0],xl:'onset F1 at '+tol+' ms (right column: ours − V2N, points)'});
+      document.getElementById('tol50').setAttribute('aria-pressed',tol===50);document.getElementById('tol100').setAttribute('aria-pressed',tol===100);
+    }
+    document.getElementById('tol50').addEventListener('click',()=>render(50));
+    document.getElementById('tol100').addEventListener('click',()=>render(100));
+    render(50);
+  });
+  // training curves
+  safe(()=>{
+    const vam=D.vam,yt=D.yt,ft=D.ft;
+    lineChart('ch-train',{label:'Validation per-frame F1 by epoch for vam_full, yt_full and yt_finetune',x:[0,24],y:[0.2,1.0],xt:[0,4,8,12,16,20,24],yt:[0.2,0.4,0.6,0.8,1.0],yf:f2,tf:v=>v.toFixed(3),xl:'epoch',yl:'valid F1 (per frame)',
+      series:[
+        {name:'vam_full onset',cls:'c-ours',pts:vam.map(r=>[r[0],r[1]])},
+        {name:'vam_full frame',cls:'c-ours',dash:true,dots:false,pts:vam.map(r=>[r[0],r[2]])},
+        {name:'yt_full onset',cls:'c-yt',maxGap:1,pts:yt.map(r=>[r[0],r[1]])},
+        {name:'yt_full frame',cls:'c-yt',dash:true,dots:false,maxGap:1,pts:yt.map(r=>[r[0],r[2]])},
+        {name:'yt_finetune onset',cls:'c-ft',maxGap:1,pts:ft.map(r=>[r[0],r[1]])}],
+      marks:[{x:14,y:vam[14][1],cls:'c-ours',label:'best.pt (epoch 14): 0.814',dy:-14,anchor:'middle',dx:0}]});
+  });
+  // calibration
+  safe(()=>{
+    lineChart('ch-cal',{label:'Valid note F1 at 50 ms by onset threshold',x:[0,1],y:[0,1],xt:[0,0.2,0.4,0.6,0.8,1.0],yt:[0,0.2,0.4,0.6,0.8,1.0],xf:f2,yf:f2,tf:v=>v.toFixed(4),xl:'onset threshold',yl:'valid note F1 @50 ms',
+      series:[{name:'E1',cls:'c-ours',pts:D.cal.E1},{name:'E3b',cls:'c-ours',dash:true,pts:D.cal.E3b},{name:'E2 (so far)',cls:'c-yt',pts:D.cal.E2}],
+      marks:[{x:0.9,y:0.9516,cls:'c-ours',label:'0.90 → 0.952',anchor:'end',dx:-10,dy:22},{x:0.2,y:0.0523,cls:'c-ours',label:'0.20 → 0.052',dy:-12},{x:0.5,y:0.3573,cls:'c-yt',label:'0.50 → 0.357',dy:-12}]});
+  });
+  // zero-shot per video
+  safe(()=>{
+    const rows=D.zs.slice().sort((p,q)=>q.y100-p.y100).map(r=>({label:'video '+r.v,bars:[{v:r.y100,cls:'c-yt'},{v:r.b100,cls:'c-ours'}]}));
+    hbars('ch-zs',{label:'Per-video onset F1 at 100 ms, trained on PianoYT versus zero-shot',lw:110,bh:11,rg:9,x:[0,1],xt:[0,0.2,0.4,0.6,0.8,1.0],fmt:f2,vfmt:v=>v.toFixed(3),xl:'onset F1 at 100 ms',rows:rows});
+  });
+  // timing: PianoVAM offsets per recording
+  safe(()=>{
+    const items=D.tim.med.map(r=>({label:r.s.slice(0,5),label2:r.s.slice(6),vals:[{v:r.e1,cls:'c-ours',name:'E1'},{v:r.old,cls:'c-old',name:'old model'}]}));
+    vbars('ch-offsets',{label:'Median onset error per PianoVAM test recording',items:items,y:[-25,40],yt:[-20,-10,0,10,20,30,40],yl:'median error (ms, + = late)',unit:' ms',bottom:60});
+  });
+  // timing: drift
+  safe(()=>{
+    const keys=Object.keys(D.tim.drift);const hl='02-14 20:10';
+    const series=keys.filter(k=>k!==hl).map(k=>({name:k,cls:'c-other',thin:true,dots:false,pts:D.tim.drift[k].map((v,i)=>[i+0.5,v])}));
+    series.push({name:hl,cls:'c-ours',r:3,pts:D.tim.drift[hl].map((v,i)=>[i+0.5,v])});
+    lineChart('ch-drift',{label:'Median onset error per minute for each PianoVAM test recording',x:[0,27],y:[-15,40],xt:[0,5,10,15,20,25],yt:[-10,0,10,20,30,40],zeroLine:true,xl:'minute of the recording',yl:'median error (ms)',tf:v=>v+' ms',series:series});
+  });
+  // timing: PianoYT global shift scan (x = shift added to predictions = -lag)
+  safe(()=>{
+    const sc=D.tim.yscan,sh=a=>a.map(r=>[-r[0],r[1]]),sh100=a=>a.map(r=>[-r[0],r[2]]);
+    lineChart('ch-yscan',{label:'Mean onset F1 on PianoYT test as a function of one time shift',x:[-50,200],y:[0,0.6],xt:[-50,0,50,100,150,200],yt:[0,0.1,0.2,0.3,0.4,0.5,0.6],xf:v=>(v>0?'+':'')+v,yf:f2,tf:v=>v.toFixed(3),
+      xl:'predictions moved later by … (ms)',yl:'mean onset F1',
+      series:[{name:'PianoYT model @100',cls:'c-yt',pts:sh100(sc.oldYT)},{name:'PianoYT model @50',cls:'c-yt',dash:true,pts:sh(sc.oldYT)},
+              {name:'zero-shot E3b @100',cls:'c-ours',pts:sh100(sc.E3b)},{name:'zero-shot E3b @50',cls:'c-ours',dash:true,pts:sh(sc.E3b)}],
+      vlines:[{x:0,label:'no shift',anchor:'end'},{x:110,label:'+110 ms'}]});
+  });
+  // timing: per-video lags
+  safe(()=>{
+    const yo=D.tim.yor,e=yo.E3b,o=yo.oldYT,om={};o.vids.forEach((v,i)=>{om[v]=o.lag[i];});
+    const items=e.vids.map((v,i)=>({label:v,vals:[{v:-e.lag[i],cls:v==='302'?'c-bad':'c-ours',name:'zero-shot E3b'},{v:(om[v]===undefined?null:-om[v]),cls:'c-yt',name:'PianoYT model'}]}));
+    vbars('ch-lags',{label:'Best time shift per PianoYT test video',items:items,y:[-60,250],yt:[-50,0,50,100,150,200,250],yl:'shift that fits best (ms later)',unit:' ms',xl:'test video (302 in red)',bottom:52,w:900});
+  });
+  // PianoYT literature chart
+  safe(()=>{
+    hbars('ch-yt',{label:'PianoYT onset F-score at 100 ms: PPAN table and our runs',lw:250,x:[0,1],xt:[0,0.2,0.4,0.6,0.8,1.0],fmt:f2,vfmt:v=>v.toFixed(2),xl:'onset F at 100 ms',rows:[
+      {group:'PRE-TRAINED ON R3, FINE-TUNED ON PIANOYT (PPAN TABLE 3)'},
+      {label:'ViT (PPAN)',bars:[{v:0.68,cls:'c-ppan'}]},
+      {label:'S2S',bars:[{v:0.64,cls:'c-other'}]},
+      {label:'V2R',bars:[{v:0.64,cls:'c-other'}]},
+      {group:'OURS, TRAINED ON PIANOYT'},
+      {label:'E2 · new recipe, from scratch',bars:[{v:0.639,cls:'c-yt'}]},
+      {label:'E4 · pre-trained on PianoVAM',bars:[{pending:true,text:'training — test score tomorrow'}]},
+      {label:'Old model (Phase 0)',sub:'old recipe, from scratch',bars:[{v:0.49,cls:'c-yt'}]},
+      {group:'ZERO-SHOT (NEVER TRAINED ON PIANOYT)'},
+      {label:'ViT (PPAN), from R3',bars:[{v:0.40,cls:'c-ppan'}]},
+      {label:'S2S, from R3',bars:[{v:0.06,cls:'c-other'}]},
+      {label:'V2R, from R3',bars:[{v:0.01,cls:'c-other'}]},
+      {label:'Ours (E3b), from PianoVAM',bars:[{v:0.147,cls:'c-ours'}]},
+      {label:'Ours (E3b) + one timing shift',sub:'diagnostic, chosen on test',bars:[{v:0.266,cls:'c-ours',lite:true}]}]});
+  });
+}
+draw();
+</script>
+</body>
+</html>

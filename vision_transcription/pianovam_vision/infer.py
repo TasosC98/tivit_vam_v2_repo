@@ -22,7 +22,7 @@ import numpy as np
 import torch
 
 from .config import config_from_checkpoint
-from .decode import decode_notes
+from .decode import decode_with_cfg
 from .labels import Note
 from .metadata import index_by_record_time, recordings_from_cfg
 from .midi_io import write_midi
@@ -82,13 +82,7 @@ def transcribe(
     model, reader: WarpedVideo, cfg: Dict[str, Any], device: str
 ) -> List[Note]:
     onset_p, frame_p, vel_p = predict_rolls(model, reader, cfg, device)
-    d = cfg["decode"]
-    return decode_notes(
-        onset_p, frame_p, fps=cfg["labels"]["fps"],
-        onset_threshold=d["onset_threshold"], frame_threshold=d["frame_threshold"],
-        min_duration_s=d["min_duration_s"], velocity_probs=vel_p,
-        default_velocity=d["default_velocity"],
-    )
+    return decode_with_cfg(onset_p, frame_p, vel_p, cfg)
 
 
 def main() -> None:

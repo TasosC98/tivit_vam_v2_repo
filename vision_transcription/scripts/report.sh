@@ -25,7 +25,7 @@ for f in logs/E*.log logs/P0*.log; do
   [ -n "$lines" ] && printf '%s\n' "$lines" | sed 's/^/    /'
   calib="results/${n}_calibrate.txt"
   if [ "$state" = "RUNNING" ] && [ -f "$calib" ]; then
-    echo "    calibration progress: $(grep -ac 'predicted rolls' "$calib") videos predicted," \
+    echo "    calibration progress: $(grep -acE '(predicted|loaded) rolls' "$calib") videos predicted," \
          "$(grep -acE 'onset_f1 [0-9]|skipped \(cannot' "$calib") thresholds tried"
   fi
 done

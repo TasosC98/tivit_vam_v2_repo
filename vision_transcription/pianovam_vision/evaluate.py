@@ -10,6 +10,9 @@ Cross-dataset (e.g. a PianoVAM-trained model on PianoYT): add
 ``--data_config configs/pianoyt.yaml`` -- the model/warp settings stay the
 checkpoint's, only the dataset (``data:`` block) is swapped.
 
+``--rolls_dir`` stores the model's probability rolls (or reuses them), so the
+same model can be re-scored with other decode settings without the GPU.
+
 Scores are reported at onset tolerances 50 ms and 100 ms, with three offset
 rules (see ``metrics.note_scores_protocols``), so every number can be put next
 to the matching one in the literature. ``--csv`` writes one row per recording
@@ -27,12 +30,14 @@ import numpy as np
 import torch
 
 from .config import config_from_checkpoint
-from .infer import transcribe
+from .decode import decode_with_cfg, describe_timing
+from .infer import predict_rolls
 from .labels import build_target_rolls, read_reference
 from .metadata import filter_by_split, recordings_from_cfg
 from .metrics import frame_prf, note_scores_protocols
 from .midi_io import write_midi
 from .model import build_model
+from .rolls import RollsCache, rolls_meta
 from .strip_cache import open_reader
 
 
@@ -48,29 +53,40 @@ def main() -> None:
                     help="frames per video to score (0 = whole video, the reportable number)")
     ap.add_argument("--save_midi", default=None, help="dir to dump predicted .mid")
     ap.add_argument("--csv", default=None, help="write per-recording scores here")
+    ap.add_argument("--rolls_dir", default=None,
+                    help="store/reuse the model's probability rolls here")
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    ckpt = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
     # Model/keyboard settings come from the checkpoint's OWN config so they always
     # match the trained weights; CLI overrides still apply on top.
     cfg = config_from_checkpoint(ckpt, args.config, args.overrides, args.data_config)
 
-    model = build_model(cfg).to(device)
-    model.load_state_dict(ckpt["model"])
-    model.eval()
+    model = None
+
+    def get_model():
+        nonlocal model
+        if model is None:
+            model = build_model(cfg).to(device)
+            model.load_state_dict(ckpt["model"])
+            model.eval()
+        return model
 
     excl = set(cfg["data"].get("exclude_records", []) or [])
     recs = [r for r in filter_by_split(recordings_from_cfg(cfg), [args.split])
             if r.record_time not in excl]
     lab = cfg["labels"]
     fps = lab["fps"]
+    rolls = (RollsCache(args.rolls_dir, rolls_meta(args.checkpoint, cfg, args.split, args.max_frames))
+             if args.rolls_dir else None)
+    timing = describe_timing(cfg["decode"])
     print(f"evaluating {args.checkpoint} (epoch {ckpt.get('epoch', '?')}) on "
           f"{cfg['data'].get('format', 'pianovam')}:{args.split} ({len(recs)} recordings), "
           f"thresholds onset={cfg['decode']['onset_threshold']} "
-          f"frame={cfg['decode']['frame_threshold']}")
+          f"frame={cfg['decode']['frame_threshold']}" + (f", {timing}" if timing else ""))
 
     agg: Dict[str, List[float]] = defaultdict(list)
     rows = []
@@ -80,14 +96,21 @@ def main() -> None:
         # Some videos (esp. PianoYT YouTube downloads) fail to decode; skip them
         # instead of crashing the whole evaluation.
         try:
-            reader = open_reader(cfg, rec, args.max_frames)
-            est = transcribe(model, reader, cfg, device)
+            got = rolls.load(rec.record_time) if rolls else None
+            if got is None:
+                reader = open_reader(cfg, rec, args.max_frames)
+                onset_p, frame_p, vel_p = predict_rolls(get_model(), reader, cfg, device)
+                if rolls:
+                    rolls.save(rec.record_time, onset_p, frame_p)
+            else:
+                (onset_p, frame_p), vel_p = got, None
         except Exception as e:
             skipped += 1
             print(f"{rec.record_time}: [skipped] cannot decode video ({e})")
             continue
+        est = decode_with_cfg(onset_p, frame_p, vel_p, cfg)
 
-        n = len(reader)
+        n = len(onset_p)
         # With --max_frames the reader covers only the start of the video;
         # restrict the reference to that window or a short prediction is scored
         # against the full-length reference (meaningless F1). Without a cap t_max
