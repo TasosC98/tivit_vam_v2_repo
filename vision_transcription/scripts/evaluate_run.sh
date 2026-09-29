@@ -17,6 +17,8 @@
 #   BASELINE_MIDI=~/V2N/predicted_midi/pianovam_test   also compare with another
 #                                      system's predictions (score_midi, paired test)
 #
+# Evaluations run one at a time: start several and they queue up by themselves.
+#
 # Outputs: logs/<name>.log (watch this), results/<name>_calibrate.txt,
 #          results/<name>_test.txt + .csv, out/<name>_test/*.mid
 set -uo pipefail
@@ -60,6 +62,19 @@ DC=()
 [ -n "${DATA_CONFIG:-}" ] && DC=(--data_config "$DATA_CONFIG")
 echo "=== $(date '+%Y-%m-%d %H:%M') ${NAME}: ${CKPT}" \
      "${DATA_CONFIG:+on the dataset of $DATA_CONFIG}"
+
+# One evaluation at a time: each needs up to ~11 GB of GPU memory, so two of
+# them next to a training run do not fit in 24 GB. An evaluation started while
+# another one runs waits here and starts by itself when the other one ends (the
+# lock is released when that process exits, even if it fails).
+if command -v flock >/dev/null 2>&1; then
+  exec 9> logs/.evaluate.lock
+  if ! flock -n 9; then
+    echo "--- $(date '+%Y-%m-%d %H:%M') waiting: another evaluation is using the GPU"
+    flock 9
+    echo "--- $(date '+%Y-%m-%d %H:%M') the other evaluation finished; starting"
+  fi
+fi
 
 if [ -n "${THRESHOLDS:-}" ]; then
   read -r OT FT <<< "$THRESHOLDS"

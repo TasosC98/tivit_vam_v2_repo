@@ -17,8 +17,12 @@ for f in logs/E*.log logs/P0*.log; do
   if [ -f "logs/${n}.pid" ] && kill -0 "$(cat "logs/${n}.pid")" 2>/dev/null; then
     state="RUNNING"
   fi
+  lines="$(grep -aE "calibrating|reusing|scoring|headline|FAILED|done|waiting" "$f" | tail -n 4)"
+  if [ "$state" = "RUNNING" ] && printf '%s\n' "$lines" | tail -n 1 | grep -q "waiting:"; then
+    state="WAITING for another evaluation"
+  fi
   echo "--- ${n}  [${state}]"
-  grep -aE "calibrating|reusing|scoring|headline|FAILED|done" "$f" | tail -n 4 | sed 's/^/    /'
+  [ -n "$lines" ] && printf '%s\n' "$lines" | sed 's/^/    /'
   calib="results/${n}_calibrate.txt"
   if [ "$state" = "RUNNING" ] && [ -f "$calib" ]; then
     echo "    calibration progress: $(grep -ac 'predicted rolls' "$calib") videos predicted," \
