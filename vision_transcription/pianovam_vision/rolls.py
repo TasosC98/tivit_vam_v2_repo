@@ -38,34 +38,54 @@ class RollsCache:
         self.dir = Path(directory) if directory else None
         if self.dir is None:
             return
-        self.dir.mkdir(parents=True, exist_ok=True)
-        meta_path = self.dir / "meta.json"
-        old = None
-        if meta_path.exists():
-            try:
-                old = json.loads(meta_path.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                old = None
-        if old != meta:
-            stale = list(self.dir.glob("*.npz"))
-            if stale:
-                print(f"rolls in {self.dir} were made from other settings; recomputing them")
-            for f in stale:
-                f.unlink()
-            meta_path.write_text(json.dumps(meta, indent=1), encoding="utf-8")
+        try:
+            self.dir.mkdir(parents=True, exist_ok=True)
+            meta_path = self.dir / "meta.json"
+            old = None
+            if meta_path.exists():
+                try:
+                    old = json.loads(meta_path.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    old = None
+            if old != meta:
+                stale = list(self.dir.glob("*.npz"))
+                if stale:
+                    print(f"rolls in {self.dir} were made from other settings; recomputing them")
+                for f in stale:
+                    f.unlink()
+                meta_path.write_text(json.dumps(meta, indent=1), encoding="utf-8")
+        except OSError as e:
+            print(f"cannot keep model outputs in {self.dir} ({e}); running without saving them")
+            self.dir = None
 
+    # The cache must never change results: a file that cannot be read is simply
+    # recomputed, and a save that fails (e.g. a full disk) only switches saving
+    # off -- it must not make the caller skip the recording.
     def load(self, record: str) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         if self.dir is None:
             return None
         f = self.dir / f"{record}.npz"
         if not f.exists():
             return None
-        with np.load(f) as z:
-            return z["onset"].astype(np.float64), z["frame"].astype(np.float64)
+        try:
+            with np.load(f) as z:
+                return z["onset"].astype(np.float64), z["frame"].astype(np.float64)
+        except Exception as e:  # corrupt or truncated file
+            print(f"could not read {f} ({e}); running the model again")
+            return None
 
     def save(self, record: str, onset_p: np.ndarray, frame_p: np.ndarray) -> None:
         if self.dir is None:
             return
         tmp = self.dir / f"{record}.partial.npz"
-        np.savez_compressed(tmp, onset=onset_p.astype(np.float32), frame=frame_p.astype(np.float32))
-        tmp.replace(self.dir / f"{record}.npz")
+        try:
+            np.savez_compressed(tmp, onset=onset_p.astype(np.float32),
+                                frame=frame_p.astype(np.float32))
+            tmp.replace(self.dir / f"{record}.npz")
+        except OSError as e:
+            print(f"could not save model outputs in {self.dir} ({e}); continuing without saving")
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+            self.dir = None

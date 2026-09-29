@@ -107,3 +107,13 @@ def test_rolls_cache_roundtrip_and_staleness(tmp_path):
     assert RollsCache(str(tmp_path), {**meta, "checkpoint": "b.pt"}).load("rec") is None
     assert json.loads((tmp_path / "meta.json").read_text())["checkpoint"] == "b.pt"
     assert RollsCache(None, meta).load("rec") is None
+
+
+def test_rolls_cache_failures_never_raise(tmp_path):
+    onset, frame = np.zeros((2, 5, 88))
+    c = RollsCache(str(tmp_path / "rolls"), {"x": 1})
+    (tmp_path / "rolls" / "bad.npz").write_bytes(b"not a zip file")
+    assert c.load("bad") is None                        # unreadable -> recompute
+    c.dir = tmp_path / "missing" / "dir"                # saving now fails ...
+    c.save("rec", onset, frame)                         # ... without raising
+    assert c.dir is None and c.load("rec") is None
