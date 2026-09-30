@@ -1,7 +1,8 @@
 """Evaluation metrics: frame-level (training monitor) and note-level (mir_eval)."""
 from __future__ import annotations
 
-from typing import Dict, List
+from collections import defaultdict
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -31,34 +32,52 @@ def _to_intervals(notes: List[Note]):
     return intervals, freqs
 
 
+def note_prf(
+    ref: List[Note], est: List[Note], onset_tolerance: float = 0.05,
+    offset_ratio: Optional[float] = None, offset_min_tolerance: float = 0.05,
+) -> Tuple[float, float, float]:
+    """Precision, recall and F1 exactly as mir_eval's precision_recall_f1_overlap.
+
+    mir_eval only matches notes whose pitches are within 50 cents, i.e. the same
+    MIDI pitch, so its maximum matching is the sum of one maximum matching per
+    pitch. Matching pitch by pitch gives the same counts (so the same scores)
+    without mir_eval's n_ref x n_est distance matrices, which for a long
+    recording take gigabytes and minutes per call.
+    """
+    import mir_eval
+
+    if not ref or not est:
+        return 0.0, 0.0, 0.0
+    ref_i, ref_f = _to_intervals(ref)
+    est_i, est_f = _to_intervals(est)
+    mir_eval.transcription.validate(ref_i, ref_f, est_i, est_f)
+    by_ref, by_est = defaultdict(list), defaultdict(list)
+    for n in ref:
+        by_ref[n.pitch].append(n)
+    for n in est:
+        by_est[n.pitch].append(n)
+    matched = 0
+    for pitch in by_ref.keys() & by_est.keys():
+        ri, rf = _to_intervals(by_ref[pitch])
+        ei, ef = _to_intervals(by_est[pitch])
+        matched += len(mir_eval.transcription.match_notes(
+            ri, rf, ei, ef, onset_tolerance=onset_tolerance,
+            offset_ratio=offset_ratio, offset_min_tolerance=offset_min_tolerance))
+    precision = float(matched) / len(est)
+    recall = float(matched) / len(ref)
+    return precision, recall, mir_eval.util.f_measure(precision, recall)
+
+
 def note_scores(
     ref: List[Note],
     est: List[Note],
     onset_tolerance: float = 0.05,
     offset_ratio: float = 0.2,
 ) -> Dict[str, float]:
-    """Note-level F1 with mir_eval: onset-only and onset+offset."""
-    import mir_eval
-
-    ref_i, ref_f = _to_intervals(ref)
-    est_i, est_f = _to_intervals(est)
-
-    out: Dict[str, float] = {}
-    if len(ref_i) == 0 or len(est_i) == 0:
-        for k in ("onset_p", "onset_r", "onset_f1", "full_p", "full_r", "full_f1"):
-            out[k] = 0.0
-        return out
-
-    p, r, f, _ = mir_eval.transcription.precision_recall_f1_overlap(
-        ref_i, ref_f, est_i, est_f,
-        onset_tolerance=onset_tolerance, offset_ratio=None,
-    )
-    out.update(onset_p=p, onset_r=r, onset_f1=f)
-
-    p, r, f, _ = mir_eval.transcription.precision_recall_f1_overlap(
-        ref_i, ref_f, est_i, est_f,
-        onset_tolerance=onset_tolerance, offset_ratio=offset_ratio,
-    )
+    """Note-level F1 (mir_eval rules): onset-only and onset+offset."""
+    p, r, f = note_prf(ref, est, onset_tolerance, offset_ratio=None)
+    out: Dict[str, float] = dict(onset_p=p, onset_r=r, onset_f1=f)
+    p, r, f = note_prf(ref, est, onset_tolerance, offset_ratio=offset_ratio)
     out.update(full_p=p, full_r=r, full_f1=f)
     return out
 
@@ -80,10 +99,6 @@ def note_scores_protocols(
       offtol_*@tau  + offset within tau                      (V2N "++Off")
     where * is p / r / f1.
     """
-    import mir_eval
-
-    ref_i, ref_f = _to_intervals(ref)
-    est_i, est_f = _to_intervals(est)
     out: Dict[str, float] = {}
     for tol in tolerances:
         ms = int(round(tol * 1000))
@@ -93,11 +108,7 @@ def note_scores_protocols(
             "offtol": dict(offset_ratio=0.0, offset_min_tolerance=tol),
         }
         for name, kw in variants.items():
-            if len(ref_i) == 0 or len(est_i) == 0:
-                p = r = f = 0.0
-            else:
-                p, r, f, _ = mir_eval.transcription.precision_recall_f1_overlap(
-                    ref_i, ref_f, est_i, est_f, onset_tolerance=tol, **kw)
+            p, r, f = note_prf(ref, est, onset_tolerance=tol, **kw)
             out[f"{name}_p@{ms}"] = p
             out[f"{name}_r@{ms}"] = r
             out[f"{name}_f1@{ms}"] = f

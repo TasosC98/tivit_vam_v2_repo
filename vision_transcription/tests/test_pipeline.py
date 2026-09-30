@@ -184,6 +184,31 @@ def test_paper_protocol_metrics_tolerances():
     assert all(abs(perfect[k] - 1.0) < 1e-9 for k in perfect)
 
 
+def test_note_scores_identical_to_mir_eval():
+    """Scoring pitch by pitch must give exactly mir_eval's numbers."""
+    mir_eval = pytest.importorskip("mir_eval")
+    from pianovam_vision.metrics import _to_intervals, note_prf
+
+    rng = np.random.default_rng(0)
+
+    def notes(n):
+        on = np.sort(rng.random(n) * 30)
+        dur = rng.random(n) + 0.01
+        return [Note(float(o), float(o + d), int(p), 80)
+                for o, d, p in zip(on, dur, rng.integers(55, 62, n))]
+
+    for _ in range(20):
+        ref, est = notes(int(rng.integers(1, 200))), notes(int(rng.integers(1, 200)))
+        ri, rf = _to_intervals(ref)
+        ei, ef = _to_intervals(est)
+        for tol in (0.05, 0.10):
+            for kw in (dict(offset_ratio=None), dict(offset_ratio=0.2, offset_min_tolerance=0.05),
+                       dict(offset_ratio=0.0, offset_min_tolerance=tol)):
+                want = mir_eval.transcription.precision_recall_f1_overlap(
+                    ri, rf, ei, ef, onset_tolerance=tol, **kw)[:3]
+                assert note_prf(ref, est, onset_tolerance=tol, **kw) == want
+
+
 def test_sync_lag_sign_convention():
     """Labels 100 ms LATE vs the video -> best lag -0.1 s, and applying it via
     shift_notes (what data.label_offsets does) lines the labels up again."""
