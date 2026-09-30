@@ -202,7 +202,7 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
   <div class="eyebrow">PhD project · video-only piano transcription</div>
   <h1>PianoVAM–PianoYT Study</h1>
   <p class="lede">What we built, what the numbers say, and how they compare with three papers — in plain words, with every number taken from your result files or from the papers themselves.</p>
-  <div class="meta">Updated: 29 Sep 2026, evening (report.sh at ~21:15: E2 finished, E5 running) · sources: your <code>report.sh</code> output, the downloaded <code>results/</code>, <code>logs/</code> and <code>out/</code> folders, PianoVAM v1.2 fingering labels · papers read on arXiv (tables checked twice)</div>
+  <div class="meta">Updated: 30 Sep 2026, afternoon (E4, E5 and E1t finished; PianoYT sync check running) · sources: your <code>report.sh</code> output, the downloaded <code>results/</code>, <code>logs/</code> and <code>out/</code> folders, PianoVAM v1.2 fingering labels · papers read on arXiv (tables checked twice)</div>
 </header>
 
 <nav class="tabs" aria-label="Report pages">
@@ -213,6 +213,7 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
     <a href="#ppan"><small>PAPER</small>PPAN · 2411.09037</a>
     <a href="#pianovam"><small>PAPER</small>PianoVAM · 2509.08800</a>
     <a href="#v2n"><small>PAPER</small>V2N · 2608.03419</a>
+    <a href="#plan">Publication plan</a>
     <a href="#variables">Variables</a>
     <a href="#next">Next steps &amp; logs</a>
   </div>
@@ -223,7 +224,7 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
 <!-- ================================================================ SUMMARY -->
 <section id="summary">
   <h2>Where we stand</h2>
-  <p>You have a video-only piano transcription model that is <b>as good as the best published system on PianoVAM</b> (V2N, ISMIR 2026), with <b>22 times fewer parameters</b>. Trained on YouTube videos (PianoYT) from scratch, it reaches <b>63.9% at 100 ms</b> — the level that S2S and V2R reach only after pre-training on another dataset, 4 points below PPAN. A PianoVAM model that has never seen PianoYT still collapses there, and <b>more than a third of that gap is a timing offset in the PianoYT labels</b>, which we can measure and correct.</p>
+  <p>You have a video-only piano transcription model that is <b>as good as the best published system on PianoVAM</b> (V2N, ISMIR 2026), with <b>22 times fewer parameters</b>. On YouTube videos (PianoYT), pre-training on PianoVAM and then fine-tuning gives <b>69.1% at 100 ms</b> — above the best published number (PPAN, 68%) — and the gain over training on PianoYT alone (63.9%) is statistically significant. A PianoVAM model that has never seen PianoYT still collapses there, and <b>more than a third of that gap is a timing offset in the PianoYT labels</b>, which we can measure and correct.</p>
 
   <div class="hero">
     <div class="scroll" id="kbd"></div>
@@ -237,15 +238,15 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
   <ol>
     <li><b>A small per-key model is enough for state-of-the-art results on clean data</b> — PianoVAM, whose labels come from a Disklavier piano that records every key exactly. <span class="chip done">E1 done</span></li>
     <li><b>What changes with noisy data</b> — PianoYT: YouTube videos whose labels were made by an audio model. Same model, same training recipe. <span class="chip done">E2 done: 63.9%</span></li>
-    <li><b>Does knowledge move between the two datasets?</b> Without any training on the new one (“zero-shot”, E3/E5) and with fine-tuning (E4). <span class="chip done">E3 done</span> <span class="chip run">E4 training</span> <span class="chip run">E5 running</span></li>
-    <li><b>Why PianoYT is hard, and how to fix it</b> — data audit (done), timing and sync (new evidence below), sync-corrected labels (E6). <span class="chip plan">E6 planned</span></li>
+    <li><b>Does knowledge move between the two datasets?</b> Without any training on the new one (“zero-shot”, E3/E5) and with fine-tuning (E4). <span class="chip done">E3 done</span> <span class="chip done">E4 done: 69.1%</span> <span class="chip done">E5 done</span></li>
+    <li><b>Why PianoYT is hard, and how to fix it</b> — data audit (done), timing and sync (new evidence below), sync-corrected labels (E6). <span class="chip run">E6 sync check running</span></li>
     <li><b>Which hand played each note</b> (E7) — labels published two days ago; a first baseline works. <span class="chip run">E7 started</span></li>
   </ol>
 
   <h3>The four numbers to remember</h3>
   <div class="tiles">
     <div class="tile"><div class="big">95.2<small>%</small></div><div class="lab">PianoVAM onset F1 at 50 ms (98.0% at 100 ms)</div><div class="cmp">V2N: 94.7% (a tie, p = 0.91) and 97.0% (we are better, p = 0.008). Same test files, same scoring script.</div></div>
-    <div class="tile"><div class="big">63.9<small>%</small></div><div class="lab">PianoYT onset F1 at 100 ms (E2, from scratch)</div><div class="cmp">PPAN: 68%; S2S and V2R: 64% — all three pre-trained on R3 first. Our old model: 49.0%.</div></div>
+    <div class="tile"><div class="big">69.1<small>%</small></div><div class="lab">PianoYT onset F1 at 100 ms (E4: PianoVAM pre-training + PianoYT fine-tuning)</div><div class="cmp">PPAN: 68%; S2S and V2R: 64%. Trained on PianoYT alone: 63.9% — the gain is significant (p = 0.004).</div></div>
     <div class="tile"><div class="big">1.30<small> M</small></div><div class="lab">Parameters in our model</div><div class="cmp">V2N: 28.2 M — 22× more. Our model has 1,299,491 weights.</div></div>
     <div class="tile bad"><div class="big">14.7<small>%</small></div><div class="lab">Zero-shot PianoVAM → PianoYT, 100 ms</div><div class="cmp">A collapse — but <b>26.6%</b> if the predictions are simply moved ~110 ms later (a diagnostic, see Results → Timing).</div></div>
   </div>
@@ -265,23 +266,24 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
       <tr class="us"><td class="b">E2</td><td>How good on noisy labels (from scratch)?</td><td>PianoYT → PianoYT</td><td><span class="chip done">done 29 Sep</span></td><td class="num">39.2 / 63.9</td></tr>
       <tr><td class="b">E3a</td><td>Zero-shot, PianoVAM thresholds</td><td>PianoVAM → PianoYT</td><td><span class="chip done">done</span></td><td class="num">4.1 / 9.4</td></tr>
       <tr><td class="b">E3b</td><td>Zero-shot, thresholds tuned on PianoYT valid</td><td>PianoVAM → PianoYT</td><td><span class="chip done">done</span></td><td class="num">6.1 / 14.7</td></tr>
-      <tr><td class="b">E4</td><td>Does clean pre-training help noisy data?</td><td>PianoVAM, then fine-tune PianoYT → PianoYT</td><td><span class="chip run">training</span> epoch 6 of 0–11; evaluation queued</td><td class="num">pending<br><span class="muted">valid 0.342 (E2: 0.339 at that epoch)</span></td></tr>
-      <tr><td class="b">E5a</td><td>Reverse zero-shot, PianoYT thresholds</td><td>PianoYT → PianoVAM</td><td><span class="chip run">running</span></td><td class="num">—</td></tr>
-      <tr><td class="b">E5b</td><td>Reverse zero-shot, PianoVAM-valid thresholds</td><td>PianoYT → PianoVAM</td><td><span class="chip queue">waiting for E5a</span></td><td class="num">—</td></tr>
-      <tr><td class="b">E1t, E3c</td><td>The same models with onset timing tuned on valid</td><td>PianoVAM → PianoVAM; PianoVAM → PianoYT</td><td><span class="chip queue">start tonight</span></td><td class="num">—</td></tr>
-      <tr><td class="b">E6</td><td>Do sync-corrected labels help?</td><td>PianoYT (fixed labels) → PianoYT</td><td><span class="chip plan">sync check tomorrow</span></td><td class="num">—</td></tr>
+      <tr class="us"><td class="b">E4</td><td>Does clean pre-training help noisy data?</td><td>PianoVAM, then fine-tune PianoYT → PianoYT</td><td><span class="chip done">done 30 Sep</span></td><td class="num">45.1 / 69.1</td></tr>
+      <tr><td class="b">E5a</td><td>Reverse zero-shot, PianoYT thresholds</td><td>PianoYT → PianoVAM</td><td><span class="chip done">done</span></td><td class="num">1.4 / 7.5</td></tr>
+      <tr><td class="b">E5b</td><td>Reverse zero-shot, thresholds tuned on PianoVAM valid</td><td>PianoYT → PianoVAM</td><td><span class="chip done">done</span></td><td class="num">14.6 / 21.0</td></tr>
+      <tr><td class="b">E1t</td><td>E1 with onset timing tuned on valid</td><td>PianoVAM → PianoVAM</td><td><span class="chip done">done — worse</span></td><td class="num">92.5 / 98.0</td></tr>
+      <tr><td class="b">E3c, E5c</td><td>Zero-shot with a time shift chosen on valid</td><td>both directions</td><td><span class="chip queue">waiting (after the sync check)</span></td><td class="num">—</td></tr>
+      <tr><td class="b">E6</td><td>Do sync-corrected labels help?</td><td>PianoYT (fixed labels) → PianoYT</td><td><span class="chip run">sync check running</span></td><td class="num">—</td></tr>
       <tr><td class="b">E7</td><td>Which hand played each note?</td><td>PianoVAM</td><td><span class="chip run">first baseline</span></td><td class="num">right hand: 97.7%</td></tr>
-      <tr><td class="b">A1</td><td>Ablation: one global strip vs 88 tiles</td><td>PianoVAM → PianoVAM</td><td><span class="chip queue">starts after E4</span></td><td class="num">—</td></tr>
+      <tr><td class="b">A1</td><td>Ablation: one global strip vs 88 tiles</td><td>PianoVAM → PianoVAM</td><td><span class="chip run">training</span> epoch 5 of 25; evaluation queued</td><td class="num">pending<br><span class="muted">valid 0.736 vs tiles 0.791 at epoch 4</span></td></tr>
       <tr><td class="b">P0</td><td>Old model (tiled_best_v2, old recipe) as baseline</td><td>several</td><td><span class="chip done">done 27 Sep</span></td><td class="num">VAM→VAM 84.3 / 89.0<br>YT→YT 33.3 / 49.0</td></tr>
     </tbody>
   </table></div>
   <p class="tcap">E1 numbers are from the V2N-comparison script (95.2 / 98.0); our own evaluator gives 95.3 / 98.0 (explained on the Results page). All other numbers are from our evaluator. PianoYT scores use the 20 test videos we have (video 163 is missing on the server). E7: right hand for the 1,800 manually labelled notes (Results R11).</p>
 
   <h3>Is everything OK?</h3>
-  <div class="call ok"><span class="tag">Yes — the main result is solid</span>Three independent measurements agree for E1: 95.2% on the <em>valid</em> set during calibration, 95.3% on <em>test</em> with our evaluator, and 95.2% on test with the V2N script. The thresholds were chosen on valid only, never on test.</div>
-  <div class="call ok"><span class="tag">The GPU queue works</span>E5b now waits for E5a instead of crashing (commit <code>5279b5b</code>), and the E4 evaluation and the strip ablation start by themselves when the fine-tuning ends. One detail: E5a is running for the second time — E2 had already finished at 16:30, so the old waiter started E5a then, and the new one started it again at 21:12. Same result; about an hour of GPU time.</div>
-  <div class="call ok"><span class="tag">Video timing is exact</span>Your timestamp check: in all 18 videos tested (9 PianoVAM, 9 PianoYT) every frame sits exactly at <i>i</i>/fps (first frame +0.0 ms, middle and last frames off by +0.0 ms). Our video reader is not the cause of the timing offsets.</div>
-  <div class="call new"><span class="tag">New tonight</span>(1) <b>Black keys are detected ~12 ms later than white keys</b> (median +15.6 vs +3.9 ms), which is why their recall at 50 ms is lower (92.8% vs 97.3%) — key detection itself is fine: only 19 of 42,241 notes are wrong-key errors. (2) <b>PianoVAM published hand and finger labels</b> (v1.2, two days ago). (3) <b>The hand tags in PianoVAM’s skeleton files are mirrored</b>; swapped, a simple fingertip rule finds the right hand for 97.7% of the manually labelled notes. Details: Results R10 and R11.</div>
+  <div class="call ok"><span class="tag">Yes — all results are consistent</span>Every number was re-checked from the downloaded files. E1’s three measurements agree (valid 95.2, test 95.3 with our evaluator, 95.2 with the V2N script); E4’s gain over E2 holds on 15 of 20 test videos and is significant; the thresholds of every run were chosen on valid only.</div>
+  <div class="call ok"><span class="tag">The GPU queue works — and scoring is now 25× faster</span>Evaluations wait for each other (commit <code>5279b5b</code>), and the note scoring now matches notes key by key (<code>ccccb0d</code>): exactly the same numbers as <code>mir_eval</code> (702 of 702 E1 scores identical), about 25× faster. Before, one calibration setting took ~10 minutes and blocked the queue. The strip training stalled once at the end of epoch 4, while the old slow scoring used many GB of memory; after a restart it continues normally.</div>
+  <div class="call warn"><span class="tag">Tuning the onset timing on valid did not work (E1t)</span>The timing chosen on the 9 valid recordings (sub-frame onsets, no shift) made the test score at 50 ms worse: 92.5 instead of 95.3. One test recording (02-14 20:10), already ~30 ms late, fell from 93.2 to 67.5, while another rose from 87.4 to 96.5. Each recording has its own timing offset, so one global correction cannot fix them. <b>E1 stays our PianoVAM result.</b></div>
+  <div class="call new"><span class="tag">New today</span>(1) <b>E4 = 69.1% at 100 ms on PianoYT</b>: pre-training on PianoVAM helps, significantly (p = 0.004), and scores above PPAN’s 68%. (2) <b>The reverse zero-shot (E5b) transfers better</b> than the forward one: 14.6 / 21.0 vs 6.1 / 14.7. (3) <b>Correction:</b> the ~110 ms offset in zero-shot is mostly the PianoVAM model firing early on unfamiliar videos, not only the PianoYT labels — the PianoYT model is only ~30 ms late on PianoVAM (Results R8).</div>
 
   <h3>The experiment map</h3>
   <div class="xwrap"><div class="xmap">
@@ -290,14 +292,14 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
     <div class="cell"><span class="id">E1</span><span class="chip done">done</span><span class="v">95.2 / 98.0</span></div>
     <div class="cell"><span class="id">E3</span><span class="chip done">done</span> zero-shot<span class="v">a: 4.1 / 9.4 · b: 6.1 / 14.7</span></div>
     <div class="rowh">Trained on PianoYT<span>audio-model labels, 179 videos</span></div>
-    <div class="cell"><span class="id">E5</span><span class="chip run">running</span> reverse zero-shot<span class="v">a running · b waiting its turn</span></div>
+    <div class="cell"><span class="id">E5</span><span class="chip done">done</span> reverse zero-shot<span class="v">a: 1.4 / 7.5 · b: 14.6 / 21.0</span></div>
     <div class="cell"><span class="id">E2</span><span class="chip done">done</span><span class="v">39.2 / 63.9</span></div>
     <div class="rowh">PianoVAM, then fine-tuned on PianoYT</div>
     <div class="cell empty">not planned (would show forgetting)</div>
-    <div class="cell"><span class="id">E4</span><span class="chip run">training</span><span class="v">evaluation queued</span></div>
+    <div class="cell"><span class="id">E4</span><span class="chip done">done</span><span class="v">45.1 / 69.1</span></div>
     <div class="rowh">PianoYT with corrected sync</div>
     <div class="cell empty">—</div>
-    <div class="cell"><span class="id">E6</span><span class="chip plan">planned</span><span class="v">—</span></div>
+    <div class="cell"><span class="id">E6</span><span class="chip run">sync check</span><span class="v">—</span></div>
   </div></div>
   <p class="tcap">Numbers: onset F1 (%) at 50 / 100 ms on the test split. PianoYT’s rival number is PPAN’s 68% at 100 ms (after pre-training on a third dataset, R3).</p>
 
@@ -345,7 +347,7 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
       <tr class="us"><td class="b">Total</td><td></td><td class="num b">1,299,491</td></tr>
     </tbody>
   </table></div>
-  <p class="tcap">Counted from <code>pianovam_vision/model.py</code> with the settings in <code>configs/tiled_best.yaml</code>. For scale: V2N reports 28.2 M parameters and 125 GFLOPs per 1-second clip.</p>
+  <p class="tcap">Counted from <code>pianovam_vision/model.py</code> with the settings in <code>configs/tiled_best.yaml</code>. For scale: V2N reports 28.2 M parameters and 125 GFLOPs per 1-second clip. The global “strip” model of ablation A1 (the same CNN, but one description per frame, like V2N) has 3,698,128 parameters — 2.8× more.</p>
 
   <h3>How we train</h3>
   <div class="tbl"><table>
@@ -363,6 +365,7 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
       <tr><td>Loss</td><td colspan="4">Binary cross-entropy for onset (positive weight 8, onsets are rare) + frame (positive weight 2)</td></tr>
       <tr><td>Which checkpoint is kept</td><td colspan="4"><code>best.pt</code> = the epoch with the best per-frame onset F1 on valid (over thresholds 0.1–0.9)</td></tr>
       <tr><td>Time per epoch</td><td>—</td><td>~47 min</td><td>44–71 min</td><td>~37 min alone</td></tr>
+      <tr><td>Checkpoint used (best on valid)</td><td>epoch 8 (3,330 steps)</td><td>epoch 14 (104,565 steps)</td><td>epoch 15 (102,176 steps)</td><td>epoch 9 (63,860 steps, after the 104,565 on PianoVAM)</td></tr>
     </tbody>
   </table></div>
 
@@ -455,24 +458,25 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
 
   <h3>R4 · Training curves (validation, per frame)</h3>
   <figure>
-    <div class="legend"><span class="lg"><i class="sw c-ours"></i>vam_full (E1) onset</span><span class="lg"><i class="sw dash c-ours"></i>vam_full frame</span><span class="lg"><i class="sw c-yt"></i>yt_full (E2) onset</span><span class="lg"><i class="sw dash c-yt"></i>yt_full frame</span><span class="lg"><i class="sw c-ft"></i>yt_finetune (E4) onset</span></div>
+    <div class="legend"><span class="lg"><i class="sw c-ours"></i>vam_full (E1) onset</span><span class="lg"><i class="sw dash c-ours"></i>vam_full frame</span><span class="lg"><i class="sw c-yt"></i>yt_full (E2) onset</span><span class="lg"><i class="sw dash c-yt"></i>yt_full frame</span><span class="lg"><i class="sw c-ft"></i>yt_finetune (E4) onset</span><span class="lg"><i class="sw c-other"></i>vam_strip (A1, global model) onset</span></div>
     <div class="scroll" id="ch-train"></div>
-    <figcaption>Per-frame F1 on the valid split after every epoch (<code>onset_f1_best</code>, <code>frame_f1_best</code>). These are <b>not</b> note scores: they count every key × frame, so a note found one frame late counts as wrong here but as right in the note score. That is why vam_full’s best per-frame onset F1 (0.814, epoch 14) becomes a note F1 of 0.953 on test. Use these curves to compare epochs of one run, not datasets. yt_full epochs 13–20 and 22–23 and yt_finetune epochs 2–4 are not in the files you downloaded (see Next steps to get them).</figcaption>
+    <figcaption>Per-frame F1 on the valid split after every epoch (<code>onset_f1_best</code>, <code>frame_f1_best</code>). These are <b>not</b> note scores: they count every key × frame, so a note found one frame late counts as wrong here but as right in the note score. That is why vam_full’s best per-frame onset F1 (0.814, epoch 14) becomes a note F1 of 0.953 on test. Use these curves to compare epochs of one run, not datasets. All epochs come from the files downloaded on 30 Sep; vam_strip is still training (epochs 0–4 so far).</figcaption>
   </figure>
   <ul>
     <li><b>PianoVAM</b> improves quickly and is flat from epoch ~10 (0.80–0.81): more epochs would not help much.</li>
     <li><b>PianoYT</b> stops at ~0.35 per-frame onset F1 from epoch 6 on, with a training loss 7× higher than PianoVAM’s (0.128 vs 0.018 at the last epoch). The model cannot fit the labels better — a sign of label noise (timing and wrong notes), not of too little training.</li>
-    <li><b>Fine-tuning (E4)</b> starts from the PianoVAM model: 0.336 at epoch 0, 0.321 at epoch 1, 0.342 at epoch 5 (yt_full: 0.310, 0.269 and 0.339 at the same epochs). The head start has almost gone by epoch 5; the test score will decide.</li>
+    <li><b>Fine-tuning (E4)</b> starts from the PianoVAM model. Its per-frame valid score stays at 0.32–0.34 (best 0.344 at epoch 9), slightly <em>below</em> yt_full’s 0.36 — yet on test it is clearly better (R7). The per-frame score punishes a one-frame timing difference; the note-level valid score agrees with the test (E4 0.370 vs E2 0.357 at 50 ms).</li>
+    <li><b>The strip ablation (A1)</b> learns much more slowly: 0.49 → 0.74 over epochs 0–4, where the tiles model had 0.75 → 0.79. Its test score comes after epoch 24.</li>
   </ul>
 
   <h3>R5 · Calibration: how confident is the model?</h3>
   <figure>
-    <div class="legend"><span class="lg"><i class="sw c-ours"></i>E1: PianoVAM model on PianoVAM valid</span><span class="lg"><i class="sw dash c-ours"></i>E3b: PianoVAM model on PianoYT valid</span><span class="lg"><i class="sw c-yt"></i>E2: PianoYT model on PianoYT valid (running)</span></div>
+    <div class="legend"><span class="lg"><i class="sw c-ours"></i>E1: PianoVAM model on PianoVAM valid</span><span class="lg"><i class="sw dash c-ours"></i>E3b: PianoVAM model on PianoYT valid</span><span class="lg"><i class="sw c-yt"></i>E2: PianoYT model on PianoYT valid</span><span class="lg"><i class="sw c-ft"></i>E4: fine-tuned model on PianoYT valid</span><span class="lg"><i class="sw dash c-yt"></i>E5b: PianoYT model on PianoVAM valid</span></div>
     <div class="scroll" id="ch-cal"></div>
-    <figcaption>Note F1 at 50 ms on the valid split for each onset threshold (frame threshold 0.5). On its own data the PianoVAM model is very sure of itself: the best threshold is 0.90. On YouTube videos the same model is unsure, and the best threshold falls to 0.20. The PianoYT model peaks in the middle (0.50, F1 0.357 so far). Source: <code>results/*_calibrate.txt</code>.</figcaption>
+    <figcaption>Note F1 at 50 ms on the valid split for each onset threshold (frame threshold 0.5). On its own data the PianoVAM model is very sure of itself: the best threshold is 0.90. On YouTube videos the same model is unsure, and the best threshold falls to 0.20. The PianoYT model peaks in the middle (0.50, F1 0.357), the fine-tuned model at 0.60 (0.370). In the reverse direction the PianoYT model is unsure on PianoVAM too: its best threshold is the lowest one tried (0.05). Source: <code>results/*_calibrate.txt</code>.</figcaption>
   </figure>
 
-  <h3>R6 · Zero-shot: PianoVAM model on PianoYT (E3)</h3>
+  <h3>R6 · Zero-shot in both directions (E3, E5)</h3>
   <div class="tbl"><table>
     <thead><tr><th>Run</th><th>Model / thresholds</th><th class="num">Onset F1 @50</th><th class="num">@100</th><th class="num">P / R @100</th><th class="num">Predicted / true notes</th></tr></thead>
     <tbody>
@@ -480,12 +484,15 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
       <tr><td class="b">E3b</td><td>vam_full, PianoYT-valid thresholds 0.20 / 0.10</td><td class="num">0.061</td><td class="num">0.147</td><td class="num">0.208 / 0.124</td><td class="num">20,392 / 31,636</td></tr>
       <tr><td>P0</td><td>old model, PianoVAM thresholds 0.60 / 0.50</td><td class="num">0.061</td><td class="num">0.130</td><td class="num">0.240 / 0.094</td><td class="num">9,868 / 31,636</td></tr>
       <tr><td>P0-cal</td><td>old model, PianoYT-valid thresholds 0.15 / 0.10 (19 videos)</td><td class="num">0.065</td><td class="num">0.140</td><td class="num">0.185 / 0.121</td><td class="num">16,096 / 30,040</td></tr>
+      <tr class="grp"><td colspan="6">reverse direction: the PianoYT model (E2) on the PianoVAM test</td></tr>
+      <tr><td class="b">E5a</td><td>yt_full, PianoYT thresholds 0.50 / 0.70</td><td class="num">0.014</td><td class="num">0.075</td><td class="num">0.346 / 0.043</td><td class="num">5,339 / 42,241</td></tr>
+      <tr><td class="b">E5b</td><td>yt_full, PianoVAM-valid thresholds 0.05 / 0.90</td><td class="num">0.146</td><td class="num">0.210</td><td class="num">0.323 / 0.170</td><td class="num">21,125 / 42,241</td></tr>
       <tr class="grp"><td colspan="6">for reference: trained on PianoYT</td></tr>
       <tr><td>P0</td><td>old PianoYT model (pianoyt_tiled), 0.70 / 0.40</td><td class="num">0.333</td><td class="num">0.490</td><td class="num">0.619 / 0.429</td><td class="num">21,389 / 31,636</td></tr>
     </tbody>
   </table></div>
   <p class="tcap">Sources: <code>results/E3a_zeroshot_test.txt</code>, <code>E3b_zeroshot_test.txt</code>, <code>phase0_vam_on_yt.txt</code>, <code>P0_vam_on_yt_cal_test.txt</code>, <code>phase0_yt_on_yt.txt</code>. P0-cal skipped video 162 (decoder error) as well as 163.</p>
-  <p><b>What it means:</b> the much better model (95% instead of 84% on PianoVAM) is <em>not</em> better on YouTube (0.147 vs 0.140). With PianoVAM thresholds it stays almost silent (predicts 16% as many notes as exist). V2N reports the same collapse between PianoVAM and R3 (0–6%). But see R8: a single time shift doubles these numbers, so the collapse is partly a timing mismatch.</p>
+  <p><b>What it means:</b> the much better model (95% instead of 84% on PianoVAM) is <em>not</em> better on YouTube (0.147 vs 0.140). With the thresholds of its own dataset each model stays almost silent on the other one (E3a predicts 16% as many notes as exist, E5a 13%). The <b>reverse direction transfers better</b> (E5b 0.146 / 0.210 vs E3b 0.061 / 0.147): a model trained on many different YouTube pianos generalises better to the single PianoVAM setup than the other way round. V2N reports the same kind of collapse between PianoVAM and R3 (0–6%).</p>
   <figure>
     <div class="ftitle">Per test video, onset F1 at 100 ms: trained on PianoYT vs zero-shot</div>
     <div class="legend"><span class="lg"><i class="sw c-yt"></i>old model trained on PianoYT (Phase 0)</span><span class="lg"><i class="sw c-ours"></i>zero-shot PianoVAM model (E3b)</span></div>
@@ -493,18 +500,25 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
     <figcaption>Sorted by the in-domain score. Videos 309 and 430 fail for every model (the trained one predicts 149 and 48 notes for 2,474 and 1,712 true notes) although their crops are correct — they need a closer look.</figcaption>
   </figure>
 
-  <h3>R7 · PianoYT trained on PianoYT (E2) — done</h3>
+  <h3>R7 · PianoYT: from scratch (E2) vs pre-trained on PianoVAM (E4)</h3>
   <div class="tbl"><table>
-    <thead><tr><th>PianoYT test (20 videos)</th><th class="num">Onset F1 @50</th><th class="num">Onset F1 @100</th><th>How it was trained</th></tr></thead>
+    <thead><tr><th>PianoYT test (20 videos)</th><th class="num">Onset F1 @50</th><th class="num">Onset F1 @100</th><th class="num">P / R @100</th><th>How it was trained</th></tr></thead>
     <tbody>
-      <tr class="us"><td class="b">E2 · our model, new recipe</td><td class="num b">0.392</td><td class="num b">0.639</td><td>PianoYT only, from scratch</td></tr>
-      <tr><td>Old model (Phase 0)</td><td class="num">0.333</td><td class="num">0.490</td><td>PianoYT only, old recipe (20 s per video, 360p)</td></tr>
-      <tr><td>PPAN (their Table 3)</td><td class="num">—</td><td class="num">0.68</td><td>video pre-training + R3, then PianoYT (onsets only)</td></tr>
-      <tr><td>S2S, V2R (PPAN’s Table 3)</td><td class="num">—</td><td class="num">0.64</td><td>R3, then PianoYT (onsets only)</td></tr>
+      <tr class="us"><td class="b">E4 · pre-trained on PianoVAM, fine-tuned</td><td class="num b">0.451</td><td class="num b">0.691</td><td class="num">0.755 / 0.647</td><td>PianoVAM (15 epochs), then PianoYT (best: epoch 9 of 12)</td></tr>
+      <tr><td class="b">E2 · from scratch</td><td class="num">0.392</td><td class="num">0.639</td><td class="num">0.746 / 0.595</td><td>PianoYT only (best: epoch 15 of 25)</td></tr>
+      <tr><td>Old model (Phase 0)</td><td class="num">0.333</td><td class="num">0.490</td><td class="num">0.619 / 0.429</td><td>PianoYT only, old recipe (20 s per video, 360p)</td></tr>
+      <tr><td>PPAN (their Table 3)</td><td class="num">—</td><td class="num">0.68</td><td class="num">—</td><td>video pre-training + R3, then PianoYT (onsets only)</td></tr>
+      <tr><td>S2S, V2R (PPAN’s Table 3)</td><td class="num">—</td><td class="num">0.64</td><td class="num">—</td><td>R3, then PianoYT (onsets only)</td></tr>
     </tbody>
   </table></div>
-  <p class="tcap">E2: <code>runs/yt_full/best.pt</code>, thresholds onset 0.50 / frame 0.70 chosen on PianoYT valid. Source: your report.sh (headline 0.3917 / 0.6386); precision, recall and per-video scores come with the next download. PPAN’s test set has 33,535 notes, ours 31,636 (video 163 is missing).</p>
-  <p><b>What it means:</b> the recipe that gave 95% on PianoVAM gives <b>0.639 on PianoYT, from scratch</b> — +0.149 over the old model, the same as S2S and V2R <em>after</em> pre-training on R3, and 0.04 below PPAN. The gap between 50 and 100 ms is large (0.392 vs 0.639): many notes are found but more than 50 ms away from their label — the PianoYT timing problem again (R8). E4 (pre-trained on PianoVAM) shows tomorrow whether clean pre-training closes the last 0.04; E6 (sync-corrected labels) is the second candidate.</p>
+  <p class="tcap">E4: <code>runs/yt_finetune/best.pt</code>, thresholds onset 0.60 / frame 0.80; E2: <code>runs/yt_full/best.pt</code>, 0.50 / 0.70 — both chosen on PianoYT valid. Paired Wilcoxon test over the 20 videos, E4 vs E2: <b>p = 0.033 at 50 ms, p = 0.004 at 100 ms</b>; E4 is higher on 15 of 20 videos. PPAN’s test set has 33,535 notes, ours 31,636 (video 163 is missing), so the comparison with PPAN is close but not on identical files.</p>
+  <figure>
+    <div class="ftitle">Per test video, onset F1 at 100 ms: from scratch (E2) vs pre-trained on PianoVAM (E4)</div>
+    <div class="legend"><span class="lg"><i class="sw c-yt"></i>E2 · from scratch</span><span class="lg"><i class="sw c-ft"></i>E4 · pre-trained on PianoVAM</span></div>
+    <div class="scroll" id="ch-e2e4"></div>
+    <figcaption>Sorted by E4. The largest gains are on the hardest videos: 308 (0.19 → 0.50) and 309 (0.09 → 0.34). Video 302 (out of sync, R8) stays at 0.29–0.30 for both, and 430 fails for every model.</figcaption>
+  </figure>
+  <p><b>What it means:</b> pre-training on the clean PianoVAM data and then fine-tuning on PianoYT gives <b>0.691 at 100 ms</b> — 0.052 above training on PianoYT alone, significantly, and above PPAN’s published 0.68, with a 1.3 M-parameter model. Clean labels teach the model what a key press looks like; the noisy YouTube labels then adapt it to new pianos and cameras. Two honest notes: the per-frame validation curve did not show this gain (R4), and the gap between 50 and 100 ms is still large (0.451 vs 0.691) — PianoYT timing remains the limit, which is what E6 addresses.</p>
 
   <h3>R8 · Timing — what the downloaded MIDI files show</h3>
   <p>New analysis for this report, computed on your PC with <code>mir_eval</code> from the predicted MIDI in <code>out/</code> and your local label copies (PianoVAM TSVs, PianoYT MIDI). Sanity check: the 100 ms scores match the server’s to 4 decimals for every recording. For each matched note we take the error <b>predicted onset − true onset</b> (positive = we are late).</p>
@@ -523,16 +537,22 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
   <ul>
     <li><b>How much it costs:</b> removing each recording’s own offset would raise the mean onset F1 at 50 ms from 0.952 to <b>0.970</b> (02-14 20:10 alone: 0.928 → 0.985). One shift for all recordings together barely helps (best: all predictions 5 ms earlier → 0.953), because the offsets differ per recording. These are upper bounds computed with the test labels — a diagnosis, not a result.</li>
     <li><b>Where it comes from:</b> not the video files — your timestamp check shows every frame exactly on the <i>i</i>/fps grid, so our reader is right. It is the model and the decoding: black keys are detected about 12 ms later than white keys (R10), and the decoder takes the <em>first</em> frame above a high threshold (0.90), not the centre of the onset peak. V2N scores 0.965 on 02-14 20:10 with the same labels, which also points to our side, and the old model has <em>different</em> per-recording offsets, as expected if the decoding is involved.</li>
-    <li><b>The fix (new code):</b> <code>TIMING=1</code> tunes on valid the onset rule (first frame, or the sub-frame centre of the onset peak), one time shift for all keys, and an extra shift for black keys. Nothing is chosen on test, and no retraining is needed. It targets exactly the 50 ms score, where we tie with V2N (run E1t, Next steps).</li>
+    <li><b>We tested a fix (E1t) — it does not transfer.</b> Tuning the onset rule and time shifts on valid picked sub-frame onsets with no shift (valid: 95.2 → 95.5). On test the 50 ms score fell to 92.5 (table below): recording 02-14 20:10, already ~30 ms late, dropped from 93.2 to 67.5 because the sub-frame rule adds about half a frame, while 02-17 21:44 rose from 87.4 to 96.5. Recording-specific offsets cannot be fixed by one global setting; <b>E1 stays our result</b>, and the offsets are a limitation to discuss in the paper.</li>
   </ul>
 
-  <h4>2 · PianoYT: the labels are ~110 ms later than the key presses</h4>
+  <div class="tbl"><table>
+    <thead><tr><th>PianoVAM test recording</th><th class="num">E1 @50 (first frame)</th><th class="num">E1t @50 (tuned timing)</th><th class="num">Change</th></tr></thead>
+    <tbody id="e1t-rows"></tbody>
+  </table></div>
+  <p class="tcap">Our evaluator, onset F1 at 50 ms. Means: E1 0.953, E1t 0.924. At 100 ms both give 0.980. Against V2N with the same script, E1t is 92.5 vs 94.7 at 50 ms (p = 0.65) — no longer a tie in our favour, so we keep E1.</p>
+
+  <h4>2 · Zero-shot on PianoYT: predictions ~110 ms before the labels</h4>
   <figure>
     <div class="legend"><span class="lg"><i class="sw c-ours"></i>zero-shot PianoVAM model (E3b), 100 ms</span><span class="lg"><i class="sw dash c-ours"></i>same, 50 ms</span><span class="lg"><i class="sw c-yt"></i>old model trained on PianoYT, 100 ms</span><span class="lg"><i class="sw dash c-yt"></i>same, 50 ms</span></div>
     <div class="scroll" id="ch-yscan"></div>
     <figcaption>Mean onset F1 over the PianoYT test videos when every predicted onset is moved by the same amount of time. The model trained on PianoYT is best with no shift (it learned the label timing). The PianoVAM model is best when its predictions are moved <b>110–120 ms later</b>: F1 at 100 ms goes from 0.147 to <b>0.266</b>, at 50 ms from 0.063 to <b>0.170</b>. E3a: 0.094 → 0.137 (80 ms). Computed from MIDI (20 videos for E3b; 19 for the PianoYT model, whose MIDI for video 307 is not in <code>out/</code>).</figcaption>
   </figure>
-  <p>The PianoVAM model learned onset = the moment the Disklavier registers the key. On <b>all 20</b> PianoYT test videos its onsets come 60–235 ms before the PianoYT labels (typically 75–155 ms). The PianoYT labels come from audio, and YouTube video and sound are often not perfectly in sync. So <b>part of the “zero-shot collapse” is a timing convention mismatch</b>: measured on the same 19 videos against the model trained on PianoYT (0.482 at 100 ms), one shift closes 37% of the gap at 100 ms and 41% at 50 ms. A fair version (E3c): choose the shift on PianoYT <em>valid</em>, like the thresholds, and apply it to test.</p>
+  <p>On <b>all 20</b> PianoYT test videos the PianoVAM model’s onsets come 60–235 ms before the PianoYT labels (typically 75–155 ms), and one shift of ~110 ms nearly doubles its zero-shot score. <b>Correction to our first reading:</b> this is not only a label offset. In the reverse direction the PianoYT model is only <b>~30 ms late</b> on PianoVAM (E5b; one shift of −30 ms lifts it from 0.145 to 0.159 at 50 ms), and the zero-shot offset depends on the threshold (−80 to −100 ms at 0.90, −110/−120 ms at 0.20). So the two datasets’ label timing differs by a few tens of milliseconds; most of the rest is the PianoVAM model firing early on unfamiliar videos. The fair zero-shot numbers — with the shift chosen on valid — will be E3c and E5c (queued).</p>
 
   <h4>3 · One PianoYT test video is clearly out of sync</h4>
   <figure>
@@ -540,7 +560,7 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
     <div class="scroll" id="ch-lags"></div>
     <figcaption>Best time shift per test video (ms the predictions must move later to match the labels). Video 302 needs an extra ~130–150 ms compared with the others, for <b>both</b> models; correcting it lifts the trained model’s F1 on 302 from 0.10 to 0.42 at 50 ms. Per-video shifts for the trained model lift its mean F1 from 0.338 to 0.380 at 50 ms. Videos where a model predicts almost nothing (309, 430) give unreliable shifts.</figcaption>
   </figure>
-  <p>This is the evidence for E6: PianoYT labels have a global delay plus per-video errors. V2N found the same kind of problem in R3 (MIDI–video offsets above 200 ms in 70 of 895 files).</p>
+  <p>This is the evidence for E6: PianoYT labels carry per-video timing errors. The sync check now running (E2 model) finds best label shifts between −9 and −92 ms on the videos processed so far; the final corrections are measured relative to the median lag. V2N found the same kind of problem in R3 (MIDI–video offsets above 200 ms in 70 of 895 files).</p>
 
   <h3>R9 · PianoYT audit (paper material)</h3>
   <div class="tbl"><table>
@@ -705,13 +725,13 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
   <div class="two">
     <div><h4 class="yes">We can say</h4><ul class="small">
       <li>PPAN reports 0.68 onset F at 100 ms on PianoYT (R3 pre-training, onset-only fine-tuning).</li>
-      <li>Our E2, trained <b>only on PianoYT, from scratch</b> (1.3 M parameters), reaches <b>0.639</b> at 100 ms on our 20-video test set — the level of S2S and V2R (0.64), which needed R3 pre-training, and 0.04 below PPAN.</li>
+      <li>Our E4 — pre-trained on PianoVAM, fine-tuned on PianoYT, 1.3 M parameters — reaches <b>0.691</b> at 100 ms on our 20-video test set: above PPAN’s reported 0.68 and S2S/V2R’s 0.64.</li>
+      <li>Pre-training on PianoVAM significantly improves on training with PianoYT alone (0.691 vs 0.639; p = 0.004; 15 of 20 videos).</li>
       <li>On PianoVAM, PPAN as retrained by V2N scores 84.9 / 94.1 (50 / 100 ms); we score 95.2 / 98.0 (V2N’s numbers for PPAN, not our run).</li>
     </ul></div>
-    <div><h4 class="no">Not yet / not at all</h4><ul class="small">
-      <li>“Better than PPAN on PianoYT” — not with E2 (0.639 &lt; 0.68). E4 (pre-trained on PianoVAM) and E6 (sync-corrected labels) are the candidates.</li>
-      <li>Zero-shot: their ViT went R3 → PianoYT at 0.40; ours PianoVAM → PianoYT at 0.147 (0.266 with one timing shift). Different source datasets, so no direct claim. It does support their own remark that pre-trained weights drive transfer.</li>
-      <li>Exact same test set — 1 of 21 videos is missing for us.</li>
+    <div><h4 class="no">Say carefully / not at all</h4><ul class="small">
+      <li>“Better than PPAN” — write “above PPAN’s reported score”: the test files differ slightly (1 of 21 videos missing; 31,636 vs 33,535 notes), no paired test is possible (we have no PPAN predictions), and the margin is 0.011.</li>
+      <li>Zero-shot: their ViT went R3 → PianoYT at 0.40; ours PianoVAM → PianoYT at 0.147. Different source datasets, so no direct claim. It does support their own remark that pre-trained weights drive transfer.</li>
     </ul></div>
   </div>
 
@@ -943,15 +963,58 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
     </ul></div>
     <div><h4 class="no">We cannot say</h4><ul class="small">
       <li>“Better than V2N at 50 ms” — it is a tie.</li>
+      <li>That tuning the timing closes the 50 ms gap — we tried (E1t) and it did not transfer from valid to test.</li>
       <li>“Better overall” — V2N also predicts velocity (82.8 / 84.5) and was tested on R3; we did neither.</li>
       <li>Anything strong from n = 9 alone: say “on the 9 test recordings”, and add PianoYT and the ablations as extra evidence.</li>
     </ul></div>
   </div>
 
-  <div class="pager"><a href="#pianovam"><span>Previous</span>← Paper: PianoVAM</a><a href="#variables"><span>Next</span>Variables →</a></div>
+  <div class="pager"><a href="#pianovam"><span>Previous</span>← Paper: PianoVAM</a><a href="#plan"><span>Next</span>Publication plan →</a></div>
 </section>
 
 <!-- ================================================================ VARIABLES -->
+<!-- ================================================================ PLAN -->
+<section id="plan" hidden>
+  <div class="kicker">Agreed with the professor · 30 Sep 2026</div>
+  <h2>Publication plan</h2>
+  <p>Publish in both conferences and journals: three papers, each with its own main contribution; later papers cite the earlier ones. Dates checked on 30 Sep 2026.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>Paper</th><th>Main content</th><th>Venue</th><th>When</th></tr></thead>
+    <tbody>
+      <tr class="us"><td class="b">1</td><td>Short letter<br><span class="muted">4 pages + references</span></td><td>The per-key model: state of the art on PianoVAM (E1, 22× fewer parameters than V2N) and on PianoYT (E4, 69.1%); tiles vs strip (A1)</td><td><b>IEEE Signal Processing Letters</b>, presented at <b>ICASSP 2027</b> if accepted by 6 Jan 2027</td><td>submit ~1 Nov 2026, with an arXiv preprint</td></tr>
+      <tr><td class="b">2</td><td>Conference paper<br><span class="muted">ISMIR format</span></td><td>Clean vs noisy labels: zero-shot in both directions and its timing (E3, E5), sync-corrected PianoYT labels (E6), the PianoYT audit</td><td><b>ISMIR 2027</b>, London, 12–16 Sep 2027</td><td>deadline ~Mar–Apr 2027 (not announced yet)</td></tr>
+      <tr><td class="b">3</td><td>Journal article</td><td>The complete system, plus hands and fingers (E7), full ablations, released code and corrected labels</td><td><b>TISMIR</b> or <b>IEEE/ACM TASLP</b> (alternative: IEEE Transactions on Multimedia)</td><td>mid–late 2027</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Why this order</h3>
+  <ul>
+    <li><b>Speed matters.</b> The PianoVAM/V2N group is very active (V2N at ISMIR 2026; fingering labels released on ~27 Sep). A preprint and a letter this autumn secure our main results.</li>
+    <li><b>Paper 1 is almost ready</b>: E1, E4 and the V2N comparison are done; A1 finishes on Thursday.</li>
+    <li><b>ISMIR is where this community publishes</b> (PianoVAM, V2N), and the PianoYT label and timing study is exactly its topic.</li>
+    <li><b>The journal gives the complete, citable version</b> for the thesis; each paper becomes a chapter.</li>
+  </ul>
+
+  <h3>Dates and facts we checked</h3>
+  <ul class="small">
+    <li>ICASSP 2027 (Toronto, 16–21 May 2027): the regular paper deadline was 23 Sep 2026 — passed. Authors of papers accepted in IEEE SPS or EURASIP journals may present them there; “published journal papers and letters” are due <b>6 Jan 2027</b> (not re-reviewed, not in the proceedings). <a href="https://2027.ieeeicassp.org/call-for-papers/" target="_blank" rel="noopener">Call for papers</a></li>
+    <li>ISMIR 2026 late-breaking demos (Abu Dhabi, 8–12 Nov 2026): closed on 25 Sep 2026. <a href="https://ismir2026.ismir.net/call-for-late-breaking-demo" target="_blank" rel="noopener">Call</a></li>
+    <li>ISMIR 2027: London, 12–16 Sep 2027; the call for papers is not out yet. <a href="https://x.com/0nigiritar0/status/1971077916156121154" target="_blank" rel="noopener">Announcement</a></li>
+    <li>TISMIR: open access, no author fees listed, continuous submission; mean 247 days from submission to publication and 36% acceptance (2025); indexed in Scopus (CiteScore 5.2) and Web of Science. <a href="https://transactions.ismir.net/about/" target="_blank" rel="noopener">About the journal</a></li>
+    <li>Other conferences, usual timing (2027 dates not announced yet): WASPAA (~April), ACM Multimedia (~April), EUSIPCO (~Feb–Mar), IJCAI (~January; PPAN was published there). <a href="https://www.audiocontentanalysis.org/conferences/" target="_blank" rel="noopener">MIR deadlines list</a></li>
+  </ul>
+
+  <h3>Rules to respect</h3>
+  <ul>
+    <li>Never submit the same results to two venues at the same time.</li>
+    <li>A journal version of a conference paper must add substantial new work — check each journal’s rule.</li>
+    <li>Check each venue’s preprint and anonymity rules before posting on arXiv (ISMIR is double-blind).</li>
+    <li>Release the code and the small checkpoints. For PianoYT release only our derived files (label offsets, audit list), not the videos; PianoVAM is CC BY-NC-SA.</li>
+  </ul>
+
+  <div class="pager"><a href="#v2n"><span>Previous</span>← Paper: V2N</a><a href="#variables"><span>Next</span>Variables →</a></div>
+</section>
+
 <section id="variables" hidden>
   <h2>What every variable means</h2>
   <p>Every word and number you see in <code>report.sh</code> and in the result files, with the real values from today as examples.</p>
@@ -1055,82 +1118,47 @@ footer{padding-block:0 40px;font-size:13.5px;color:var(--ink-3)}
     </tbody>
   </table></div>
 
-  <div class="pager"><a href="#v2n"><span>Previous</span>← Paper: V2N</a><a href="#next"><span>Next</span>Next steps &amp; logs →</a></div>
+  <div class="pager"><a href="#plan"><span>Previous</span>← Publication plan</a><a href="#next"><span>Next</span>Next steps &amp; logs →</a></div>
 </section>
 
 <!-- ================================================================ NEXT -->
 <section id="next" hidden>
   <h2>Next steps, commands and logs</h2>
-  <p>Run these in PuTTY on gondor. Each block can be pasted as is. Every evaluation-type GPU job waits its turn automatically.</p>
+  <p>Run these in PuTTY on gondor. Evaluation-type GPU jobs wait for each other automatically.</p>
 
   <h3>What to change — and what not</h3>
   <div class="tbl"><table>
     <thead><tr><th>Area</th><th>Change?</th><th>Why (evidence)</th></tr></thead>
     <tbody>
       <tr><td>PianoVAM key detection (warp, corners, black keys)</td><td class="yes">No</td><td>Only 19 of 42,241 notes are wrong-key errors (R10); crop check 98/98 OK.</td></tr>
-      <tr><td>Onset timing, both datasets</td><td class="no">Yes — decoding only</td><td>Half of the 50 ms errors are timing; black keys are seen ~12 ms late (R10); fixed offsets per recording (R8). New: <code>TIMING=1</code>.</td></tr>
-      <tr><td>PianoYT training labels</td><td class="no">Yes — E6</td><td>Per-video offsets (302: +130–150 ms) and a large 50 → 100 ms gap in E2 (0.392 → 0.639). <code>sync_check</code> + <code>configs/yt_sync.yaml</code>.</td></tr>
-      <tr><td>Zero-shot scoring</td><td class="no">Yes — E3c</td><td>PianoYT labels sit ~110 ms after the key press a PianoVAM model sees (R8); the shift must be chosen on valid.</td></tr>
-      <tr><td>Model size, more epochs</td><td class="yes">No, for now</td><td>Validation curves are flat; the strip ablation (A1) tests the architecture.</td></tr>
-      <tr><td>Hands</td><td class="no">Start now, on the CPU</td><td>Labels published (v1.2); a first baseline already works once the mirrored tags are swapped (R11).</td></tr>
+      <tr><td>Onset timing on PianoVAM</td><td class="yes">No — tested</td><td>Timing tuned on valid made test worse (E1t: 92.5 vs 95.3); offsets are per recording. Keep the standard decoding.</td></tr>
+      <tr><td>PianoYT training labels</td><td class="no">Yes — E6</td><td>Per-video offsets and a large 50 → 100 ms gap (E4: 0.451 → 0.691). Sync check running.</td></tr>
+      <tr><td>Zero-shot scoring</td><td class="no">Yes — E3c, E5c</td><td>A systematic offset between the datasets (R8); the shift is chosen on valid. Queued.</td></tr>
+      <tr><td>Pre-training on PianoVAM</td><td class="yes">Keep</td><td>E4 beats E2 significantly (p = 0.004) and scores above PPAN.</td></tr>
+      <tr><td>Model size, more epochs</td><td class="yes">No</td><td>Validation curves are flat; A1 tests the architecture.</td></tr>
+      <tr><td>Hands</td><td class="no">Next, on the CPU</td><td>Labels downloaded; the first baseline works once the mirrored tags are swapped (R11).</td></tr>
     </tbody>
   </table></div>
 
-  <h3>1 · Get the new code</h3>
-  <div class="code"><pre>cd /home/achatzigiannis/tivit_pianoyt/vision_transcription
-source /home/achatzigiannis/tivit_vam_v2_repo/vision_transcription/.venv/bin/activate
-git pull</pre></div>
-  <p class="small muted">Safe while jobs run. New: the onset-timing search (<code>TIMING=1</code>), model outputs kept in <code>rolls/&lt;name&gt;/</code> (so the same run can be re-decoded without the GPU), <code>configs/yt_sync.yaml</code>, and this report in <code>reports/</code>.</p>
-
-  <h3>2 · Tonight: the two timing evaluations (they queue behind E5)</h3>
-  <div class="code"><pre><span class="cm"># E1t: PianoVAM, onset timing tuned on valid, compared with V2N again</span>
-TIMING=1 BASELINE_MIDI=~/V2N/predicted_midi/pianovam_test bash scripts/evaluate_run.sh E1t_vam_timing configs/vam_full.yaml runs/vam_full/best.pt full_f1
-<span class="cm"># E3c: fair zero-shot: the time shift is chosen on PianoYT valid (wide range)</span>
-DATA_CONFIG=configs/yt_full.yaml TIMING=1 TIMING_GRID=-0.05:0.20:0.01 bash scripts/evaluate_run.sh E3c_zeroshot_timing configs/vam_full.yaml runs/vam_full/best.pt onset_f1</pre></div>
-  <p class="small muted">Each needs one model pass over valid and test (~2–3 h). <code>bash scripts/report.sh</code> shows them as WAITING, then RUNNING. The saved outputs take ~50–150 MB per run in <code>rolls/</code>; <code>rm -rf rolls/&lt;name&gt;</code> frees them.</p>
-
-  <h3>3 · Tonight: download the hand labels (CPU only, ~30 MB)</h3>
-  <div class="code"><pre>pip install -q huggingface_hub
-python - &lt;&lt;'EOF'
-from huggingface_hub import snapshot_download
-snapshot_download("PianoVAM/PianoVAM_v1.0", repo_type="dataset",
-                  allow_patterns=["Fingering/*", "Fingering_GT/*"],
-                  local_dir="/raid_storage/data_achatzigiannis/PianoVAM_v1.0")
-EOF
-ls /raid_storage/data_achatzigiannis/PianoVAM_v1.0/Fingering | wc -l
-ls /raid_storage/data_achatzigiannis/PianoVAM_v1.0/Fingering_GT | wc -l</pre></div>
-  <p class="small muted">Expected: 106 and 11 files. Only the two new folders are added.</p>
-
-  <h3>4 · Tomorrow morning: measure the PianoYT sync (E6, step 1)</h3>
-  <div class="code"><pre>PYTHONUNBUFFERED=1 nohup flock logs/.evaluate.lock python -m pianovam_vision.sync_check \
-    --config configs/yt_full.yaml --checkpoint runs/yt_full/best.pt \
-    --csv results/sync_yt.csv --write_offsets results/pianoyt_label_offsets.json \
-    decode.onset_threshold=0.50 decode.frame_threshold=0.70 &gt; logs/E6_sync_check.log 2&gt;&amp;1 &amp;
-echo $! &gt; logs/E6_sync_check.pid</pre></div>
-  <p class="small muted">~6 h (2 minutes of every PianoYT video); it waits for any evaluation still running. Then queue the E6 training behind the strip ablation (this works once <code>runs/vam_strip/</code> exists): <code>bash scripts/after.sh vam_strip "CONFIG=configs/yt_sync.yaml bash scripts/run_experiment.sh yt_sync tiled"</code>.</p>
-
-  <h3>5 · Check before you sleep</h3>
-  <div class="code"><pre>bash scripts/report.sh</pre></div>
-  <p class="small">You should see: <b>yt_finetune</b> RUNNING; <b>E5a_reverse</b> RUNNING (or finished); <b>E5b_reverse</b>, <b>E1t_vam_timing</b> and <b>E3c_zeroshot_timing</b> WAITING or RUNNING; <b>after_yt_finetune.log</b> “waiting for …”.</p>
-
-  <h3>6 · What happens next (automatically)</h3>
+  <h3>1 · Running now and queued</h3>
   <div class="tbl"><table>
-    <thead><tr><th>When (estimate)</th><th>What</th></tr></thead>
+    <thead><tr><th>Job</th><th>Status</th><th>Done (estimate, server time)</th></tr></thead>
     <tbody>
-      <tr><td>Tonight</td><td>E5a → E5b → E1t → E3c, one at a time (~1–3 h each; the order among waiting jobs can vary)</td></tr>
-      <tr><td>~1–3 am</td><td>Fine-tuning ends → E4 evaluation joins the queue; the strip ablation (A1) starts training (~20 h)</td></tr>
-      <tr><td>Tomorrow, late morning</td><td>E4, E5, E1t, E3c done — the complete E1–E5 picture, plus the timing results</td></tr>
-      <tr><td>Tomorrow</td><td>sync check (~6 h); E6 training queued behind A1</td></tr>
+      <tr><td>vam_strip (A1 training)</td><td>epoch 5 of 25, restarted once, moving normally</td><td>~07:00 Thursday</td></tr>
+      <tr><td>A1 evaluation (with the V2N comparison)</td><td>queued after the training (<code>logs/after_vam_strip.log</code>)</td><td>~09:30 Thursday</td></tr>
+      <tr><td>PianoYT sync check (E6, step 1)</td><td>running since 13:51</td><td>~18:30 today</td></tr>
+      <tr><td>E3c, E5c (zero-shot with a shift chosen on valid)</td><td>waiting their turn</td><td>~23:30 today</td></tr>
+      <tr><td>E6 training (sync-corrected PianoYT labels)</td><td>after the sync check is reviewed</td><td>Thursday → Friday</td></tr>
     </tbody>
   </table></div>
 
-  <h3>7 · What to send me</h3>
-  <ol>
-    <li><b>Tomorrow morning:</b> make the training-curve files, then download (commands below).</li>
-    <li><b>When the sync check is done:</b> <code>tail -n 40 logs/E6_sync_check.log</code></li>
-  </ol>
-  <div class="code"><pre><span class="cm"># on the server: one clean file per training run with all epoch lines</span>
-for r in vam_full yt_full yt_finetune; do tr -d '\000' &lt; runs/$r/train.log | tr '\r' '\n' | grep -aE "recordings=|^\[epoch [0-9]+\]" &gt; results/${r}_epochs.txt; done
+  <h3>2 · This evening: send the sync-check summary</h3>
+  <div class="code"><pre>tail -n 40 logs/E6_sync_check.log</pre></div>
+  <p class="small muted">From it we decide which PianoYT videos get corrected labels; then the E6 training is queued behind the strip ablation.</p>
+
+  <h3>3 · Tomorrow morning: check and download</h3>
+  <div class="code"><pre><span class="cm"># on the server</span>
+for r in vam_full yt_full yt_finetune vam_strip; do tr -d '\000' &lt; runs/$r/train.log | tr '\r' '\n' | grep -aE "recordings=|^\[epoch [0-9]+\]" &gt; results/${r}_epochs.txt; done
 bash scripts/report.sh | tee results/report.txt</pre></div>
   <div class="code"><pre><span class="cm"># on your PC, in PowerShell</span>
 pscp -r achatzigiannis@195.251.56.65:/home/achatzigiannis/tivit_pianoyt/vision_transcription/results C:\Users\User\Desktop\PHD\server
@@ -1138,42 +1166,41 @@ pscp -r achatzigiannis@195.251.56.65:/home/achatzigiannis/tivit_pianoyt/vision_t
 pscp -r achatzigiannis@195.251.56.65:/home/achatzigiannis/tivit_pianoyt/vision_transcription/out C:\Users\User\Desktop\PHD\server</pre></div>
   <p class="small muted">Do not download <code>runs/</code> (checkpoints) or <code>rolls/</code> (saved model outputs): both are large.</p>
 
-  <h3>8 · Where every log lives</h3>
+  <h3>4 · Where every log lives</h3>
   <div class="tbl"><table>
     <thead><tr><th>What</th><th>File (inside <code>vision_transcription/</code>)</th><th>Watch it live</th></tr></thead>
     <tbody>
       <tr><td>One-screen overview</td><td><code>bash scripts/report.sh</code></td><td><code>watch -n 60 bash scripts/report.sh</code></td></tr>
-      <tr><td>Training progress</td><td><code>runs/&lt;name&gt;/train.log</code></td><td><code>tail -f runs/yt_finetune/train.log</code></td></tr>
+      <tr><td>Training progress</td><td><code>runs/&lt;name&gt;/train.log</code></td><td><code>tail -f runs/vam_strip/train.log</code></td></tr>
       <tr><td>Checkpoints (don’t download)</td><td><code>runs/&lt;name&gt;/best.pt</code>, <code>last.pt</code></td><td></td></tr>
-      <tr><td>Evaluation progress</td><td><code>logs/&lt;name&gt;.log</code></td><td><code>tail -f logs/E1t_vam_timing.log</code></td></tr>
-      <tr><td>Threshold + timing search</td><td><code>results/&lt;name&gt;_calibrate.txt</code></td><td><code>tail -f results/E1t_vam_timing_calibrate.txt</code></td></tr>
+      <tr><td>Evaluation progress</td><td><code>logs/&lt;name&gt;.log</code></td><td><code>tail -f logs/E3c_zeroshot_timing.log</code></td></tr>
+      <tr><td>Threshold + timing search</td><td><code>results/&lt;name&gt;_calibrate.txt</code></td><td></td></tr>
       <tr><td>Test scores</td><td><code>results/&lt;name&gt;_test.txt</code> and <code>.csv</code></td><td></td></tr>
       <tr><td>Comparison with V2N</td><td><code>results/&lt;name&gt;_vs_baseline.txt</code> and <code>.csv</code></td><td></td></tr>
       <tr><td>Predicted MIDI</td><td><code>out/&lt;name&gt;_test/*.mid</code></td><td></td></tr>
       <tr><td>Saved model outputs (don’t download)</td><td><code>rolls/&lt;name&gt;/valid</code>, <code>rolls/&lt;name&gt;/test</code></td><td></td></tr>
       <tr><td>PianoYT sync check (E6)</td><td><code>logs/E6_sync_check.log</code>, <code>results/sync_yt.csv</code>, <code>results/pianoyt_label_offsets.json</code></td><td><code>tail -f logs/E6_sync_check.log</code></td></tr>
-      <tr><td>Queued commands</td><td><code>logs/after_&lt;name&gt;.log</code></td><td><code>cat logs/after_yt_finetune.log</code></td></tr>
+      <tr><td>Queued commands</td><td><code>logs/after_&lt;name&gt;.log</code></td><td><code>cat logs/after_vam_strip.log</code></td></tr>
       <tr><td>Phase 0, dataset checks</td><td><code>logs/phase0.log</code>, <code>results/phase0_*.txt</code>, <code>results/alignment_*.csv</code></td><td></td></tr>
     </tbody>
   </table></div>
 
-  <h3>9 · The plan after that</h3>
+  <h3>5 · The plan after that</h3>
   <ol>
-    <li><b>Read E4, E5, E1t, E3c</b> (tomorrow): E4 against PPAN’s 0.68 and E2’s 0.639; E1t against V2N at 50 ms; E3c = the fair zero-shot number.</li>
-    <li><b>E6 — PianoYT sync</b>: sync check → train <code>yt_sync</code> → evaluate on the <em>original</em> test labels (<code>DATA_CONFIG=configs/yt_full.yaml</code>), so it stays comparable with E2 and PPAN.</li>
-    <li><b>E7 — hands</b>: (a) swap the mirrored tags in <code>hands.py</code>; (b) a hand for every predicted note of the whole test split, scored on the automatic labels and on the 300 manual test notes; (c) fingers 1–5; (d) a learned head only if it beats the 97.7% of the fingertip rule.</li>
-    <li><b>Ablations</b>: A1 strip vs tiles (queued), no augmentation, 360p (needs disk space).</li>
-    <li><b>Optional</b>: an audio-only model on the same 9 PianoVAM test recordings, to say “video vs audio” fairly.</li>
+    <li><b>E6</b>: sync check → train <code>yt_sync</code> → evaluate on the <em>original</em> test labels (<code>DATA_CONFIG=configs/yt_full.yaml</code>), comparable with E2, E4 and PPAN. The strongest version may combine both ideas: PianoVAM pre-training + sync-corrected fine-tuning.</li>
+    <li><b>A1</b>: the strip model’s test score next to E1 and V2N (Thursday).</li>
+    <li><b>E7 — hands</b>: swap the mirrored tags in <code>hands.py</code>; a hand for every predicted note of the test split, scored on the automatic labels and on the 300 manual test notes; then fingers 1–5.</li>
+    <li><b>Paper 1</b> (IEEE SPL): outline, figures and tables as soon as A1 is in (Publication plan page).</li>
   </ol>
 
-  <h3>10 · The paper’s story, as it stands</h3>
+  <h3>6 · The paper’s story, as it stands</h3>
   <ol>
     <li>A 1.3 M-parameter per-key model matches or beats the state of the art (V2N, 28.2 M) on PianoVAM, on the same test and scoring.</li>
-    <li>The training recipe matters as much as the architecture (84 → 95% with the same model).</li>
-    <li>On PianoYT, trained from scratch, it reaches 0.639 at 100 ms — the level of R3-pre-trained S2S/V2R; E4 tests clean pre-training against PPAN’s 0.68.</li>
-    <li>Cross-dataset: the warp solves per-key geometry, but that is not enough; more than a third of the zero-shot gap is label timing (~110 ms), the rest is appearance.</li>
-    <li>Timing decides the 50 ms score: black keys are seen ~12 ms later; timing tuned on valid (E1t, E3c).</li>
-    <li>Sync-corrected PianoYT labels (E6) and the audit document the dataset’s problems.</li>
+    <li>The training recipe matters as much as the architecture (84 → 95% with the same model); A1 isolates the architecture.</li>
+    <li>On PianoYT, pre-training on PianoVAM then fine-tuning reaches 0.691 at 100 ms — significantly above training on PianoYT alone (0.639) and above PPAN’s reported 0.68.</li>
+    <li>Zero-shot collapses in both directions (like V2N’s PianoVAM ↔ R3); YouTube → PianoVAM transfers better than the reverse; part of the drop is a timing mismatch that we measure.</li>
+    <li>Timing decides the 50 ms score: black keys are seen ~12 ms later, and each recording has its own offset that one global correction cannot remove (E1t).</li>
+    <li>PianoYT labels carry per-video sync errors (E6) and other problems (audit).</li>
     <li>Hands: PianoVAM’s skeleton tags are mirrored; with them fixed, notes + hands reach 97.7–100% hand accuracy on manual labels; E7 adds fingers and the hard cases.</li>
   </ol>
 
@@ -1186,7 +1213,7 @@ pscp -r achatzigiannis@195.251.56.65:/home/achatzigiannis/tivit_pianoyt/vision_t
 <script>
 // ------------------------------------------------------------- navigation
 (function(){
-  const PAGES=['summary','method','results','ppan','pianovam','v2n','variables','next'];
+  const PAGES=['summary','method','results','ppan','pianovam','v2n','plan','variables','next'];
   function show(id, scroll){
     let target=null;
     if(!PAGES.includes(id)){ const el=id&&document.getElementById(id); const sec=el&&el.closest('section'); if(sec){target=el; id=sec.id;} else id='summary'; }
@@ -1211,7 +1238,7 @@ pscp -r achatzigiannis@195.251.56.65:/home/achatzigiannis/tivit_pianoyt/vision_t
 </script>
 <script>
 // ------------------------------------------------------------- charts
-const D = {"vam":[[0,0.752,0.8635,0.6637,0.863,0.105,70.4],[1,0.7816,0.893,0.6677,0.8879,0.0414,55.1],[2,0.783,0.8943,0.6899,0.8912,0.0355,53.5],[3,0.7918,0.9071,0.6865,0.902,0.0323,50.2],[4,0.7915,0.9027,0.7018,0.898,0.0302,46.7],[5,0.8027,0.9107,0.7005,0.9035,0.0284,47.0],[6,0.7742,0.8984,0.6771,0.8887,0.0273,47.4],[7,0.7945,0.9047,0.7045,0.899,0.026,47.0],[8,0.797,0.9094,0.7134,0.9013,0.0252,52.0],[9,0.8003,0.9123,0.7185,0.9038,0.0244,48.0],[10,0.813,0.9176,0.7454,0.914,0.0235,47.3],[11,0.8097,0.9158,0.7368,0.9113,0.0228,47.6],[12,0.8015,0.9114,0.737,0.9073,0.0222,47.2],[13,0.804,0.9166,0.7377,0.9111,0.0216,47.2],[14,0.814,0.9196,0.7483,0.9147,0.021,47.1],[15,0.8088,0.9176,0.7442,0.9124,0.0203,47.2],[16,0.8037,0.9153,0.7459,0.9121,0.0199,47.2],[17,0.8112,0.9182,0.7524,0.9151,0.0194,46.9],[18,0.8097,0.9186,0.7568,0.9165,0.019,46.9],[19,0.8087,0.9185,0.7563,0.9142,0.0186,47.0],[20,0.8111,0.9188,0.7569,0.9148,0.0185,47.0],[21,0.8132,0.9196,0.759,0.9166,0.0182,47.0],[22,0.8068,0.9177,0.7579,0.9148,0.018,46.9],[23,0.8084,0.9183,0.7585,0.9151,0.0179,47.2],[24,0.8137,0.9196,0.7639,0.9172,0.0178,46.9]],"yt":[[0,0.3097,0.5079,0.3039,0.4897,0.2713,55.3],[1,0.2693,0.4688,0.2601,0.4597,0.1991,69.3],[2,0.3133,0.5181,0.2983,0.5153,0.1834,69.6],[3,0.3311,0.5325,0.3153,0.5314,0.1748,68.8],[4,0.3061,0.5256,0.296,0.5216,0.1686,64.3],[5,0.3392,0.5532,0.3284,0.5525,0.1649,67.9],[6,0.3513,0.556,0.341,0.5556,0.1594,70.9],[7,0.3482,0.5557,0.3396,0.5557,0.1564,67.0],[8,0.3453,0.5529,0.3316,0.5513,0.1527,71.3],[9,0.3361,0.544,0.3247,0.544,0.1507,68.7],[10,0.34,0.5436,0.3299,0.5436,0.1478,61.5],[11,0.3456,0.5605,0.3377,0.5605,0.1459,55.9],[12,0.3541,0.561,0.3451,0.5585,0.1434,48.7],[21,0.3542,0.5602,0.3433,0.5602,null,null],[24,0.3505,0.5605,0.3404,0.5605,null,null]],"ft":[[0,0.336,0.536],[1,0.3209,0.5173],[5,0.3422,0.5543]],"e1":[{"rec":"2024-02-14_19-55-17","s":"02-14 19:55","ref":5629,"est":5509,"sec":755,"f50":0.9627,"f100":0.9811,"ot50":0.914,"frame":0.9249,"s50":0.9625,"s100":0.9811,"so50":0.9117,"so100":0.9711,"sf":0.9149,"v50":0.9359,"v100":0.9573,"vo50":0.8641,"vo100":0.9395,"vf":0.884,"o50":0.7368,"o100":0.8859},{"rec":"2024-02-14_20-10-08","s":"02-14 20:10","ref":9357,"est":9210,"sec":1300,"f50":0.9317,"f100":0.9858,"ot50":0.8053,"frame":0.8565,"s50":0.9278,"s100":0.9858,"so50":0.7979,"so100":0.9759,"sf":0.8564,"v50":0.9649,"v100":0.9717,"vo50":0.8415,"vo100":0.9537,"vf":0.8862,"o50":0.8403,"o100":0.8842},{"rec":"2024-02-15_20-17-26","s":"02-15 20:17","ref":5045,"est":4982,"sec":536,"f50":0.9827,"f100":0.9833,"ot50":0.966,"frame":0.9263,"s50":0.9827,"s100":0.9833,"so50":0.9648,"so100":0.9804,"sf":0.9104,"v50":0.9454,"v100":0.9729,"vo50":0.9283,"vo100":0.9655,"vf":0.8741,"o50":0.8425,"o100":0.8795},{"rec":"2024-02-15_20-47-59","s":"02-15 20:47","ref":1662,"est":1654,"sec":308,"f50":0.9783,"f100":0.9807,"ot50":0.9331,"frame":0.8899,"s50":0.9783,"s100":0.9807,"so50":0.9324,"so100":0.9765,"sf":0.8866,"v50":0.9562,"v100":0.9693,"vo50":0.9425,"vo100":0.9651,"vf":0.8982,"o50":0.8947,"o100":0.9057},{"rec":"2024-02-17_21-44-37","s":"02-17 21:44","ref":563,"est":536,"sec":178,"f50":0.8735,"f100":0.9718,"ot50":0.7934,"frame":0.947,"s50":0.8717,"s100":0.9718,"so50":0.7898,"so100":0.9609,"sf":0.9465,"v50":0.9446,"v100":0.9718,"vo50":0.8919,"vo100":0.9519,"vf":0.9551,"o50":0.7912,"o100":0.8319},{"rec":"2024-09-02_14-10-41","s":"09-02 14:10","ref":1292,"est":1222,"sec":293,"f50":0.9133,"f100":0.9682,"ot50":0.8656,"frame":0.9418,"s50":0.9109,"s100":0.9682,"so50":0.864,"so100":0.9531,"sf":0.9385,"v50":0.9532,"v100":0.9619,"vo50":0.8644,"vo100":0.935,"vf":0.922,"o50":0.823,"o100":0.8524},{"rec":"2024-09-02_21-04-45","s":"09-02 21:04","ref":2729,"est":2562,"sec":474,"f50":0.9416,"f100":0.9541,"ot50":0.8996,"frame":0.917,"s50":0.9412,"s100":0.9541,"so50":0.8985,"so100":0.9393,"sf":0.912,"v50":0.8808,"v100":0.935,"vo50":0.8197,"vo100":0.9031,"vf":0.8909,"o50":0.738,"o100":0.8155},{"rec":"2024-09-03_00-07-46","s":"09-03 00:07","ref":10929,"est":10875,"sec":1608,"f50":0.9928,"f100":0.9935,"ot50":0.9775,"frame":0.9589,"s50":0.9928,"s100":0.9935,"so50":0.9772,"so100":0.9885,"sf":0.9522,"v50":0.9655,"v100":0.9904,"vo50":0.9417,"vo100":0.9817,"vf":0.9334,"o50":0.9398,"o100":0.9622},{"rec":"2024-09-03_00-44-45","s":"09-03 00:44","ref":5035,"est":5031,"sec":603,"f50":0.9982,"f100":0.9984,"ot50":0.9946,"frame":0.9375,"s50":0.9982,"s100":0.9984,"so50":0.9944,"so100":0.9976,"sf":0.9247,"v50":0.9742,"v100":0.9982,"vo50":0.9661,"vo100":0.9966,"vf":0.9009,"o50":0.9799,"o100":0.992}],"cal":{"E1":[[0.05,0.7264],[0.1,0.776],[0.15,0.805],[0.2,0.8254],[0.3,0.857],[0.4,0.8797],[0.5,0.8992],[0.6,0.9144],[0.7,0.9294],[0.8,0.9427],[0.9,0.9516],[0.95,0.9422],[0.98,0.8744]],"E2":[[0.05,0.1314],[0.1,0.1865],[0.15,0.2273],[0.2,0.2582],[0.3,0.3065],[0.4,0.3437],[0.5,0.3573],[0.6,0.3441],[0.7,0.2832],[0.8,0.1533],[0.9,0.0397],[0.95,0.001],[0.98,0.0]],"E3b":[[0.05,0.0475],[0.1,0.05],[0.15,0.0519],[0.2,0.0523],[0.3,0.0518],[0.4,0.0493],[0.5,0.0471],[0.6,0.0446],[0.7,0.0434],[0.8,0.0384],[0.9,0.0309],[0.95,0.023],[0.98,0.0124]]},"zs":[{"v":"116","sec":350,"ref":879,"b50":0.0399,"b100":0.0968,"best":526,"a50":0.0236,"a100":0.0321,"aest":55,"y50":0.4931,"y100":0.7396,"yest":784},{"v":"130","sec":410,"ref":1154,"b50":0.0123,"b100":0.0278,"best":790,"a50":0.0062,"a100":0.0171,"aest":132,"y50":0.266,"y100":0.41,"yest":763},{"v":"161","sec":449,"ref":2669,"b50":0.0699,"b100":0.144,"best":1651,"a50":0.0394,"a100":0.0901,"aest":373,"y50":0.2367,"y100":0.4428,"yest":1970},{"v":"162","sec":275,"ref":1596,"b50":0.0462,"b100":0.1835,"best":1826,"a50":0.0493,"a100":0.1221,"aest":353,"y50":0.5408,"y100":0.6936,"yest":1100},{"v":"164","sec":546,"ref":3952,"b50":0.1156,"b100":0.2365,"best":4125,"a50":0.1224,"a100":0.1953,"aest":1065,"y50":0.2425,"y100":0.4294,"yest":3883},{"v":"165","sec":294,"ref":488,"b50":0.0053,"b100":0.0293,"best":262,"a50":0.0,"a100":0.0436,"aest":63,"y50":0.2884,"y100":0.4085,"yest":261},{"v":"166","sec":206,"ref":600,"b50":0.0381,"b100":0.0787,"best":239,"a50":0.0032,"a100":0.0226,"aest":20,"y50":0.3818,"y100":0.5051,"yest":390},{"v":"167","sec":272,"ref":1628,"b50":0.0849,"b100":0.1717,"best":1739,"a50":0.0741,"a100":0.1281,"aest":370,"y50":0.23,"y100":0.4342,"yest":1007},{"v":"168","sec":304,"ref":2078,"b50":0.0778,"b100":0.1938,"best":1803,"a50":0.0643,"a100":0.127,"aest":347,"y50":0.2854,"y100":0.4302,"yest":1720},{"v":"169","sec":281,"ref":1902,"b50":0.0817,"b100":0.2166,"best":961,"a50":0.0614,"a100":0.1503,"aest":280,"y50":0.3842,"y100":0.5311,"yest":1721},{"v":"216","sec":276,"ref":1516,"b50":0.0685,"b100":0.1753,"best":1668,"a50":0.0753,"a100":0.1665,"aest":502,"y50":0.4966,"y100":0.7439,"yest":1315},{"v":"300","sec":114,"ref":744,"b50":0.1871,"b100":0.3597,"best":496,"a50":0.0692,"a100":0.1718,"aest":94,"y50":0.6072,"y100":0.8239,"yest":613},{"v":"302","sec":320,"ref":2862,"b50":0.0161,"b100":0.0322,"best":617,"a50":0.0013,"a100":0.002,"aest":116,"y50":0.0974,"y100":0.2379,"yest":2191},{"v":"303","sec":194,"ref":589,"b50":0.03,"b100":0.0791,"best":144,"a50":0.0033,"a100":0.0164,"aest":21,"y50":0.4881,"y100":0.6355,"yest":374},{"v":"306","sec":125,"ref":729,"b50":0.0503,"b100":0.1851,"best":265,"a50":0.0353,"a100":0.0883,"aest":64,"y50":0.4256,"y100":0.6682,"yest":615},{"v":"307","sec":222,"ref":1750,"b50":0.0987,"b100":0.173,"best":539,"a50":0.0176,"a100":0.0319,"aest":70,"y50":0.3857,"y100":0.6402,"yest":1418},{"v":"308","sec":205,"ref":988,"b50":0.1088,"b100":0.2498,"best":629,"a50":0.109,"a100":0.2148,"aest":278,"y50":0.1212,"y100":0.2082,"yest":184},{"v":"309","sec":357,"ref":2474,"b50":0.0891,"b100":0.2015,"best":1388,"a50":0.0599,"a100":0.1198,"aest":465,"y50":0.0046,"y100":0.0084,"yest":149},{"v":"416","sec":257,"ref":1326,"b50":0.0062,"b100":0.0811,"best":622,"a50":0.0025,"a100":0.1337,"aest":289,"y50":0.6664,"y100":0.7759,"yest":883},{"v":"430","sec":382,"ref":1712,"b50":0.0022,"b100":0.0187,"best":102,"a50":0.0,"a100":0.0,"aest":2,"y50":0.0216,"y100":0.0261,"yest":48}],"tim":{"med":[{"rec":"2024-02-14_19-55-17","s":"02-14 19:55","e1":6.3,"old":32.6,"sd":16.7,"f50":0.9625,"best":0.977,"lag":16.3},{"rec":"2024-02-14_20-10-08","s":"02-14 20:10","e1":30.5,"old":20.5,"sd":12.8,"f50":0.9278,"best":0.9852,"lag":25.5},{"rec":"2024-02-15_20-17-26","s":"02-15 20:17","e1":4.9,"old":-15.3,"sd":12.5,"f50":0.9827,"best":0.9827,"lag":0.0},{"rec":"2024-02-15_20-47-59","s":"02-15 20:47","e1":15.8,"old":-3.9,"sd":12.6,"f50":0.9783,"best":0.9789,"lag":10.8},{"rec":"2024-02-17_21-44-37","s":"02-17 21:44","e1":4.3,"old":-14.4,"sd":29.4,"f50":0.8717,"best":0.9299,"lag":-10.7},{"rec":"2024-09-02_14-10-41","s":"09-02 14:10","e1":11.7,"old":2.8,"sd":21.2,"f50":0.9109,"best":0.9467,"lag":16.7},{"rec":"2024-09-02_21-04-45","s":"09-02 21:04","e1":-5.5,"old":-17.4,"sd":20.0,"f50":0.9412,"best":0.9412,"lag":0.0},{"rec":"2024-09-03_00-07-46","s":"09-03 00:07","e1":-1.3,"old":-9.1,"sd":15.0,"f50":0.9928,"best":0.9928,"lag":0.0},{"rec":"2024-09-03_00-44-45","s":"09-03 00:44","e1":-5.5,"old":-6.2,"sd":14.5,"f50":0.9982,"best":0.9984,"lag":-10.5}],"drift":{"02-14 19:55":[6.0,11.7,1.8,7.3,4.2,4.5,6.5,10.1,3.4,4.9,3.4,8.0,7.3],"02-14 20:10":[30.2,28.4,31.0,29.9,29.5,31.2,30.5,29.7,28.9,29.9,31.0,29.9,31.0,32.3,31.2,28.4,30.5,29.9,31.5,31.2,34.1,33.0],"02-15 20:17":[6.2,4.2,4.9,6.0,2.8,6.0,4.2,4.9,4.2],"02-15 20:47":[16.7,16.1,15.5,15.6,14.6,null],"02-17 21:44":[-2.1,6.1,4.9],"09-02 14:10":[11.5,13.3,14.4,8.5,12.8],"09-02 21:04":[-10.4,-2.2,-5.5,-8.3,-7.6,-3.9,-5.1,-1.3],"09-03 00:07":[-6.3,-2.1,-3.9,-1.6,-2.4,-0.3,-3.1,-5.5,-2.1,-2.8,-2.1,0.8,-5.5,-0.3,-0.8,0.3,-1.8,-1.3,-4.2,-0.3,1.3,0.9,0.3,-1.3,2.1,0.8,0.5],"09-03 00:44":[-4.9,-8.6,-4.9,-7.1,-5.2,-3.9,-5.5,-3.1,-4.5,-8.6]},"hist":[3,1,7,17,61,149,710,2081,4819,7132,7805,7128,5331,3388,1920,621,93,26,11,0],"histOld":[31,40,73,153,434,1161,2454,3887,5085,5556,5360,4874,3991,3034,1858,942,397,101,56,28],"gscan":[[-40.0,0.5511653146721223],[-35.0,0.65402257023628],[-30.000000000000007,0.7318307910046409],[-25.000000000000007,0.8052275486027324],[-20.00000000000001,0.8598185205518093],[-15.000000000000014,0.898433578415784],[-10.000000000000016,0.9273498777177309],[-5.000000000000019,0.9441967282526846],[-2.0816681711721685e-14,0.9517953542226861],[4.999999999999977,0.9530146453331481],[9.999999999999973,0.9500302493234509],[14.999999999999972,0.9434338646410829],[19.999999999999968,0.9300272375202666],[24.999999999999975,0.9126275578781371],[29.999999999999964,0.8858275483313427],[34.99999999999996,0.8440634538089024],[39.99999999999996,0.783968326924072]],"yscan":{"E3b":[[-200,0.09737645014600227,0.20528532082173379],[-190,0.10707433984227874,0.21940574745664096],[-180,0.11911364332236637,0.22765286848383076],[-170,0.13425906528111786,0.24155605328831062],[-160,0.14307552831871392,0.24842240024483614],[-150,0.15721584366692037,0.25704967777608634],[-140,0.16358944386127988,0.26123466107453425],[-130,0.16555023566836538,0.2641361389434707],[-120,0.17016075441013662,0.2657880048273061],[-110,0.1691808060718826,0.26596581967373983],[-100,0.1685944291153592,0.2641621089600357],[-90,0.15761070745148772,0.25795011648789956],[-80,0.1483778911670047,0.2523769472715506],[-70,0.13507442659995697,0.24369134713323146],[-60,0.12640541654479617,0.23569895654974932],[-50,0.11250884017666467,0.22620740235962872],[-40,0.0979474756955597,0.20807914405454117],[-30,0.09037188906692642,0.1942277683927579],[-20,0.07719282295713711,0.17562758331404932],[-10,0.07002310690356023,0.16373525092390445],[0,0.06318737428035902,0.14670209697544662],[10,0.053212447605866596,0.13037277856188811],[20,0.04837409219058413,0.12148135152465359],[30,0.0433587964424185,0.10635090045572153],[40,0.04053241571413169,0.09881922389355745],[50,0.03798451387989367,0.09113889577604015]],"E3a":[[-200,0.02674426204402326,0.07532931496945097],[-190,0.030917107069103354,0.08361239807810286],[-180,0.036489403396916316,0.09152423433892433],[-170,0.04301439111383891,0.10233118835232935],[-160,0.049547007991739306,0.10829267447040611],[-150,0.06177921037279991,0.11644357516991763],[-140,0.06788283794418985,0.12136732154419723],[-130,0.07477151721864234,0.12533825495642037],[-120,0.08340229053455589,0.12927843394796806],[-110,0.08656630089421989,0.1316772460101111],[-100,0.09211176298818814,0.13518577098555112],[-90,0.09136564049392794,0.13614547533701304],[-80,0.08945304223612552,0.1372904642606548],[-70,0.08681800060136982,0.1363281140665819],[-60,0.0827052645598337,0.13374312319685205],[-50,0.07536358163598121,0.1321762521190149],[-40,0.06869935481617598,0.1263374963184627],[-30,0.06304995950857747,0.12064682927428075],[-20,0.053456157103085364,0.11293243548007792],[-10,0.04767214304916302,0.10523577558632861],[0,0.04216701941223598,0.09367994867079732],[10,0.0356049435667761,0.08388344238828241],[20,0.03164973321372715,0.07626420827106453],[30,0.026484702604271115,0.06554585760383355],[40,0.023053990547390785,0.05928347922859839],[50,0.019234756557079777,0.052465971014333965]],"oldYT":[[-200,0.04407590815825998,0.09663921507811775],[-190,0.04673041424403534,0.10423526798830958],[-180,0.04904056640893844,0.11072740527868348],[-170,0.053181568550121364,0.12264606633580301],[-160,0.05803272495778772,0.1351784875327299],[-150,0.06489868934864619,0.15825606209217777],[-140,0.07075420192249897,0.1807292002517985],[-130,0.07635994865276198,0.20460545118146004],[-120,0.08658605604409278,0.23763152076170074],[-110,0.09768859858020694,0.26277230164592863],[-100,0.11884437087481318,0.304519506609048],[-90,0.13711411956654146,0.3360991650775991],[-80,0.15866732695574687,0.361509855990164],[-70,0.18758086773710228,0.40024264395754505],[-60,0.2081042102519226,0.41876943975290876],[-50,0.24479585788066097,0.4461067822440942],[-40,0.2687589793831108,0.45891553802169155],[-30,0.28846065446939395,0.4687704941751766],[-20,0.31655981352279283,0.4789673234926158],[-10,0.32426890689886695,0.47929822681132034],[0,0.33812529257897067,0.48170404895217434],[10,0.32440654264187624,0.47630396029792105],[20,0.312327896517276,0.47107035535637903],[30,0.2931064004018977,0.45973742866946443],[40,0.27279297579035633,0.4471569559276578],[50,0.24310306353926708,0.43158597411693017]]},"yor":{"E3b":{"vids":["116","130","161","162","164","165","166","167","168","169","216","300","302","303","306","307","308","309","416","430"],"lag":[-100,-155,-175,-110,-75,-150,-100,-75,-90,-105,-135,-75,-235,-100,-100,-60,-125,-125,-135,-140],"f50":[0.1167,0.036,0.1509,0.2829,0.1922,0.2747,0.1263,0.1515,0.151,0.2529,0.2349,0.3516,0.0903,0.1146,0.2314,0.118,0.2758,0.1895,0.3778,0.0783],"f100":[0.158,0.0504,0.2449,0.3933,0.3056,0.328,0.1621,0.24,0.2427,0.3542,0.3612,0.4871,0.146,0.161,0.334,0.1905,0.4391,0.3268,0.4405,0.0948]},"E3a":{"vids":["116","130","161","162","164","165","166","167","168","169","216","300","302","303","306","307","308","309","416","430"],"lag":[-25,-115,-125,-75,-25,-125,0,-80,-55,-75,-100,-50,-210,0,-90,-30,-100,-125,-110,0],"f50":[0.0278,0.0171,0.1078,0.1242,0.1391,0.1706,0.0032,0.1001,0.1056,0.1632,0.1506,0.1551,0.0282,0.0033,0.0984,0.0242,0.2133,0.0912,0.317,0.0],"f100":[0.0364,0.0202,0.1604,0.1591,0.2101,0.1815,0.0226,0.1672,0.1493,0.2071,0.2319,0.179,0.039,0.0164,0.1387,0.0319,0.3191,0.1592,0.3406,0.0]},"oldYT":{"vids":["116","130","161","162","164","165","166","167","168","169","216","300","302","303","306","308","309","416","430"],"lag":[25,25,25,0,25,-30,25,25,-5,-20,-25,25,-150,0,0,25,-180,-25,5],"f50":[0.5424,0.2806,0.2544,0.5497,0.2961,0.3765,0.4828,0.2421,0.2891,0.403,0.5567,0.6883,0.4215,0.4984,0.4375,0.1451,0.0069,0.7334,0.0227],"f100":[0.7709,0.409,0.4449,0.6936,0.4424,0.4166,0.5111,0.4114,0.4344,0.5322,0.7828,0.843,0.6467,0.6355,0.6682,0.2235,0.0084,0.7759,0.0261]}}}};
+const D = {"vam":[[0,0.752,0.8635,0.6637,0.863,0.105,70.4],[1,0.7816,0.893,0.6677,0.8879,0.0414,55.1],[2,0.783,0.8943,0.6899,0.8912,0.0355,53.5],[3,0.7918,0.9071,0.6865,0.902,0.0323,50.2],[4,0.7915,0.9027,0.7018,0.898,0.0302,46.7],[5,0.8027,0.9107,0.7005,0.9035,0.0284,47.0],[6,0.7742,0.8984,0.6771,0.8887,0.0273,47.4],[7,0.7945,0.9047,0.7045,0.899,0.026,47.0],[8,0.797,0.9094,0.7134,0.9013,0.0252,52.0],[9,0.8003,0.9123,0.7185,0.9038,0.0244,48.0],[10,0.813,0.9176,0.7454,0.914,0.0235,47.3],[11,0.8097,0.9158,0.7368,0.9113,0.0228,47.6],[12,0.8015,0.9114,0.737,0.9073,0.0222,47.2],[13,0.804,0.9166,0.7377,0.9111,0.0216,47.2],[14,0.814,0.9196,0.7483,0.9147,0.021,47.1],[15,0.8088,0.9176,0.7442,0.9124,0.0203,47.2],[16,0.8037,0.9153,0.7459,0.9121,0.0199,47.2],[17,0.8112,0.9182,0.7524,0.9151,0.0194,46.9],[18,0.8097,0.9186,0.7568,0.9165,0.019,46.9],[19,0.8087,0.9185,0.7563,0.9142,0.0186,47.0],[20,0.8111,0.9188,0.7569,0.9148,0.0185,47.0],[21,0.8132,0.9196,0.759,0.9166,0.0182,47.0],[22,0.8068,0.9177,0.7579,0.9148,0.018,46.9],[23,0.8084,0.9183,0.7585,0.9151,0.0179,47.2],[24,0.8137,0.9196,0.7639,0.9172,0.0178,46.9]],"yt":[[0,0.3097,0.5079,0.3039,0.4897,0.2713,55.3],[1,0.2693,0.4688,0.2601,0.4597,0.1991,69.3],[2,0.3133,0.5181,0.2983,0.5153,0.1834,69.6],[3,0.3311,0.5325,0.3153,0.5314,0.1748,68.8],[4,0.3061,0.5256,0.296,0.5216,0.1686,64.3],[5,0.3392,0.5532,0.3284,0.5525,0.1649,67.9],[6,0.3513,0.556,0.341,0.5556,0.1594,70.9],[7,0.3482,0.5557,0.3396,0.5557,0.1564,67.0],[8,0.3453,0.5529,0.3316,0.5513,0.1527,71.3],[9,0.3361,0.544,0.3247,0.544,0.1507,68.7],[10,0.34,0.5436,0.3299,0.5436,0.1478,61.5],[11,0.3456,0.5605,0.3377,0.5605,0.1459,55.9],[12,0.3541,0.561,0.3451,0.5585,0.1434,48.7],[13,0.347,0.5604,0.336,0.5591,0.1413,46.0],[14,0.3594,0.5503,0.3493,0.5503,0.1396,46.0],[15,0.3621,0.5641,0.3522,0.5641,0.1376,44.8],[16,0.3551,0.5659,0.3423,0.5659,0.1358,44.5],[17,0.3499,0.5578,0.3397,0.5578,0.1347,45.2],[18,0.356,0.5607,0.3443,0.5607,0.1319,45.2],[19,0.349,0.5607,0.3396,0.5607,0.1316,44.4],[20,0.3563,0.5651,0.3443,0.5651,0.13,44.8],[21,0.3542,0.5602,0.3433,0.5602,0.1299,44.7],[22,0.3528,0.5645,0.3408,0.5645,0.1287,44.4],[23,0.3565,0.5647,0.3456,0.5647,0.1288,44.3],[24,0.3505,0.5605,0.3404,0.5605,0.1278,44.5]],"ft":[[0,0.3361,0.5364],[1,0.3209,0.5173],[2,0.3354,0.5325],[3,0.3337,0.5386],[4,0.3355,0.5438],[5,0.3422,0.5543],[6,0.3396,0.5463],[7,0.3365,0.5509],[8,0.341,0.5493],[9,0.3443,0.5578],[10,0.3373,0.55],[11,0.3427,0.5535]],"strip":[[0,0.4919,0.6882],[1,0.6431,0.8307],[2,0.6845,0.8586],[3,0.7213,0.8748],[4,0.7362,0.8798]],"e1":[{"rec":"2024-02-14_19-55-17","s":"02-14 19:55","ref":5629,"est":5509,"sec":755,"f50":0.9627,"f100":0.9811,"ot50":0.914,"frame":0.9249,"s50":0.9625,"s100":0.9811,"so50":0.9117,"so100":0.9711,"sf":0.9149,"v50":0.9359,"v100":0.9573,"vo50":0.8641,"vo100":0.9395,"vf":0.884,"o50":0.7368,"o100":0.8859},{"rec":"2024-02-14_20-10-08","s":"02-14 20:10","ref":9357,"est":9210,"sec":1300,"f50":0.9317,"f100":0.9858,"ot50":0.8053,"frame":0.8565,"s50":0.9278,"s100":0.9858,"so50":0.7979,"so100":0.9759,"sf":0.8564,"v50":0.9649,"v100":0.9717,"vo50":0.8415,"vo100":0.9537,"vf":0.8862,"o50":0.8403,"o100":0.8842},{"rec":"2024-02-15_20-17-26","s":"02-15 20:17","ref":5045,"est":4982,"sec":536,"f50":0.9827,"f100":0.9833,"ot50":0.966,"frame":0.9263,"s50":0.9827,"s100":0.9833,"so50":0.9648,"so100":0.9804,"sf":0.9104,"v50":0.9454,"v100":0.9729,"vo50":0.9283,"vo100":0.9655,"vf":0.8741,"o50":0.8425,"o100":0.8795},{"rec":"2024-02-15_20-47-59","s":"02-15 20:47","ref":1662,"est":1654,"sec":308,"f50":0.9783,"f100":0.9807,"ot50":0.9331,"frame":0.8899,"s50":0.9783,"s100":0.9807,"so50":0.9324,"so100":0.9765,"sf":0.8866,"v50":0.9562,"v100":0.9693,"vo50":0.9425,"vo100":0.9651,"vf":0.8982,"o50":0.8947,"o100":0.9057},{"rec":"2024-02-17_21-44-37","s":"02-17 21:44","ref":563,"est":536,"sec":178,"f50":0.8735,"f100":0.9718,"ot50":0.7934,"frame":0.947,"s50":0.8717,"s100":0.9718,"so50":0.7898,"so100":0.9609,"sf":0.9465,"v50":0.9446,"v100":0.9718,"vo50":0.8919,"vo100":0.9519,"vf":0.9551,"o50":0.7912,"o100":0.8319},{"rec":"2024-09-02_14-10-41","s":"09-02 14:10","ref":1292,"est":1222,"sec":293,"f50":0.9133,"f100":0.9682,"ot50":0.8656,"frame":0.9418,"s50":0.9109,"s100":0.9682,"so50":0.864,"so100":0.9531,"sf":0.9385,"v50":0.9532,"v100":0.9619,"vo50":0.8644,"vo100":0.935,"vf":0.922,"o50":0.823,"o100":0.8524},{"rec":"2024-09-02_21-04-45","s":"09-02 21:04","ref":2729,"est":2562,"sec":474,"f50":0.9416,"f100":0.9541,"ot50":0.8996,"frame":0.917,"s50":0.9412,"s100":0.9541,"so50":0.8985,"so100":0.9393,"sf":0.912,"v50":0.8808,"v100":0.935,"vo50":0.8197,"vo100":0.9031,"vf":0.8909,"o50":0.738,"o100":0.8155},{"rec":"2024-09-03_00-07-46","s":"09-03 00:07","ref":10929,"est":10875,"sec":1608,"f50":0.9928,"f100":0.9935,"ot50":0.9775,"frame":0.9589,"s50":0.9928,"s100":0.9935,"so50":0.9772,"so100":0.9885,"sf":0.9522,"v50":0.9655,"v100":0.9904,"vo50":0.9417,"vo100":0.9817,"vf":0.9334,"o50":0.9398,"o100":0.9622},{"rec":"2024-09-03_00-44-45","s":"09-03 00:44","ref":5035,"est":5031,"sec":603,"f50":0.9982,"f100":0.9984,"ot50":0.9946,"frame":0.9375,"s50":0.9982,"s100":0.9984,"so50":0.9944,"so100":0.9976,"sf":0.9247,"v50":0.9742,"v100":0.9982,"vo50":0.9661,"vo100":0.9966,"vf":0.9009,"o50":0.9799,"o100":0.992}],"cal":{"E1":[[0.05,0.7264],[0.1,0.776],[0.15,0.805],[0.2,0.8254],[0.3,0.857],[0.4,0.8797],[0.5,0.8992],[0.6,0.9144],[0.7,0.9294],[0.8,0.9427],[0.9,0.9516],[0.95,0.9422],[0.98,0.8744]],"E2":[[0.05,0.1314],[0.1,0.1865],[0.15,0.2273],[0.2,0.2582],[0.3,0.3065],[0.4,0.3437],[0.5,0.3573],[0.6,0.3441],[0.7,0.2832],[0.8,0.1533],[0.9,0.0397],[0.95,0.001],[0.98,0.0]],"E3b":[[0.05,0.0475],[0.1,0.05],[0.15,0.0519],[0.2,0.0523],[0.3,0.0518],[0.4,0.0493],[0.5,0.0471],[0.6,0.0446],[0.7,0.0434],[0.8,0.0384],[0.9,0.0309],[0.95,0.023],[0.98,0.0124]],"E4":[[0.05,0.0777],[0.1,0.1282],[0.15,0.1698],[0.2,0.2057],[0.3,0.2697],[0.4,0.319],[0.5,0.3553],[0.6,0.3703],[0.7,0.3367],[0.8,0.1809],[0.9,0.0253],[0.95,0.0034],[0.98,0.0]],"E5b":[[0.05,0.1214],[0.1,0.1078],[0.15,0.0886],[0.2,0.0747],[0.3,0.0523],[0.4,0.034],[0.5,0.0203],[0.6,0.0115],[0.7,0.0063],[0.8,0.0021],[0.9,0.0],[0.95,0.0],[0.98,0.0]]},"e2e4":[{"v":"116","e2_50":0.5724,"e2_100":0.8065,"e4_50":0.584,"e4_100":0.8019},{"v":"130","e2_50":0.3775,"e2_100":0.5946,"e4_50":0.4225,"e4_100":0.6337},{"v":"161","e2_50":0.449,"e2_100":0.7343,"e4_50":0.4622,"e4_100":0.7984},{"v":"162","e2_50":0.6416,"e2_100":0.8829,"e4_50":0.7036,"e4_100":0.9052},{"v":"164","e2_50":0.5704,"e2_100":0.8265,"e4_50":0.5482,"e4_100":0.8216},{"v":"165","e2_50":0.1844,"e2_100":0.8057,"e4_50":0.585,"e4_100":0.883},{"v":"166","e2_50":0.8045,"e2_100":0.8517,"e4_50":0.7484,"e4_100":0.8501},{"v":"167","e2_50":0.3894,"e2_100":0.6983,"e4_50":0.354,"e4_100":0.7496},{"v":"168","e2_50":0.4038,"e2_100":0.714,"e4_50":0.5428,"e4_100":0.824},{"v":"169","e2_50":0.3882,"e2_100":0.7877,"e4_50":0.54,"e4_100":0.8363},{"v":"216","e2_50":0.3278,"e2_100":0.6395,"e4_50":0.4704,"e4_100":0.7085},{"v":"300","e2_50":0.6218,"e2_100":0.8456,"e4_50":0.5926,"e4_100":0.8511},{"v":"302","e2_50":0.1251,"e2_100":0.3001,"e4_50":0.1408,"e4_100":0.2923},{"v":"303","e2_50":0.4561,"e2_100":0.6423,"e4_50":0.4985,"e4_100":0.7119},{"v":"306","e2_50":0.4101,"e2_100":0.6858,"e4_50":0.4365,"e4_100":0.689},{"v":"307","e2_50":0.4109,"e2_100":0.6912,"e4_50":0.4305,"e4_100":0.7066},{"v":"308","e2_50":0.1182,"e2_100":0.1929,"e4_50":0.2916,"e4_100":0.4968},{"v":"309","e2_50":0.0521,"e2_100":0.0908,"e4_50":0.1928,"e4_100":0.3387},{"v":"416","e2_50":0.4713,"e2_100":0.9049,"e4_50":0.4814,"e4_100":0.9243},{"v":"430","e2_50":0.0584,"e2_100":0.0772,"e4_50":0.0031,"e4_100":0.0051}],"e1t":[{"rec":"2024-02-14_19-55-17","s":"02-14 19:55","e1":0.9627,"e1t":0.9332},{"rec":"2024-02-14_20-10-08","s":"02-14 20:10","e1":0.9317,"e1t":0.6755},{"rec":"2024-02-15_20-17-26","s":"02-15 20:17","e1":0.9827,"e1t":0.9812},{"rec":"2024-02-15_20-47-59","s":"02-15 20:47","e1":0.9783,"e1t":0.9662},{"rec":"2024-02-17_21-44-37","s":"02-17 21:44","e1":0.8735,"e1t":0.9645},{"rec":"2024-09-02_14-10-41","s":"09-02 14:10","e1":0.9133,"e1t":0.8751},{"rec":"2024-09-02_21-04-45","s":"09-02 21:04","e1":0.9416,"e1t":0.9337},{"rec":"2024-09-03_00-07-46","s":"09-03 00:07","e1":0.9928,"e1t":0.9926},{"rec":"2024-09-03_00-44-45","s":"09-03 00:44","e1":0.9982,"e1t":0.9984}],"zs":[{"v":"116","sec":350,"ref":879,"b50":0.0399,"b100":0.0968,"best":526,"a50":0.0236,"a100":0.0321,"aest":55,"y50":0.4931,"y100":0.7396,"yest":784},{"v":"130","sec":410,"ref":1154,"b50":0.0123,"b100":0.0278,"best":790,"a50":0.0062,"a100":0.0171,"aest":132,"y50":0.266,"y100":0.41,"yest":763},{"v":"161","sec":449,"ref":2669,"b50":0.0699,"b100":0.144,"best":1651,"a50":0.0394,"a100":0.0901,"aest":373,"y50":0.2367,"y100":0.4428,"yest":1970},{"v":"162","sec":275,"ref":1596,"b50":0.0462,"b100":0.1835,"best":1826,"a50":0.0493,"a100":0.1221,"aest":353,"y50":0.5408,"y100":0.6936,"yest":1100},{"v":"164","sec":546,"ref":3952,"b50":0.1156,"b100":0.2365,"best":4125,"a50":0.1224,"a100":0.1953,"aest":1065,"y50":0.2425,"y100":0.4294,"yest":3883},{"v":"165","sec":294,"ref":488,"b50":0.0053,"b100":0.0293,"best":262,"a50":0.0,"a100":0.0436,"aest":63,"y50":0.2884,"y100":0.4085,"yest":261},{"v":"166","sec":206,"ref":600,"b50":0.0381,"b100":0.0787,"best":239,"a50":0.0032,"a100":0.0226,"aest":20,"y50":0.3818,"y100":0.5051,"yest":390},{"v":"167","sec":272,"ref":1628,"b50":0.0849,"b100":0.1717,"best":1739,"a50":0.0741,"a100":0.1281,"aest":370,"y50":0.23,"y100":0.4342,"yest":1007},{"v":"168","sec":304,"ref":2078,"b50":0.0778,"b100":0.1938,"best":1803,"a50":0.0643,"a100":0.127,"aest":347,"y50":0.2854,"y100":0.4302,"yest":1720},{"v":"169","sec":281,"ref":1902,"b50":0.0817,"b100":0.2166,"best":961,"a50":0.0614,"a100":0.1503,"aest":280,"y50":0.3842,"y100":0.5311,"yest":1721},{"v":"216","sec":276,"ref":1516,"b50":0.0685,"b100":0.1753,"best":1668,"a50":0.0753,"a100":0.1665,"aest":502,"y50":0.4966,"y100":0.7439,"yest":1315},{"v":"300","sec":114,"ref":744,"b50":0.1871,"b100":0.3597,"best":496,"a50":0.0692,"a100":0.1718,"aest":94,"y50":0.6072,"y100":0.8239,"yest":613},{"v":"302","sec":320,"ref":2862,"b50":0.0161,"b100":0.0322,"best":617,"a50":0.0013,"a100":0.002,"aest":116,"y50":0.0974,"y100":0.2379,"yest":2191},{"v":"303","sec":194,"ref":589,"b50":0.03,"b100":0.0791,"best":144,"a50":0.0033,"a100":0.0164,"aest":21,"y50":0.4881,"y100":0.6355,"yest":374},{"v":"306","sec":125,"ref":729,"b50":0.0503,"b100":0.1851,"best":265,"a50":0.0353,"a100":0.0883,"aest":64,"y50":0.4256,"y100":0.6682,"yest":615},{"v":"307","sec":222,"ref":1750,"b50":0.0987,"b100":0.173,"best":539,"a50":0.0176,"a100":0.0319,"aest":70,"y50":0.3857,"y100":0.6402,"yest":1418},{"v":"308","sec":205,"ref":988,"b50":0.1088,"b100":0.2498,"best":629,"a50":0.109,"a100":0.2148,"aest":278,"y50":0.1212,"y100":0.2082,"yest":184},{"v":"309","sec":357,"ref":2474,"b50":0.0891,"b100":0.2015,"best":1388,"a50":0.0599,"a100":0.1198,"aest":465,"y50":0.0046,"y100":0.0084,"yest":149},{"v":"416","sec":257,"ref":1326,"b50":0.0062,"b100":0.0811,"best":622,"a50":0.0025,"a100":0.1337,"aest":289,"y50":0.6664,"y100":0.7759,"yest":883},{"v":"430","sec":382,"ref":1712,"b50":0.0022,"b100":0.0187,"best":102,"a50":0.0,"a100":0.0,"aest":2,"y50":0.0216,"y100":0.0261,"yest":48}],"tim":{"med":[{"rec":"2024-02-14_19-55-17","s":"02-14 19:55","e1":6.3,"old":32.6,"sd":16.7,"f50":0.9625,"best":0.977,"lag":16.3},{"rec":"2024-02-14_20-10-08","s":"02-14 20:10","e1":30.5,"old":20.5,"sd":12.8,"f50":0.9278,"best":0.9852,"lag":25.5},{"rec":"2024-02-15_20-17-26","s":"02-15 20:17","e1":4.9,"old":-15.3,"sd":12.5,"f50":0.9827,"best":0.9827,"lag":0.0},{"rec":"2024-02-15_20-47-59","s":"02-15 20:47","e1":15.8,"old":-3.9,"sd":12.6,"f50":0.9783,"best":0.9789,"lag":10.8},{"rec":"2024-02-17_21-44-37","s":"02-17 21:44","e1":4.3,"old":-14.4,"sd":29.4,"f50":0.8717,"best":0.9299,"lag":-10.7},{"rec":"2024-09-02_14-10-41","s":"09-02 14:10","e1":11.7,"old":2.8,"sd":21.2,"f50":0.9109,"best":0.9467,"lag":16.7},{"rec":"2024-09-02_21-04-45","s":"09-02 21:04","e1":-5.5,"old":-17.4,"sd":20.0,"f50":0.9412,"best":0.9412,"lag":0.0},{"rec":"2024-09-03_00-07-46","s":"09-03 00:07","e1":-1.3,"old":-9.1,"sd":15.0,"f50":0.9928,"best":0.9928,"lag":0.0},{"rec":"2024-09-03_00-44-45","s":"09-03 00:44","e1":-5.5,"old":-6.2,"sd":14.5,"f50":0.9982,"best":0.9984,"lag":-10.5}],"drift":{"02-14 19:55":[6.0,11.7,1.8,7.3,4.2,4.5,6.5,10.1,3.4,4.9,3.4,8.0,7.3],"02-14 20:10":[30.2,28.4,31.0,29.9,29.5,31.2,30.5,29.7,28.9,29.9,31.0,29.9,31.0,32.3,31.2,28.4,30.5,29.9,31.5,31.2,34.1,33.0],"02-15 20:17":[6.2,4.2,4.9,6.0,2.8,6.0,4.2,4.9,4.2],"02-15 20:47":[16.7,16.1,15.5,15.6,14.6,null],"02-17 21:44":[-2.1,6.1,4.9],"09-02 14:10":[11.5,13.3,14.4,8.5,12.8],"09-02 21:04":[-10.4,-2.2,-5.5,-8.3,-7.6,-3.9,-5.1,-1.3],"09-03 00:07":[-6.3,-2.1,-3.9,-1.6,-2.4,-0.3,-3.1,-5.5,-2.1,-2.8,-2.1,0.8,-5.5,-0.3,-0.8,0.3,-1.8,-1.3,-4.2,-0.3,1.3,0.9,0.3,-1.3,2.1,0.8,0.5],"09-03 00:44":[-4.9,-8.6,-4.9,-7.1,-5.2,-3.9,-5.5,-3.1,-4.5,-8.6]},"hist":[3,1,7,17,61,149,710,2081,4819,7132,7805,7128,5331,3388,1920,621,93,26,11,0],"histOld":[31,40,73,153,434,1161,2454,3887,5085,5556,5360,4874,3991,3034,1858,942,397,101,56,28],"gscan":[[-40.0,0.5511653146721223],[-35.0,0.65402257023628],[-30.000000000000007,0.7318307910046409],[-25.000000000000007,0.8052275486027324],[-20.00000000000001,0.8598185205518093],[-15.000000000000014,0.898433578415784],[-10.000000000000016,0.9273498777177309],[-5.000000000000019,0.9441967282526846],[-2.0816681711721685e-14,0.9517953542226861],[4.999999999999977,0.9530146453331481],[9.999999999999973,0.9500302493234509],[14.999999999999972,0.9434338646410829],[19.999999999999968,0.9300272375202666],[24.999999999999975,0.9126275578781371],[29.999999999999964,0.8858275483313427],[34.99999999999996,0.8440634538089024],[39.99999999999996,0.783968326924072]],"yscan":{"E3b":[[-200,0.09737645014600227,0.20528532082173379],[-190,0.10707433984227874,0.21940574745664096],[-180,0.11911364332236637,0.22765286848383076],[-170,0.13425906528111786,0.24155605328831062],[-160,0.14307552831871392,0.24842240024483614],[-150,0.15721584366692037,0.25704967777608634],[-140,0.16358944386127988,0.26123466107453425],[-130,0.16555023566836538,0.2641361389434707],[-120,0.17016075441013662,0.2657880048273061],[-110,0.1691808060718826,0.26596581967373983],[-100,0.1685944291153592,0.2641621089600357],[-90,0.15761070745148772,0.25795011648789956],[-80,0.1483778911670047,0.2523769472715506],[-70,0.13507442659995697,0.24369134713323146],[-60,0.12640541654479617,0.23569895654974932],[-50,0.11250884017666467,0.22620740235962872],[-40,0.0979474756955597,0.20807914405454117],[-30,0.09037188906692642,0.1942277683927579],[-20,0.07719282295713711,0.17562758331404932],[-10,0.07002310690356023,0.16373525092390445],[0,0.06318737428035902,0.14670209697544662],[10,0.053212447605866596,0.13037277856188811],[20,0.04837409219058413,0.12148135152465359],[30,0.0433587964424185,0.10635090045572153],[40,0.04053241571413169,0.09881922389355745],[50,0.03798451387989367,0.09113889577604015]],"E3a":[[-200,0.02674426204402326,0.07532931496945097],[-190,0.030917107069103354,0.08361239807810286],[-180,0.036489403396916316,0.09152423433892433],[-170,0.04301439111383891,0.10233118835232935],[-160,0.049547007991739306,0.10829267447040611],[-150,0.06177921037279991,0.11644357516991763],[-140,0.06788283794418985,0.12136732154419723],[-130,0.07477151721864234,0.12533825495642037],[-120,0.08340229053455589,0.12927843394796806],[-110,0.08656630089421989,0.1316772460101111],[-100,0.09211176298818814,0.13518577098555112],[-90,0.09136564049392794,0.13614547533701304],[-80,0.08945304223612552,0.1372904642606548],[-70,0.08681800060136982,0.1363281140665819],[-60,0.0827052645598337,0.13374312319685205],[-50,0.07536358163598121,0.1321762521190149],[-40,0.06869935481617598,0.1263374963184627],[-30,0.06304995950857747,0.12064682927428075],[-20,0.053456157103085364,0.11293243548007792],[-10,0.04767214304916302,0.10523577558632861],[0,0.04216701941223598,0.09367994867079732],[10,0.0356049435667761,0.08388344238828241],[20,0.03164973321372715,0.07626420827106453],[30,0.026484702604271115,0.06554585760383355],[40,0.023053990547390785,0.05928347922859839],[50,0.019234756557079777,0.052465971014333965]],"oldYT":[[-200,0.04407590815825998,0.09663921507811775],[-190,0.04673041424403534,0.10423526798830958],[-180,0.04904056640893844,0.11072740527868348],[-170,0.053181568550121364,0.12264606633580301],[-160,0.05803272495778772,0.1351784875327299],[-150,0.06489868934864619,0.15825606209217777],[-140,0.07075420192249897,0.1807292002517985],[-130,0.07635994865276198,0.20460545118146004],[-120,0.08658605604409278,0.23763152076170074],[-110,0.09768859858020694,0.26277230164592863],[-100,0.11884437087481318,0.304519506609048],[-90,0.13711411956654146,0.3360991650775991],[-80,0.15866732695574687,0.361509855990164],[-70,0.18758086773710228,0.40024264395754505],[-60,0.2081042102519226,0.41876943975290876],[-50,0.24479585788066097,0.4461067822440942],[-40,0.2687589793831108,0.45891553802169155],[-30,0.28846065446939395,0.4687704941751766],[-20,0.31655981352279283,0.4789673234926158],[-10,0.32426890689886695,0.47929822681132034],[0,0.33812529257897067,0.48170404895217434],[10,0.32440654264187624,0.47630396029792105],[20,0.312327896517276,0.47107035535637903],[30,0.2931064004018977,0.45973742866946443],[40,0.27279297579035633,0.4471569559276578],[50,0.24310306353926708,0.43158597411693017]]},"yor":{"E3b":{"vids":["116","130","161","162","164","165","166","167","168","169","216","300","302","303","306","307","308","309","416","430"],"lag":[-100,-155,-175,-110,-75,-150,-100,-75,-90,-105,-135,-75,-235,-100,-100,-60,-125,-125,-135,-140],"f50":[0.1167,0.036,0.1509,0.2829,0.1922,0.2747,0.1263,0.1515,0.151,0.2529,0.2349,0.3516,0.0903,0.1146,0.2314,0.118,0.2758,0.1895,0.3778,0.0783],"f100":[0.158,0.0504,0.2449,0.3933,0.3056,0.328,0.1621,0.24,0.2427,0.3542,0.3612,0.4871,0.146,0.161,0.334,0.1905,0.4391,0.3268,0.4405,0.0948]},"E3a":{"vids":["116","130","161","162","164","165","166","167","168","169","216","300","302","303","306","307","308","309","416","430"],"lag":[-25,-115,-125,-75,-25,-125,0,-80,-55,-75,-100,-50,-210,0,-90,-30,-100,-125,-110,0],"f50":[0.0278,0.0171,0.1078,0.1242,0.1391,0.1706,0.0032,0.1001,0.1056,0.1632,0.1506,0.1551,0.0282,0.0033,0.0984,0.0242,0.2133,0.0912,0.317,0.0],"f100":[0.0364,0.0202,0.1604,0.1591,0.2101,0.1815,0.0226,0.1672,0.1493,0.2071,0.2319,0.179,0.039,0.0164,0.1387,0.0319,0.3191,0.1592,0.3406,0.0]},"oldYT":{"vids":["116","130","161","162","164","165","166","167","168","169","216","300","302","303","306","308","309","416","430"],"lag":[25,25,25,0,25,-30,25,25,-5,-20,-25,25,-150,0,0,25,-180,-25,5],"f50":[0.5424,0.2806,0.2544,0.5497,0.2961,0.3765,0.4828,0.2421,0.2891,0.403,0.5567,0.6883,0.4215,0.4984,0.4375,0.1451,0.0069,0.7334,0.0227],"f100":[0.7709,0.409,0.4449,0.6936,0.4424,0.4166,0.5111,0.4114,0.4344,0.5322,0.7828,0.843,0.6467,0.6355,0.6682,0.2235,0.0084,0.7759,0.0261]}}}};
 const NS='http://www.w3.org/2000/svg';
 function S(tag,attrs,parent){const e=document.createElementNS(NS,tag);if(attrs){for(const k in attrs)e.setAttribute(k,attrs[k]);}if(parent)parent.appendChild(e);return e;}
 function T(parent,x,y,str,cls,anchor){const t=S('text',{x:x,y:y,class:cls||'ax','text-anchor':anchor||'start'},parent);t.textContent=str;return t;}
@@ -1384,14 +1411,25 @@ function draw(){
         {name:'vam_full frame',cls:'c-ours',dash:true,dots:false,pts:vam.map(r=>[r[0],r[2]])},
         {name:'yt_full onset',cls:'c-yt',maxGap:1,pts:yt.map(r=>[r[0],r[1]])},
         {name:'yt_full frame',cls:'c-yt',dash:true,dots:false,maxGap:1,pts:yt.map(r=>[r[0],r[2]])},
-        {name:'yt_finetune onset',cls:'c-ft',maxGap:1,pts:ft.map(r=>[r[0],r[1]])}],
+        {name:'yt_finetune onset',cls:'c-ft',maxGap:1,pts:ft.map(r=>[r[0],r[1]])},
+        {name:'vam_strip onset',cls:'c-other',pts:D.strip.map(r=>[r[0],r[1]])}],
       marks:[{x:14,y:vam[14][1],cls:'c-ours',label:'best.pt (epoch 14): 0.814',dy:-14,anchor:'middle',dx:0}]});
   });
   // calibration
   safe(()=>{
     lineChart('ch-cal',{label:'Valid note F1 at 50 ms by onset threshold',x:[0,1],y:[0,1],xt:[0,0.2,0.4,0.6,0.8,1.0],yt:[0,0.2,0.4,0.6,0.8,1.0],xf:f2,yf:f2,tf:v=>v.toFixed(4),xl:'onset threshold',yl:'valid note F1 @50 ms',
-      series:[{name:'E1',cls:'c-ours',pts:D.cal.E1},{name:'E3b',cls:'c-ours',dash:true,pts:D.cal.E3b},{name:'E2 (so far)',cls:'c-yt',pts:D.cal.E2}],
-      marks:[{x:0.9,y:0.9516,cls:'c-ours',label:'0.90 → 0.952',anchor:'end',dx:-10,dy:22},{x:0.2,y:0.0523,cls:'c-ours',label:'0.20 → 0.052',dy:-12},{x:0.5,y:0.3573,cls:'c-yt',label:'0.50 → 0.357',dy:-12}]});
+      series:[{name:'E1',cls:'c-ours',pts:D.cal.E1},{name:'E3b',cls:'c-ours',dash:true,pts:D.cal.E3b},{name:'E2',cls:'c-yt',pts:D.cal.E2},{name:'E4',cls:'c-ft',pts:D.cal.E4},{name:'E5b',cls:'c-yt',dash:true,pts:D.cal.E5b}],
+      marks:[{x:0.9,y:0.9516,cls:'c-ours',label:'0.90 → 0.952',anchor:'end',dx:-10,dy:22},{x:0.2,y:0.0523,cls:'c-ours',label:'0.20 → 0.052',dy:-12},{x:0.5,y:0.3573,cls:'c-yt',label:'0.50 → 0.357',dy:24,dx:8},{x:0.6,y:0.3703,cls:'c-ft',label:'0.60 → 0.370',dy:-12},{x:0.05,y:0.1214,cls:'c-yt',label:'0.05 → 0.121',dy:-12}]});
+  });
+  // E2 vs E4 per video
+  safe(()=>{
+    const rows=D.e2e4.slice().sort((p,q)=>q.e4_100-p.e4_100).map(r=>({label:'video '+r.v,bars:[{v:r.e2_100,cls:'c-yt'},{v:r.e4_100,cls:'c-ft'}]}));
+    hbars('ch-e2e4',{label:'Per-video onset F1 at 100 ms, from scratch versus pre-trained',lw:110,bh:11,rg:9,x:[0,1],xt:[0,0.2,0.4,0.6,0.8,1.0],fmt:f2,vfmt:v=>v.toFixed(3),xl:'onset F1 at 100 ms',rows:rows});
+  });
+  // E1 vs E1t per recording (table rows)
+  safe(()=>{
+    const tb=document.getElementById('e1t-rows');
+    tb.innerHTML=D.e1t.map(r=>{const d=r.e1t-r.e1;return '<tr><td>'+r.s+'</td><td class="num">'+r.e1.toFixed(3)+'</td><td class="num">'+r.e1t.toFixed(3)+'</td><td class="num">'+(d>=0?'+':'')+d.toFixed(3)+'</td></tr>';}).join('');
   });
   // zero-shot per video
   safe(()=>{
@@ -1434,7 +1472,7 @@ function draw(){
       {label:'V2R',bars:[{v:0.64,cls:'c-other'}]},
       {group:'OURS, TRAINED ON PIANOYT'},
       {label:'E2 · new recipe, from scratch',bars:[{v:0.639,cls:'c-yt'}]},
-      {label:'E4 · pre-trained on PianoVAM',bars:[{pending:true,text:'training — test score tomorrow'}]},
+      {label:'E4 · pre-trained on PianoVAM',sub:'then fine-tuned on PianoYT',bars:[{v:0.691,cls:'c-ft'}]},
       {label:'Old model (Phase 0)',sub:'old recipe, from scratch',bars:[{v:0.49,cls:'c-yt'}]},
       {group:'ZERO-SHOT (NEVER TRAINED ON PIANOYT)'},
       {label:'ViT (PPAN), from R3',bars:[{v:0.40,cls:'c-ppan'}]},
