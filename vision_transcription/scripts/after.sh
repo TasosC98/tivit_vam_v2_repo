@@ -10,6 +10,8 @@
 # Waits while runs/<name>/run.pid (a training) or logs/<name>.pid (an
 # evaluation) is alive, then runs the command from the vision_transcription
 # folder. Log: logs/after_<name>.log. Cancel the wait: kill $(cat logs/after_<name>.pid)
+# Several commands can wait for the same run: the second one logs to
+# logs/after_<name>_2.log (pid in logs/after_<name>_2.pid), the third to _3, ...
 set -uo pipefail
 SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$SELF")/.."
@@ -25,10 +27,14 @@ mkdir -p logs
 if [ -z "${_AFTER_CHILD:-}" ]; then
   [ -f "$PIDF" ] || { echo "ERROR: neither runs/${RUN}/run.pid nor logs/${RUN}.pid exists --"
                       echo "       is '${RUN}' the name of a training run or an evaluation?"; exit 1; }
-  _AFTER_CHILD=1 nohup bash "$SELF" "$RUN" "$CMD" > "logs/after_${RUN}.log" 2>&1 &
-  echo $! > "logs/after_${RUN}.pid"
+  TAG="after_${RUN}"; k=1
+  while [ -f "logs/${TAG}.pid" ] && kill -0 "$(cat "logs/${TAG}.pid")" 2>/dev/null; do
+    k=$((k + 1)); TAG="after_${RUN}_${k}"        # that name belongs to a live waiter
+  done
+  _AFTER_CHILD=1 nohup bash "$SELF" "$RUN" "$CMD" > "logs/${TAG}.log" 2>&1 &
+  echo $! > "logs/${TAG}.pid"
   echo "waiting for '${RUN}' to finish, then: ${CMD}"
-  echo "  (background pid $!; log: logs/after_${RUN}.log; cancel: kill \$(cat logs/after_${RUN}.pid))"
+  echo "  (background pid $!; log: logs/${TAG}.log; cancel: kill \$(cat logs/${TAG}.pid))"
   exit 0
 fi
 
