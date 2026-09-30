@@ -11,7 +11,7 @@ echo "===== trainings"
 bash scripts/status.sh
 
 echo; echo "===== evaluations"
-for f in logs/E*.log logs/P0*.log; do
+for f in logs/E*.log logs/A[0-9]*.log logs/P0*.log; do
   n="$(basename "$f" .log)"
   state="finished"
   if [ -f "logs/${n}.pid" ] && kill -0 "$(cat "logs/${n}.pid")" 2>/dev/null; then
