@@ -41,5 +41,6 @@ fi
 echo "=== $(date '+%Y-%m-%d %H:%M') waiting for '${RUN}' (pid $(cat "$PIDF"))"
 while kill -0 "$(cat "$PIDF")" 2>/dev/null; do sleep 60; done
 echo "=== $(date '+%Y-%m-%d %H:%M') '${RUN}' finished; running: ${CMD}"
+unset _AFTER_CHILD         # so an after.sh inside CMD queues its own waiter
 bash -c "$CMD"
 echo "=== $(date '+%Y-%m-%d %H:%M') done (exit $?)"
