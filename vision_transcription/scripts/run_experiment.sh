@@ -27,6 +27,7 @@ shift 2
 CONFIG="${CONFIG:-configs/default.yaml}"
 export DECORD_EOF_RETRY_MAX="${DECORD_EOF_RETRY_MAX:-2048}"   # low = fail fast + skip bad frame
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-4}"
+export PYTHONUNBUFFERED=1   # epoch/valid lines reach train.log at once (status.sh reads them)
 
 OUT="runs/${NAME}"
 mkdir -p "${OUT}"
