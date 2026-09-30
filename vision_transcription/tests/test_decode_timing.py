@@ -66,17 +66,28 @@ def test_time_and_black_key_shifts():
     assert notes[CS4].offset == pytest.approx(20 / FPS - 0.03)
 
 
-def test_times_never_negative_or_inverted():
+def test_negative_shift_near_the_start_of_the_video():
     on, fr = rolls()
-    on[0:2, K_C4] = 0.95
+    on[0:2, K_C4] = 0.95                         # 0.00-0.10 s: ends before t=0 after -0.2 s
     fr[0:3, K_C4] = 0.9
-    (n,) = decode_notes(on, fr, FPS, 0.5, 0.5, onset_timing="centroid", time_shift_s=-0.2)
-    assert n.onset == 0.0 and n.offset >= n.onset
+    on[1:3, K_CS4] = 0.95                        # 0.03-0.33 s: starts before t=0 after -0.2 s
+    fr[1:10, K_CS4] = 0.9
+    for mode in ("first", "centroid"):
+        notes = decode_notes(on, fr, FPS, 0.5, 0.5, onset_timing=mode, time_shift_s=-0.2)
+        assert [(n.pitch, n.onset) for n in notes] == [(CS4, 0.0)]
+        assert notes[0].offset == pytest.approx(10 / FPS - 0.2)
+    # A zero-length note [0, 0] made mir_eval reject the whole recording, which
+    # stopped a timing calibration with shifts down to -0.2 s (E5c).
+    pytest.importorskip("mir_eval")
+    from pianovam_vision.labels import Note
+    from pianovam_vision.metrics import note_prf
+    assert note_prf([Note(0.02, 0.3, CS4, 80)], notes)[2] == pytest.approx(1.0)
 
 
 def test_timing_never_changes_which_notes_exist():
     rng = np.random.default_rng(0)
     on, fr = rng.random((400, 88)) ** 4, rng.random((400, 88))
+    on[:3] = 0.0              # no note at the very start (see the test above)
     base = [(n.pitch, round(n.onset * FPS)) for n in decode_notes(on, fr, FPS, 0.6, 0.5)]
     for mode in ("first", "centroid"):
         for shift in (-0.03, 0.0, 0.11):

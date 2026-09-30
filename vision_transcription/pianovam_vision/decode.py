@@ -7,7 +7,8 @@ above threshold (or until the key is re-triggered).
 Onset timing (``decode.onset_timing``, ``decode.time_shift_s``,
 ``decode.black_shift_s``) only moves notes in time; which notes exist is decided
 on whole frames exactly as before, so the timing options never change the note
-count. The defaults reproduce the original rule.
+count (except that a negative shift drops a note it moves entirely before the
+start of the video). The defaults reproduce the original rule.
 """
 from __future__ import annotations
 
@@ -111,9 +112,12 @@ def decode_notes(
                 if shift:
                     onset_s += shift
                     offset_s += shift
+                # A negative shift can move a note at the very start of the video
+                # before t=0: cut its start at 0, and drop it if it ends by then
+                # (mir_eval rejects a zero-length note, and with it the recording).
                 onset_s = max(onset_s, 0.0)
-                offset_s = max(offset_s, onset_s)
-                notes.append(Note(onset_s, offset_s, pitch, vel))
+                if offset_s > onset_s:
+                    notes.append(Note(onset_s, offset_s, pitch, vel))
             t = off
     notes.sort(key=lambda n: (n.onset, n.pitch))
     return notes
