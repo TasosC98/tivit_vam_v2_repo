@@ -23,10 +23,21 @@ for f in logs/E*.log logs/A[0-9]*.log logs/P0*.log; do
   fi
   echo "--- ${n}  [${state}]"
   [ -n "$lines" ] && printf '%s\n' "$lines" | sed 's/^/    /'
-  calib="results/${n}_calibrate.txt"
-  if [ "$state" = "RUNNING" ] && [ -f "$calib" ]; then
-    echo "    calibration progress: $(grep -acE '(predicted|loaded) rolls' "$calib") videos predicted," \
-         "$(grep -acE 'onset_f1 [0-9]|skipped \(cannot' "$calib") thresholds tried"
+  # Progress of the phase the run is in now. (A calibration file left by an
+  # earlier run of the same name says nothing about a run that only scores test.)
+  if [ "$state" = "RUNNING" ]; then
+    calib="results/${n}_calibrate.txt"; test_out="results/${n}_test.txt"
+    case "$(printf '%s\n' "$lines" | tail -n 1)" in
+      *calibrating*)
+        [ -f "$calib" ] && echo "    calibration progress: $(grep -acE '(predicted|loaded) rolls' "$calib")" \
+             "videos predicted, $(grep -acE 'onset_f1 [0-9]|skipped \(cannot' "$calib") thresholds tried" ;;
+      *scoring*)
+        if [ -f "$test_out" ]; then
+          total="$(grep -aoE '\([0-9]+ recordings\)' "$test_out" | head -n 1 | tr -dc '0-9')"
+          echo "    test progress: $(grep -acE '^[^ ]+: (onset_f1@50=|\[skipped\])' "$test_out")" \
+               "of ${total:-?} videos scored"
+        fi ;;
+    esac
   fi
 done
 
