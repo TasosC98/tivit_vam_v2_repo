@@ -1,0 +1,19 @@
+# PianoVAM -> PianoYT fine-tuning with sync-corrected TRAINING labels (paper run
+# "yt_sync_finetune", E6ft).
+#
+# Identical to yt_finetune.yaml (E4), except that each video's labels are shifted
+# by the correction sync_check measured (the same corrections as yt_sync.yaml, E6),
+# so E6ft vs E4 shows what the correction adds to the best PianoYT model.
+# Requires runs/vam_full/best.pt and results/pianoyt_label_offsets.json.
+#
+#   1. train:     CONFIG=configs/yt_sync_finetune.yaml bash scripts/run_experiment.sh yt_sync_finetune tiled
+#   2. evaluate on the ORIGINAL labels, like E4 and the papers:
+#      DATA_CONFIG=configs/yt_full.yaml bash scripts/evaluate_run.sh E6ft_yt_sync_finetune \
+#          configs/yt_sync_finetune.yaml runs/yt_sync_finetune/best.pt onset_f1
+base: yt_finetune.yaml
+
+data:
+  label_offsets: results/pianoyt_label_offsets.json
+
+train:
+  out_dir: runs/yt_sync_finetune

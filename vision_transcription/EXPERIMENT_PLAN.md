@@ -111,6 +111,7 @@ answers a different question of the paper.
 | E4 | PianoVAM → fine-tune PianoYT | PianoYT | does clean pre-training help noisy data? | PPAN protocol (R3 → PianoYT) |
 | E5 | PianoYT | PianoVAM, zero-shot | reverse transfer | — |
 | E6 | PianoYT, **sync-corrected** labels | PianoYT | how much does label sync cost? | E2 |
+| E6ft | PianoVAM → fine-tune PianoYT, **sync-corrected** labels | PianoYT | does the correction add to the best model? | E4 |
 | E7 | + hand head (PianoVAM) | PianoVAM | left/right hand accuracy | *nobody reports it* |
 
 Order: **E1 first** (it is also the source model for E3/E4) with **E2 in
