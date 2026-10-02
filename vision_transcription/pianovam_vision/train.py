@@ -109,6 +109,40 @@ def compute_loss(out, batch, cfg, device):
     return loss
 
 
+class BatchNormGuard:
+    """Keeps one non-finite training step from breaking BatchNorm's statistics.
+
+    With mixed precision a batch can overflow to inf/NaN. The GradScaler then
+    skips the weight update, but BatchNorm has already folded that batch into
+    its running mean/var during the forward pass. Those statistics are used only
+    in eval mode, so training goes on with a normal loss while every validation
+    and the final evaluation see NaN (E6 lost epochs 7-18 this way: valid F1 0,
+    best.pt stuck at epoch 6). snapshot() before the forward pass; restore() if
+    the step turned out non-finite.
+    """
+
+    def __init__(self, model: nn.Module):
+        self.buffers = [b for m in model.modules() if isinstance(m, nn.modules.batchnorm._BatchNorm)
+                        for b in (m.running_mean, m.running_var, m.num_batches_tracked) if b is not None]
+        self._float = [b for b in self.buffers if b.is_floating_point()]
+        self._saved = None
+
+    @torch.no_grad()
+    def snapshot(self) -> None:
+        self._saved = [b.clone() for b in self.buffers]
+
+    @torch.no_grad()
+    def restore(self) -> None:
+        for b, s in zip(self.buffers, self._saved):
+            b.copy_(s)
+
+    @torch.no_grad()
+    def finite(self) -> bool:
+        if not self._float:
+            return True
+        return bool(torch.stack([torch.isfinite(b).all() for b in self._float]).all())
+
+
 VALID_THRESHOLDS = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
 SELECT_METRICS = ("frame_f1", "onset_f1", "frame_f1_best", "onset_f1_best")
 
@@ -233,9 +267,13 @@ def main() -> None:
         print(f"lr schedule: {t['lr_schedule']} (peak {t['lr']}, warmup "
               f"{t.get('warmup_frac', 0.03):.0%} of {total_steps} steps)")
 
+    bn_guard = BatchNormGuard(model)
+    if not bn_guard.finite():
+        raise SystemExit("BatchNorm statistics of the starting weights are not finite "
+                         "(a checkpoint saved after a non-finite step?): resume from an earlier one")
     for epoch in range(start_epoch, t["epochs"]):
         model.train()
-        running = 0.0
+        running, n_ok, n_bad = 0.0, 0, 0
         t_epoch = time.time()
         pbar = tqdm(train_loader, desc=f"epoch {epoch}")
         for step, batch in enumerate(pbar):
@@ -244,20 +282,31 @@ def main() -> None:
                 g["lr"] = lr
             frames = batch["frames"].to(device, non_blocking=True)
             opt.zero_grad(set_to_none=True)
+            bn_guard.snapshot()
             with torch.amp.autocast("cuda", enabled=use_amp):
                 out = model(frames)
                 loss = compute_loss(out, batch, cfg, device)
+            loss_value = loss.item()
+            if not math.isfinite(loss_value) or not bn_guard.finite():
+                # A forward overflow: undo what it did to BatchNorm and skip the
+                # step entirely (its gradients would be inf/NaN anyway).
+                bn_guard.restore()
+                n_bad += 1
+                continue
             scaler.scale(loss).backward()
             if t["grad_clip"] > 0:
                 scaler.unscale_(opt)
                 nn.utils.clip_grad_norm_(model.parameters(), t["grad_clip"])
             scaler.step(opt)
             scaler.update()
-            running += loss.item()
+            running += loss_value
+            n_ok += 1
             if step % t["log_every"] == 0:
-                pbar.set_postfix(loss=f"{running / (step + 1):.4f}", lr=f"{lr:.2e}")
-        print(f"[epoch {epoch}] train loss {running / max(1, steps_per_epoch):.4f} | "
-              f"{(time.time() - t_epoch) / 60:.1f} min")
+                pbar.set_postfix(loss=f"{running / max(1, n_ok):.4f}", lr=f"{lr:.2e}")
+        print(f"[epoch {epoch}] train loss {running / max(1, n_ok):.4f} | "
+              f"{(time.time() - t_epoch) / 60:.1f} min"
+              + (f" | {n_bad} non-finite step(s) skipped, BatchNorm statistics restored"
+                 if n_bad else ""))
 
         if (epoch + 1) % t["eval_every_epochs"] == 0:
             metrics = evaluate(model, valid_loader, cfg, device)
