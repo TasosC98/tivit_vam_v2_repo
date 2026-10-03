@@ -1,0 +1,108 @@
+{
+ "note": "PianoVAM test (9 recordings), notes pooled, onset tolerance 50 ms; [found, total] pairs. Computed from the predicted MIDI and the PianoVAM TSV labels (scratch analysis error_analysis_run.py).",
+ "per_key": {
+  "recall_by_register": {
+   "A0-B1": [
+    451,
+    479
+   ],
+   "C2-B3": [
+    14475,
+    14903
+   ],
+   "C4-B5": [
+    22691,
+    23649
+   ],
+   "C6-C8": [
+    2867,
+    3210
+   ]
+  },
+  "recall_by_colour": {
+   "white": [
+    27791,
+    28563
+   ],
+   "black": [
+    12693,
+    13678
+   ]
+  },
+  "missed_by_cause": {
+   "other": 916,
+   "timing": 826,
+   "neighbour": 14,
+   "octave": 1
+  },
+  "extra_by_cause": {
+   "timing": 824,
+   "other": 268,
+   "neighbour": 5
+  },
+  "matched_50ms": 40484,
+  "true_notes": 42241,
+  "predicted_notes": 41581,
+  "fast_repeats_found": [
+   377,
+   272
+  ],
+  "median_onset_error_ms": {
+   "white": 3.8829090908620856,
+   "black": 15.624999999957367
+  }
+ },
+ "global": {
+  "recall_by_register": {
+   "A0-B1": [
+    355,
+    479
+   ],
+   "C2-B3": [
+    14377,
+    14903
+   ],
+   "C4-B5": [
+    22243,
+    23649
+   ],
+   "C6-C8": [
+    2593,
+    3210
+   ]
+  },
+  "recall_by_colour": {
+   "white": [
+    27327,
+    28563
+   ],
+   "black": [
+    12241,
+    13678
+   ]
+  },
+  "missed_by_cause": {
+   "other": 1753,
+   "timing": 877,
+   "neighbour": 36,
+   "octave": 7
+  },
+  "extra_by_cause": {
+   "timing": 887,
+   "other": 980,
+   "neighbour": 19,
+   "octave": 4
+  },
+  "matched_50ms": 39568,
+  "true_notes": 42241,
+  "predicted_notes": 41458,
+  "fast_repeats_found": [
+   377,
+   251
+  ],
+  "median_onset_error_ms": {
+   "white": 5.965909090889454,
+   "black": 15.340909090866717
+  }
+ }
+}
