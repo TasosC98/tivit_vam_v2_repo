@@ -416,3 +416,27 @@ def test_calibration_count_and_bound_are_exact():
         s = note_scores(ref, est)
         bound = 2 * min(len(ref), len(est)) / (len(ref) + len(est))
         assert s["onset_f1"] <= bound + 1e-9 and s["full_f1"] <= bound + 1e-9
+
+
+def test_global_variant_strip_bins_and_mac_count():
+    """model.strip_bins sets the global variant's bins (default 16 = the paper's A1, so old
+    checkpoints load), and the MAC counter gives the paper's numbers for KeyWise."""
+    torch = pytest.importorskip("torch")
+    from pianovam_vision.model import build_model
+    from pianovam_vision.speed import count_macs
+
+    cfg = load_config("configs/vam_full.yaml")
+    keywise = build_model(cfg)
+    assert sum(p.numel() for p in keywise.parameters()) == 1_299_491
+    x = torch.rand(1, 2, 3, 112, 1408)
+    assert abs(sum(count_macs(keywise, x).values()) - 1.868e9) < 0.001e9
+
+    cfg["model"]["arch"] = "strip"
+    a1 = build_model(cfg)
+    assert sum(p.numel() for p in a1.parameters()) == 3_698_128
+    assert a1.encoder.fc[1].in_features == 192 * 16
+
+    g88 = build_model(load_config("configs/vam_global88.yaml"))
+    assert g88.encoder.fc[1].in_features == 192 * 88
+    out = g88(torch.rand(1, 3, 3, 112, 1408))
+    assert out["onset_logits"].shape == (1, 3, 88) and out["frame_logits"].shape == (1, 3, 88)

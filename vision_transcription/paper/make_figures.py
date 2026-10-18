@@ -72,41 +72,62 @@ def read_csv(path):
 
 
 def fig2_recordings(results):
-    key = read_csv(os.path.join(results, "E1_vam_full_vs_baseline.csv"))
+    """Per recording: per-key network (mean of the three runs, bar = min..max), global variant, V2N."""
+    runs = [read_csv(os.path.join(results, f"{n}_vam_full_vs_baseline.csv")) for n in ("E1", "E1s2", "E1s3")]
+    key = runs[0]
     glo = read_csv(os.path.join(results, "A1_vam_strip_vs_baseline.csv"))
-    recs = sorted(key, key=lambda r: float(key[r]["pred:onset_f1@50"]))
-    label = lambda r: r[5:10] + " " + r[11:16].replace("-", ":")   # 2024-02-14_19-55-17 -> 02-14 19:55
+    mean = lambda r, tol: sum(100 * float(k[r][f"pred:onset_f1@{tol}"]) for k in runs) / len(runs)
+    recs = sorted(key, key=lambda r: mean(r, "50"))
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6), sharey=True)
     for ax, tol in zip(axes, ("50", "100")):
-        y = range(len(recs))
-        ax.scatter([100 * float(glo[r][f"pred:onset_f1@{tol}"]) for r in recs], y, marker="s", s=14, color=C_GLOBAL, label="Global strip (3.7 M)", zorder=3)
+        y = list(range(len(recs)))
+        vals = [[100 * float(k[r][f"pred:onset_f1@{tol}"]) for k in runs] for r in recs]
+        ax.hlines(y, [min(v) for v in vals], [max(v) for v in vals], color=C_KEY, lw=1.2, alpha=0.55, zorder=2)
+        ax.scatter([100 * float(glo[r][f"pred:onset_f1@{tol}"]) for r in recs], y, marker="s", s=14, color=C_GLOBAL, label="Global variant (3.7 M)", zorder=3)
         ax.scatter([100 * float(key[r][f"baseline:onset_f1@{tol}"]) for r in recs], y, marker="^", s=16, color=C_V2N, label="V2N (28.2 M)", zorder=3)
-        ax.scatter([100 * float(key[r][f"pred:onset_f1@{tol}"]) for r in recs], y, marker="o", s=16, color=C_KEY, label="Per-key (1.3 M)", zorder=4)
+        ax.scatter([sum(v) / len(v) for v in vals], y, marker="o", s=16, color=C_KEY, label="KeyWise (1.3 M), mean and range of 3 runs", zorder=4)
         ax.set_xlabel(f"Onset F1 (%), {tol} ms tolerance")
         ax.grid(axis="x", color="#DDDDDD", lw=0.6)
         ax.set_axisbelow(True)
-        ax.set_xlim(84, 100.5)
+        ax.set_xlim(82, 100.5)
     axes[0].set_yticks(list(range(len(recs))))
-    axes[0].set_yticklabels([label(r) for r in recs])
+    axes[0].set_yticklabels(recs)                 # PianoVAM recording IDs
     axes[0].set_ylabel("PianoVAM test recording")
-    axes[1].legend(loc="lower left", frameon=False)
-    fig.tight_layout()
+    handles, labels = axes[1].get_legend_handles_labels()
+    order = [2, 0, 1]                             # KeyWise, global variant, V2N
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.legend([handles[i] for i in order], [labels[i] for i in order], loc="upper center",
+               bbox_to_anchor=(0.5, 1.0), ncol=3, frameon=False)
     save(fig, "fig2_recordings")
 
 
-def fig3_register():
-    d = json.load(open(os.path.join(HERE, "data", "error_analysis.json")))
+def fig3_register(analysis=None):
+    """Recall by register / key colour. With ``analysis`` (paper/analyse_notes.py output with
+    systems KeyWise and Global): runs averaged, with 95% bootstrap intervals over recordings.
+    Otherwise the first-run numbers of data/error_analysis.json."""
     groups = [("A0–B1", "recall_by_register", "A0-B1"), ("C2–B3", "recall_by_register", "C2-B3"),
               ("C4–B5", "recall_by_register", "C4-B5"), ("C6–C8", "recall_by_register", "C6-C8"),
               ("White" + NL + "keys", "recall_by_colour", "white"), ("Black" + NL + "keys", "recall_by_colour", "black")]
-    rec = {m: [100 * d[m][s][k][0] / d[m][s][k][1] for _, s, k in groups] for m in ("per_key", "global")}
+    err = None
+    if analysis:
+        d = json.load(open(analysis))["systems"]
+        src = {"per_key": "KeyWise", "global": "Global"}
+        rec = {m: [100 * d[s]["recall@50"][k]["mean_over_runs"] for _, _, k in groups] for m, s in src.items()}
+        err = {m: [[rec[m][i] - 100 * d[s]["recall@50"][k]["ci95"][0] for i, (_, _, k) in enumerate(groups)],
+                   [100 * d[s]["recall@50"][k]["ci95"][1] - rec[m][i] for i, (_, _, k) in enumerate(groups)]]
+               for m, s in src.items()}
+    else:
+        d = json.load(open(os.path.join(HERE, "data", "error_analysis.json")))
+        rec = {m: [100 * d[m][s][k][0] / d[m][s][k][1] for _, s, k in groups] for m in ("per_key", "global")}
     fig, ax = plt.subplots(figsize=(3.4, 2.3))
     x = range(len(groups))
-    ax.bar([i - 0.19 for i in x], rec["per_key"], width=0.36, color=C_KEY, label="Per-key")
-    ax.bar([i + 0.19 for i in x], rec["global"], width=0.36, color=C_GLOBAL, label="Global strip")
+    for dx, m, c, lab in ((-0.19, "per_key", C_KEY, "KeyWise"), (0.19, "global", C_GLOBAL, "Global variant")):
+        ax.bar([i + dx for i in x], rec[m], width=0.36, color=c, label=lab,
+               yerr=err[m] if err else None, error_kw=dict(lw=0.6, capsize=1.5, ecolor="#333333"))
     for i in x:
         for dx, m in ((-0.19, "per_key"), (0.19, "global")):
-            ax.text(i + dx, rec[m][i] + 0.4, f"{rec[m][i]:.0f}", ha="center", va="bottom", fontsize=5.8)
+            top = rec[m][i] + (err[m][1][i] if err else 0.0)
+            ax.text(i + dx, top + 0.4, f"{rec[m][i]:.0f}", ha="center", va="bottom", fontsize=5.8)
     ax.set_xticks(list(x))
     ax.set_xticklabels([g[0] for g in groups])
     ax.set_ylim(60, 101)
@@ -122,8 +143,10 @@ def fig3_register():
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", required=True, help="folder with the downloaded results/*.csv")
+    ap.add_argument("--analysis", default=None,
+                    help="note_analysis.json from paper/analyse_notes.py: Fig. 4 with all runs and 95%% intervals")
     a = ap.parse_args()
     fig1_model()
     fig2_recordings(a.results)
-    fig3_register()
+    fig3_register(a.analysis)
     print("figures written to", os.path.join(HERE, "figures"))

@@ -13,6 +13,8 @@ with DOIs, and a "Statements and Declarations" section.
 | `figures/fig1_model.pdf`, `fig2_recordings.pdf`, `fig3_register.pdf` | The three figures (the `.png` copies are for the HTML report). |
 | `make_figures.py` | Rebuilds the figures from the result files. |
 | `data/error_analysis.json` | Recall by register and key colour, and the error classes (per-key network and global variant), used by Fig. 3 and Table 3. |
+| `analyse_notes.py` | Recomputes those numbers from the predicted MIDI files for any number of runs per system (it reproduces `error_analysis.json` exactly from the first runs), with bootstrap intervals, timing per recording, offset-only F1, and per-key recall against the key geometry and the number of training notes. `make_figures.py --analysis <its json>` draws Fig. 4 from it. |
+| `compare_runs.py` | Paired comparison of two systems over several runs (exact Wilcoxon, Holm–Bonferroni over the five metrics, bootstrap intervals, per-run tests), from `results/<name>_vs_baseline.csv`. |
 
 ## Compile
 

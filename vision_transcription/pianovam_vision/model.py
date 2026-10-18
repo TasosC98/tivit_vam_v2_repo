@@ -61,8 +61,12 @@ class VisualOnsetsFrames(nn.Module):
         in_ch = 1 if cfg["keyboard"]["grayscale"] else 3
         self.use_velocity = bool(m["use_velocity"])
 
+        # strip_bins: horizontal bins kept before the projection to one global
+        # vector (16 = the paper's global variant; 88 = one bin per key, the
+        # review ablation). Older checkpoints have no key and load as 16.
         self.encoder = FrameEncoder(
-            in_ch, m["encoder_channels"], m["feature_dim"]
+            in_ch, m["encoder_channels"], m["feature_dim"],
+            keep_width=int(m.get("strip_bins", 16)),
         )
         self.gru = nn.GRU(
             input_size=m["feature_dim"],

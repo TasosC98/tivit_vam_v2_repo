@@ -1,0 +1,16 @@
+# Global variant with one bin per key (review ablation "Global-88", paper 1).
+#
+# The paper's global variant (A1: vam_full.yaml with model.arch=strip) pools the
+# encoder output to 16 horizontal bins before projecting it to one 256-d vector
+# per frame. This one keeps 88 bins -- the same horizontal resolution as the
+# per-key model -- so the comparison with KeyWise isolates the per-key temporal
+# model (one shared BiGRU per key) from the pooling resolution. Everything else
+# (data, strip cache, training recipe) is vam_full.yaml.
+#
+#   CONFIG=configs/vam_global88.yaml bash scripts/run_experiment.sh vam_g88 strip
+#   (or the whole review queue: bash scripts/queue.sh scripts/jobs_review_B.txt)
+base: vam_full.yaml
+
+model:
+  arch: strip
+  strip_bins: 88              # 192 ch x 88 bins = 16,896 values -> Linear -> 256
