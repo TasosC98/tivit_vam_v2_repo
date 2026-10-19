@@ -40,6 +40,10 @@ METRICS = [
     ("vel_f1@100", "Onset+velocity F1 @100 ms"),
     ("offvel_f1@50", "Onset+offset+velocity F1 @50 ms (V2N ++Off++Vel)"),
     ("offvel_f1@100", "Onset+offset+velocity F1 @100 ms"),
+    ("velmm_f1@50", "  the same, min-max velocity scaling: ++Vel @50 ms"),
+    ("velmm_f1@100", "  ++Vel @100 ms (min-max)"),
+    ("offvelmm_f1@50", "  ++Off++Vel @50 ms (min-max)"),
+    ("offvelmm_f1@100", "  ++Off++Vel @100 ms (min-max)"),
 ]
 
 

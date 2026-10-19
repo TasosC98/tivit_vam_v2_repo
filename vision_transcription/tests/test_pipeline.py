@@ -461,9 +461,12 @@ def test_velocity_scores_identical_to_mir_eval():
         ev = np.array([n.velocity for n in est], float)
         for tol in (0.05, 0.10):
             for kw in (dict(offset_ratio=None), dict(offset_ratio=0.0, offset_min_tolerance=tol)):
-                want = mir_eval.transcription_velocity.precision_recall_f1_overlap(
-                    ri, rf, rv, ei, ef, ev, onset_tolerance=tol, **kw)[:3]
-                assert np.allclose(note_velocity_prf(ref, est, onset_tolerance=tol, **kw), want, atol=1e-12)
+                for scale in (None, 127.0):       # MIDI velocities / V2N's velocity / 127
+                    s = scale or 1.0
+                    want = mir_eval.transcription_velocity.precision_recall_f1_overlap(
+                        ri, rf, rv / s, ei, ef, ev / s, onset_tolerance=tol, **kw)[:3]
+                    got = note_velocity_prf(ref, est, onset_tolerance=tol, velocity_scale=scale, **kw)
+                    assert np.allclose(got, want, atol=1e-12)
 
 
 def test_velocity_head_and_lstm_mac_count():

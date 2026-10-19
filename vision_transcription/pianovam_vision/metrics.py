@@ -80,13 +80,20 @@ def _pitchwise_matching(ref: List[Note], est: List[Note], onset_tolerance: float
 def note_velocity_prf(
     ref: List[Note], est: List[Note], onset_tolerance: float = 0.05,
     offset_ratio: Optional[float] = None, offset_min_tolerance: float = 0.05,
-    velocity_tolerance: float = 0.1,
+    velocity_tolerance: float = 0.1, velocity_scale: Optional[float] = None,
 ) -> Tuple[float, float, float]:
     """Precision, recall and F1 as mir_eval.transcription_velocity.precision_recall_f1_overlap
     (V2N's "++Vel", and "++Off++Vel" with an offset rule): the notes are matched as in
-    ``note_prf``, the reference velocities are scaled to [0, 1], the predicted velocities of
-    the matched notes are mapped onto them by one least-squares line, and a matched note
-    counts if the two then differ by less than ``velocity_tolerance``."""
+    ``note_prf``, the reference velocities are shifted to start at 0 and divided by
+    max(1, their range), the predicted velocities of the matched notes are mapped onto them
+    by one least-squares line, and a matched note counts if the two then differ by less than
+    ``velocity_tolerance``.
+
+    ``velocity_scale``: divide all velocities by this first. V2N's evaluation code (after the
+    Onsets-and-Frames PyTorch code) passes velocity / 127 to mir_eval; the range is then
+    below 1, so mir_eval does not stretch it and the 10% tolerance is 12.7 MIDI velocity
+    steps. With MIDI velocities as they are (None), the reference range is stretched to
+    [0, 1] and the tolerance is 10% of each recording's velocity range (stricter)."""
     import mir_eval
 
     if not ref or not est:
@@ -96,6 +103,8 @@ def note_velocity_prf(
         return 0.0, 0.0, 0.0
     ref_v = np.array([n.velocity for n in ref], dtype=np.float64)
     est_v = np.array([n.velocity for n in est], dtype=np.float64)
+    if velocity_scale:
+        ref_v, est_v = ref_v / velocity_scale, est_v / velocity_scale
     ref_v = (ref_v - ref_v.min()) / float(max(1, ref_v.max() - ref_v.min()))
     m = np.array(pairs)
     rv, ev = ref_v[m[:, 0]], est_v[m[:, 1]]
@@ -137,8 +146,11 @@ def note_scores_protocols(
       offtol_*@tau  + offset within tau                      (V2N "++Off")
       vel_*@tau     onset + velocity within 10% (mir_eval)   (V2N "++Vel")
       offvel_*@tau  onset + offset within tau + velocity     (V2N "++Off++Vel")
-    where * is p / r / f1. The velocity scores need predicted velocities; with a
-    constant velocity (a model without a velocity head) they are meaningless.
+      velmm_*, offvelmm_*  the same with mir_eval's usual min-max scaling of the
+                    reference velocities (see note_velocity_prf; stricter)
+    where * is p / r / f1. vel / offvel follow V2N's evaluation code (velocity / 127).
+    The velocity scores need predicted velocities; with a constant velocity (a model
+    without a velocity head) they are meaningless.
     """
     out: Dict[str, float] = {}
     for tol in tolerances:
@@ -147,8 +159,11 @@ def note_scores_protocols(
             "onset": (note_prf, dict(offset_ratio=None)),
             "full": (note_prf, dict(offset_ratio=0.2, offset_min_tolerance=0.05)),
             "offtol": (note_prf, dict(offset_ratio=0.0, offset_min_tolerance=tol)),
-            "vel": (note_velocity_prf, dict(offset_ratio=None)),
-            "offvel": (note_velocity_prf, dict(offset_ratio=0.0, offset_min_tolerance=tol)),
+            "vel": (note_velocity_prf, dict(offset_ratio=None, velocity_scale=127.0)),
+            "offvel": (note_velocity_prf, dict(offset_ratio=0.0, offset_min_tolerance=tol,
+                                               velocity_scale=127.0)),
+            "velmm": (note_velocity_prf, dict(offset_ratio=None)),
+            "offvelmm": (note_velocity_prf, dict(offset_ratio=0.0, offset_min_tolerance=tol)),
         }
         for name, (fn, kw) in variants.items():
             p, r, f = fn(ref, est, onset_tolerance=tol, **kw)
