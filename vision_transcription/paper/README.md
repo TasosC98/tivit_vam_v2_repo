@@ -14,6 +14,7 @@ with DOIs, and a "Statements and Declarations" section.
 | `make_figures.py` | Rebuilds the figures from the result files. |
 | `data/error_analysis.json` | Recall by register and key colour, and the error classes (per-key network and global variant), used by Fig. 3 and Table 3. |
 | `analyse_notes.py` | Recomputes those numbers from the predicted MIDI files for any number of runs per system (it reproduces `error_analysis.json` exactly from the first runs), with bootstrap intervals, timing per recording, offset-only F1, and per-key recall against the key geometry and the number of training notes. `make_figures.py --analysis <its json>` draws Fig. 4 from it. |
+| `speed_vs_v2n.py` | KeyWise and V2N (built from V2N's own code, random weights) on the same GPU: parameters, MACs with the same counting code, and model-only time per second of video in float32 / fp16 / bf16. |
 | `compare_runs.py` | Paired comparison of two systems over several runs (exact Wilcoxon, Holm–Bonferroni over the five metrics, bootstrap intervals, per-run tests), from `results/<name>_vs_baseline.csv`. |
 
 ## Compile

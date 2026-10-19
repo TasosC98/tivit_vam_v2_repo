@@ -114,6 +114,9 @@ def test_rolls_cache_roundtrip_and_staleness(tmp_path):
     c.save("rec", onset, frame)
     got = RollsCache(str(tmp_path), meta).load("rec")
     assert np.allclose(got[0], onset, atol=1e-6) and np.allclose(got[1], frame, atol=1e-6)
+    assert got[2] is None                               # no velocity head
+    c.save("rec_v", onset, frame, frame[::-1])
+    assert np.allclose(RollsCache(str(tmp_path), meta).load("rec_v")[2], frame[::-1], atol=1e-6)
     # Other settings: the old rolls must not be reused.
     assert RollsCache(str(tmp_path), {**meta, "checkpoint": "b.pt"}).load("rec") is None
     assert json.loads((tmp_path / "meta.json").read_text())["checkpoint"] == "b.pt"

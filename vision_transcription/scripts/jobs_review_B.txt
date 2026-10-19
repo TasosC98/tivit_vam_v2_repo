@@ -1,10 +1,16 @@
-# Review ablations of paper 1 (tier B): the global variant with two more seeds (A1 was
-# seed 1234), and the global variant with 88 bins (configs/vam_global88.yaml), three seeds.
-# About one day of training per job on the RTX 3090, plus about 1 h 20 min of evaluation each.
+# Review experiments of paper 1, trained one after another (about one day per job on the
+# RTX 3090, plus about 1 h 20 min of evaluation each, which overlaps the next training):
+#   E7   KeyWise with a velocity head (configs/vam_vel.yaml), 3 seeds: V2N's ++Vel / ++Off++Vel
+#   A1   the global variant, two more seeds (A1 itself was seed 1234)
+#   G88  the global variant with 88 bins (configs/vam_global88.yaml), 3 seeds
 #
 #   BASELINE_MIDI=/home/achatzigiannis/V2N/predicted_midi/pianovam_test bash scripts/queue.sh scripts/jobs_review_B.txt
 #
+# To drop or reorder jobs: stop the queue, edit this file, start it again (finished jobs are skipped).
 # run name     arch   config                      evaluation name      target   overrides
+vam_vel        tiled  configs/vam_vel.yaml        E7_vam_vel           full_f1  train.seed=1234
+vam_vel_s2     tiled  configs/vam_vel.yaml        E7s2_vam_vel         full_f1  train.seed=1235
+vam_vel_s3     tiled  configs/vam_vel.yaml        E7s3_vam_vel         full_f1  train.seed=1236
 vam_strip_s2   strip  configs/vam_full.yaml       A1s2_vam_strip       full_f1  train.seed=1235
 vam_strip_s3   strip  configs/vam_full.yaml       A1s3_vam_strip       full_f1  train.seed=1236
 vam_g88        strip  configs/vam_global88.yaml   G88_vam_global88     full_f1  train.seed=1234

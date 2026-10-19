@@ -10,9 +10,10 @@ SAME metric code -- e.g. V2N ships its PianoVAM test predictions
 
 Predictions are ``<record_time>.mid`` (what ``evaluate --save_midi`` writes).
 Reports onset / onset+offset F1 at 50 and 100 ms (see
-``metrics.note_scores_protocols``) and frame F1 on a ``--frame_hz`` grid (60 Hz
-= V2N's protocol), averaged over recordings; with ``--baseline`` also a paired
-Wilcoxon test per metric (the significance test V2N reports).
+``metrics.note_scores_protocols``), frame F1 on a ``--frame_hz`` grid (60 Hz
+= V2N's protocol) and V2N's velocity metrics (++Vel, ++Off++Vel; meaningful only
+for MIDI with predicted velocities), averaged over recordings; with ``--baseline``
+also a paired Wilcoxon test per metric (the significance test V2N reports).
 """
 from __future__ import annotations
 
@@ -35,6 +36,10 @@ METRICS = [
     ("offtol_f1@100", "Onset+offset F1 @100 ms (offset within 100 ms)"),
     ("full_f1@50", "Onset+offset F1 @50 ms (mir_eval default)"),
     ("frame_f1", "Frame F1"),
+    ("vel_f1@50", "Onset+velocity F1 @50 ms (V2N ++Vel)"),
+    ("vel_f1@100", "Onset+velocity F1 @100 ms"),
+    ("offvel_f1@50", "Onset+offset+velocity F1 @50 ms (V2N ++Off++Vel)"),
+    ("offvel_f1@100", "Onset+offset+velocity F1 @100 ms"),
 ]
 
 
@@ -77,6 +82,7 @@ def main() -> None:
         systems["baseline"] = Path(args.baseline)
 
     per = {k: [] for k in systems}
+    velocities = {k: set() for k in systems}
     rows = []
     for rec in recs:
         files = {k: d / f"{rec.record_time}.mid" for k, d in systems.items()}
@@ -87,7 +93,9 @@ def main() -> None:
         ref = read_reference(rec, cfg)
         row = {"record": rec.record_time, "ref_notes": len(ref)}
         for k, p in files.items():
-            s = score(ref, load_midi_notes(p), args.frame_hz)
+            notes = load_midi_notes(p)
+            velocities[k].update(n.velocity for n in notes)
+            s = score(ref, notes, args.frame_hz)
             per[k].append(s)
             row.update({f"{k}:{m}": round(float(s[m]), 4) for m, _ in METRICS})
         rows.append(row)
@@ -95,6 +103,9 @@ def main() -> None:
             f"{k} onset@50={per[k][-1]['onset_f1@50']:.3f}" for k in systems))
     if not rows:
         raise SystemExit("nothing scored")
+    for k, v in velocities.items():
+        print(f"{k}: {len(v)} distinct velocities" + (f" ({min(v)}..{max(v)})" if v else "")
+              + (" -- constant, so the velocity scores mean nothing" if len(v) <= 1 else ""))
 
     head = f"\n{'mean over ' + str(len(rows)) + ' recordings':54s} {'pred':>7}"
     if args.baseline:

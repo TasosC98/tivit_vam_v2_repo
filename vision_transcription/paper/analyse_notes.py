@@ -10,7 +10,9 @@ dataset labels; no GPU. Each --system is one folder per training run, comma-sepa
         --out paper/data/note_analysis.json
 
 On a machine without a server profile, add the dataset folder at the end, e.g.
-data.root=C:/Users/User/Desktop/PHD/PianoVam_Project/PianoVAM_v1.0
+data.root=C:/Users/User/Desktop/PHD/server/PianoVAM_labels
+The offset numbers need the corrected PianoVAM labels (TSV files fixed on Hugging Face on
+2026-03-18, as on the server); with an older download only the onset analyses are valid.
 
 Notes are matched exactly as mir_eval does (maximum matching per pitch). For every system
 (runs averaged per recording; per-run values are kept too):

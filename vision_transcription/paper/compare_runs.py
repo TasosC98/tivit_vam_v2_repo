@@ -11,7 +11,7 @@ when BASELINE_MIDI is set. Each side is one or more evaluation names (one per ru
 
 For each metric: mean +- std over runs (each run averaged over the recordings), the scores of
 each run, the paired exact two-sided Wilcoxon test over the recordings on the run means
-(as in the paper), the Holm-Bonferroni correction over the five metrics, a 95% bootstrap
+(as in the paper), the Holm-Bonferroni correction over the metrics compared, a 95% bootstrap
 interval of the mean difference (10,000 resamplings of the recordings) and the number of
 recordings on which --a is better. With the same number of runs on both sides, run k of
 --a is also tested against run k of --b.
@@ -27,6 +27,7 @@ import numpy as np
 from scipy.stats import wilcoxon
 
 METRICS = ["onset_f1@50", "onset_f1@100", "offtol_f1@50", "offtol_f1@100", "frame_f1"]
+VELOCITY = ["vel_f1@50", "vel_f1@100", "offvel_f1@50", "offvel_f1@100"]   # V2N ++Vel, ++Off++Vel
 
 
 def read(results, name):
@@ -54,9 +55,13 @@ def main() -> None:
     ap.add_argument("--results", required=True, help="folder with <name>_vs_baseline.csv")
     ap.add_argument("--a", required=True, help="comma-separated evaluation names (one per run)")
     ap.add_argument("--b", required=True, help="the same, or V2N")
+    ap.add_argument("--metrics", default="main",
+                    help="main (the five of Table 2), velocity (++Vel, ++Off++Vel at 50/100 ms; a separate"
+                         " Holm family), or a comma-separated list of CSV metric names")
     ap.add_argument("--bootstrap", type=int, default=10000)
     ap.add_argument("--json", default=None, help="also write every number here")
     args = ap.parse_args()
+    metrics = {"main": METRICS, "velocity": VELOCITY}.get(args.metrics) or args.metrics.split(",")
 
     A = [read(args.results, n) for n in args.a.split(",")]
     if args.b == "V2N":
@@ -74,7 +79,7 @@ def main() -> None:
     rng = np.random.default_rng(0)
     idx = rng.integers(0, len(recs), size=(args.bootstrap, len(recs)))
     rows, ps = [], []
-    for m in METRICS:
+    for m in metrics:
         a, b = scores(A, "pred:", m), scores(B, col_b, m)
         am, bm = a.mean(0), b.mean(0)
         d = 100 * (am - bm)
@@ -97,7 +102,7 @@ def main() -> None:
         row["p_holm"] = float(q)
 
     print(f"A = {args.a}\nB = {args.b}\n{len(recs)} recordings; exact two-sided Wilcoxon on the run means,"
-          f" Holm over {len(METRICS)} metrics, 95% bootstrap CI of the mean difference\n")
+          f" Holm over {len(metrics)} metrics, 95% bootstrap CI of the mean difference\n")
     print(f"{'metric':14s} {'A':>12s} {'B':>12s} {'A-B':>6s} {'CI95':>15s} {'p':>7s} {'p_Holm':>7s} {'A better':>9s}  per-run p")
     for r in rows:
         print(f"{r['metric']:14s} {r['a_mean']:6.1f}+-{r['a_std']:3.1f} {r['b_mean']:6.1f}+-{r['b_std']:3.1f}"

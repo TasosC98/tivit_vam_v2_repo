@@ -61,7 +61,8 @@ class RollsCache:
     # The cache must never change results: a file that cannot be read is simply
     # recomputed, and a save that fails (e.g. a full disk) only switches saving
     # off -- it must not make the caller skip the recording.
-    def load(self, record: str) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    def load(self, record: str) -> Optional[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]]:
+        """(onset, frame, velocity) rolls; velocity is None for a model without a velocity head."""
         if self.dir is None:
             return None
         f = self.dir / f"{record}.npz"
@@ -69,18 +70,22 @@ class RollsCache:
             return None
         try:
             with np.load(f) as z:
-                return z["onset"].astype(np.float64), z["frame"].astype(np.float64)
+                vel = z["velocity"].astype(np.float64) if "velocity" in z.files else None
+                return z["onset"].astype(np.float64), z["frame"].astype(np.float64), vel
         except Exception as e:  # corrupt or truncated file
             print(f"could not read {f} ({e}); running the model again")
             return None
 
-    def save(self, record: str, onset_p: np.ndarray, frame_p: np.ndarray) -> None:
+    def save(self, record: str, onset_p: np.ndarray, frame_p: np.ndarray,
+             vel_p: Optional[np.ndarray] = None) -> None:
         if self.dir is None:
             return
         tmp = self.dir / f"{record}.partial.npz"
+        arrays = {"onset": onset_p.astype(np.float32), "frame": frame_p.astype(np.float32)}
+        if vel_p is not None:
+            arrays["velocity"] = vel_p.astype(np.float32)
         try:
-            np.savez_compressed(tmp, onset=onset_p.astype(np.float32),
-                                frame=frame_p.astype(np.float32))
+            np.savez_compressed(tmp, **arrays)
             tmp.replace(self.dir / f"{record}.npz")
         except OSError as e:
             print(f"could not save model outputs in {self.dir} ({e}); continuing without saving")

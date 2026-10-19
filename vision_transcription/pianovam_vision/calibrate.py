@@ -101,12 +101,12 @@ def main() -> None:
             got = rolls.load(rec.record_time) if rolls else None
             if got is None:
                 reader = open_reader(cfg, rec, args.max_frames)
-                onset_p, frame_p, _ = predict_rolls(get_model(), reader, cfg, device)
+                onset_p, frame_p, vel_p = predict_rolls(get_model(), reader, cfg, device)
                 if rolls:
-                    rolls.save(rec.record_time, onset_p, frame_p)
+                    rolls.save(rec.record_time, onset_p, frame_p, vel_p)
                 how = "predicted"
             else:
-                onset_p, frame_p = got
+                onset_p, frame_p, _ = got
                 how = "loaded"
         except Exception as e:
             print(f"  {rec.record_time}: [skipped] cannot decode video ({e})")

@@ -1,0 +1,16 @@
+# KeyWise with a velocity head (paper 1 review: direct comparison with V2N's ++Vel and
+# ++Off++Vel). Same as vam_full.yaml (E1) plus one per-key linear head on the shared
+# BiGRU, whose sigmoid output is the MIDI velocity / 127. As in V2N, it is trained with
+# the squared error at the onset frames only (the onset target), with weight 1, and the
+# velocity of a decoded note is read at its onset frame. Thresholds and best.pt are
+# chosen exactly as for E1 (onset F1 on valid; full_f1 calibration).
+#
+#   CONFIG=configs/vam_vel.yaml bash scripts/run_experiment.sh vam_vel tiled
+#   (or the whole review queue: bash scripts/queue.sh scripts/jobs_review_B.txt)
+base: vam_full.yaml
+
+model:
+  use_velocity: true
+
+train:
+  velocity_loss_weight: 1.0

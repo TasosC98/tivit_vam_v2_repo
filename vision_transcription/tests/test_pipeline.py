@@ -440,3 +440,49 @@ def test_global_variant_strip_bins_and_mac_count():
     assert g88.encoder.fc[1].in_features == 192 * 88
     out = g88(torch.rand(1, 3, 3, 112, 1408))
     assert out["onset_logits"].shape == (1, 3, 88) and out["frame_logits"].shape == (1, 3, 88)
+
+
+def test_velocity_scores_identical_to_mir_eval():
+    """V2N's ++Vel / ++Off++Vel: per-pitch matching + one global velocity fit = mir_eval."""
+    mir_eval = pytest.importorskip("mir_eval")
+    from pianovam_vision.metrics import _to_intervals, note_velocity_prf
+
+    rng = np.random.default_rng(3)
+    for _ in range(30):
+        ref = [Note(float(o), float(o + d), int(p), int(v)) for o, d, p, v in zip(
+            np.sort(rng.random(150) * 30), rng.random(150) + 0.01, rng.integers(55, 62, 150),
+            rng.integers(20, 120, 150))]
+        est = [Note(n.onset + 0.02 * rng.random(), n.offset + 0.03, n.pitch,
+                    int(np.clip(0.7 * n.velocity + 20 + rng.normal(0, 8), 1, 127)))
+               for n in ref if rng.random() < 0.8]
+        ri, rf = _to_intervals(ref)
+        ei, ef = _to_intervals(est)
+        rv = np.array([n.velocity for n in ref], float)
+        ev = np.array([n.velocity for n in est], float)
+        for tol in (0.05, 0.10):
+            for kw in (dict(offset_ratio=None), dict(offset_ratio=0.0, offset_min_tolerance=tol)):
+                want = mir_eval.transcription_velocity.precision_recall_f1_overlap(
+                    ri, rf, rv, ei, ef, ev, onset_tolerance=tol, **kw)[:3]
+                assert np.allclose(note_velocity_prf(ref, est, onset_tolerance=tol, **kw), want, atol=1e-12)
+
+
+def test_velocity_head_and_lstm_mac_count():
+    """configs/vam_vel.yaml gives KeyWise a per-key velocity output in [0, 1]; the MAC counter
+    counts an LSTM as 4 gates x hidden x (input + hidden) per step and direction."""
+    torch = pytest.importorskip("torch")
+    from pianovam_vision.model import build_model
+    from pianovam_vision.speed import count_macs
+
+    m = build_model(load_config("configs/vam_vel.yaml"))
+    v = m(torch.rand(1, 3, 3, 112, 1408))["velocity"]
+    assert v.shape == (1, 3, 88) and float(v.min()) >= 0.0 and float(v.max()) <= 1.0
+
+    class Seq(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.rnn = torch.nn.LSTM(10, 20, batch_first=True, bidirectional=True)
+
+        def forward(self, x):
+            return self.rnn(x)[0]
+
+    assert count_macs(Seq(), torch.rand(2, 7, 10))["rnn"] == 2 * 4 * 20 * (10 + 20)

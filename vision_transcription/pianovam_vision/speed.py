@@ -12,8 +12,8 @@ Reports
     Conv1d / Conv2d / Linear / GRU (BatchNorm, ReLU, pooling, bias additions and the sigmoids
     are left out, as usual), per part of the model;
   * model-only speed for one window of --frames frames (512 = what inference uses), in float32
-    (what evaluate/infer use) and, on a GPU, with fp16 autocast, as frames per second, with
-    the peak GPU memory of each pass;
+    (what evaluate/infer use) and, on a GPU, with fp16 and bf16 autocast, as frames per
+    second, with the peak GPU memory of each pass;
   * with --record_time: the end-to-end time for the first --seconds of a test recording read
     from the video, not from the strip cache (decode + perspective warp + model + decoding to
     notes), and the reading alone, as multiples of real time.
@@ -37,7 +37,11 @@ from .model import build_model
 
 
 def count_macs(model: nn.Module, x: torch.Tensor) -> Dict[str, float]:
-    """MACs of one forward pass of ``x`` (B,T,C,H,W), per frame, by top-level module."""
+    """MACs of one forward pass of ``x`` (B,T,...), per frame, by top-level module.
+
+    Counts Conv1d/2d/3d, Linear, GRU and LSTM (3 and 4 gates: gates x hidden x
+    (input + hidden) per step and direction); normalisation, activations, pooling,
+    bias additions and element-wise products are left out, as usual."""
     macs: Dict[str, float] = defaultdict(float)
     hooks = []
 
@@ -45,19 +49,20 @@ def count_macs(model: nn.Module, x: torch.Tensor) -> Dict[str, float]:
         return name.split(".")[0] if "." in name else name
 
     for name, mod in model.named_modules():
-        if isinstance(mod, (nn.Conv1d, nn.Conv2d)):
+        if isinstance(mod, (nn.Conv1d, nn.Conv2d, nn.Conv3d)):
             def f(m, inp, out, key=part(name)):
                 macs[key] += out.numel() * (m.in_channels // m.groups) * int(np.prod(m.kernel_size))
         elif isinstance(mod, nn.Linear):
             def f(m, inp, out, key=part(name)):
                 macs[key] += out.numel() * m.in_features
-        elif isinstance(mod, nn.GRU):
+        elif isinstance(mod, (nn.GRU, nn.LSTM)):
             def f(m, inp, out, key=part(name)):
                 s = inp[0].shape
                 n_seq, steps = (s[0], s[1]) if m.batch_first else (s[1], s[0])
                 d = 2 if m.bidirectional else 1
-                per_step = sum(d * 3 * m.hidden_size * ((m.input_size if layer == 0 else d * m.hidden_size)
-                                                        + m.hidden_size) for layer in range(m.num_layers))
+                gates = 3 if isinstance(m, nn.GRU) else 4
+                per_step = sum(d * gates * m.hidden_size * ((m.input_size if layer == 0 else d * m.hidden_size)
+                                                            + m.hidden_size) for layer in range(m.num_layers))
                 macs[key] += n_seq * steps * per_step
         else:
             continue
@@ -76,12 +81,14 @@ def sync(device: str) -> None:
 
 
 @torch.no_grad()
-def model_speed(model, shape, device: str, fp16: bool, reps: int) -> Dict[str, float]:
+def model_speed(model, shape, device: str, dtype, reps: int) -> Dict[str, float]:
+    """Frames per second for inputs of ``shape`` (B,T,...); ``dtype`` None = float32,
+    else autocast to torch.float16 / torch.bfloat16."""
     x = torch.rand(*shape, device=device)
     if device == "cuda":
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats()
-    with torch.autocast(device_type=device, dtype=torch.float16, enabled=fp16):
+    with torch.autocast(device_type=device, dtype=dtype or torch.float16, enabled=dtype is not None):
         model(x)                                      # warm-up
         sync(device)
         t0 = time.perf_counter()
@@ -89,7 +96,8 @@ def model_speed(model, shape, device: str, fp16: bool, reps: int) -> Dict[str, f
             model(x)
         sync(device)
     dt = (time.perf_counter() - t0) / reps
-    out = {"frames": shape[1], "seconds_per_window": dt, "frames_per_second": shape[1] / dt}
+    frames = shape[0] * shape[1]
+    out = {"frames": frames, "seconds_per_window": dt, "frames_per_second": frames / dt}
     if device == "cuda":
         out["peak_memory_gb"] = torch.cuda.max_memory_allocated() / 1e9
     return out
@@ -167,15 +175,18 @@ def main() -> None:
           + ", ".join(f"{k} {v:.3e}" for k, v in macs.items())
           + f"; per second of video at {cfg['labels']['fps']:g} fps: {res['macs_per_second_at_fps']:.3e}")
 
-    for fp16 in ((False, True) if args.device == "cuda" else (False,)):
+    precisions = {"fp32": None}
+    if args.device == "cuda":
+        precisions.update(fp16=torch.float16, bf16=torch.bfloat16)
+    for label, dtype in precisions.items():
         try:
-            sp = model_speed(model, shape, args.device, fp16, args.reps)
+            sp = model_speed(model, shape, args.device, dtype, args.reps)
         except RuntimeError as e:                     # e.g. out of memory
             sp = {"error": str(e).splitlines()[0]}
             if args.device == "cuda":
                 torch.cuda.empty_cache()
-        res["model_" + ("fp16" if fp16 else "fp32")] = sp
-        print(f"model only, {'fp16 autocast' if fp16 else 'float32'}, {args.frames}-frame window on {args.device}: "
+        res["model_" + label] = sp
+        print(f"model only, {label}, {args.frames}-frame window on {args.device}: "
               + (f"{sp['frames_per_second']:.0f} frames/s"
                  + (f", peak memory {sp['peak_memory_gb']:.2f} GB" if "peak_memory_gb" in sp else "")
                  if "error" not in sp else sp["error"]))
