@@ -145,12 +145,13 @@ def main() -> None:
     print("\n=== mean over recordings (higher = better, 0..1) ===")
     print(f"  {'onset tolerance / metric':52s} {'P':>6} {'R':>6} {'F1':>6}")
     for ms in (50, 100):
-        for name, desc in (("onset", "onset+pitch"),
-                           ("full", "onset+offset+pitch [mir_eval default offset]"),
-                           ("offtol", f"onset+offset+pitch [offset within {ms} ms]"))
-                          + ((("vel", "onset+pitch+velocity [V2N ++Vel]"),
-                              ("offvel", "onset+offset+pitch+velocity [++Off++Vel]"))
-                             if cfg["model"].get("use_velocity") else ()):
+        protocols = [("onset", "onset+pitch"),
+                     ("full", "onset+offset+pitch [mir_eval default offset]"),
+                     ("offtol", f"onset+offset+pitch [offset within {ms} ms]")]
+        if cfg["model"].get("use_velocity"):
+            protocols += [("vel", "onset+pitch+velocity [V2N ++Vel]"),
+                          ("offvel", "onset+offset+pitch+velocity [++Off++Vel]")]
+        for name, desc in protocols:
             print(f"  {f'{ms:>3} ms  {desc}':52s} {m[f'{name}_p@{ms}']:6.3f} "
                   f"{m[f'{name}_r@{ms}']:6.3f} {m[f'{name}_f1@{ms}']:6.3f}")
     print(f"  {'frame F1 (pitch x 1/fps grid)':52s} {'':6} {'':6} {m['frame_f1']:6.3f}")
