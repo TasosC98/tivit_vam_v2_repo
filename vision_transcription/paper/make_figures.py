@@ -23,7 +23,7 @@ from matplotlib.patches import FancyArrowPatch, Rectangle  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 plt.rcParams.update({"font.size": 8, "axes.titlesize": 8, "axes.labelsize": 8, "legend.fontsize": 7,
                      "xtick.labelsize": 7, "ytick.labelsize": 7, "pdf.fonttype": 42, "font.family": "DejaVu Sans"})
-C_KEY, C_GLOBAL, C_V2N = "#0B7D74", "#8A9A97", "#2F5FD0"
+C_KEY, C_GLOBAL, C_GLOBAL88, C_V2N = "#0B7D74", "#8A9A97", "#C9D1CF", "#2F5FD0"
 NL = "\n"
 
 
@@ -75,7 +75,9 @@ def fig2_recordings(results):
     """Per recording: per-key network (mean of the three runs, bar = min..max), global variant, V2N."""
     runs = [read_csv(os.path.join(results, f"{n}_vam_full_vs_baseline.csv")) for n in ("E1", "E1s2", "E1s3")]
     key = runs[0]
-    glo = read_csv(os.path.join(results, "A1_vam_strip_vs_baseline.csv"))
+    glos = [read_csv(p) for p in (os.path.join(results, f"{n}_vam_strip_vs_baseline.csv") for n in ("A1", "A1s2", "A1s3"))
+            if os.path.exists(p)]
+    glo_label = "Global variant (3.7 M)" + (f", mean of {len(glos)} runs" if len(glos) > 1 else "")
     mean = lambda r, tol: sum(100 * float(k[r][f"pred:onset_f1@{tol}"]) for k in runs) / len(runs)
     recs = sorted(key, key=lambda r: mean(r, "50"))
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6), sharey=True)
@@ -83,7 +85,8 @@ def fig2_recordings(results):
         y = list(range(len(recs)))
         vals = [[100 * float(k[r][f"pred:onset_f1@{tol}"]) for k in runs] for r in recs]
         ax.hlines(y, [min(v) for v in vals], [max(v) for v in vals], color=C_KEY, lw=1.2, alpha=0.55, zorder=2)
-        ax.scatter([100 * float(glo[r][f"pred:onset_f1@{tol}"]) for r in recs], y, marker="s", s=14, color=C_GLOBAL, label="Global variant (3.7 M)", zorder=3)
+        ax.scatter([sum(100 * float(g[r][f"pred:onset_f1@{tol}"]) for g in glos) / len(glos) for r in recs], y,
+                   marker="s", s=14, color=C_GLOBAL, label=glo_label, zorder=3)
         ax.scatter([100 * float(key[r][f"baseline:onset_f1@{tol}"]) for r in recs], y, marker="^", s=16, color=C_V2N, label="V2N (28.2 M)", zorder=3)
         ax.scatter([sum(v) / len(v) for v in vals], y, marker="o", s=16, color=C_KEY, label="KeyWise (1.3 M), mean and range of 3 runs", zorder=4)
         ax.set_xlabel(f"Onset F1 (%), {tol} ms tolerance")
@@ -109,9 +112,13 @@ def fig3_register(analysis=None):
               ("C4–B5", "recall_by_register", "C4-B5"), ("C6–C8", "recall_by_register", "C6-C8"),
               ("White" + NL + "keys", "recall_by_colour", "white"), ("Black" + NL + "keys", "recall_by_colour", "black")]
     err = None
+    bars = [("per_key", C_KEY, "KeyWise"), ("global", C_GLOBAL, "Global variant")]
     if analysis:
         d = json.load(open(analysis))["systems"]
         src = {"per_key": "KeyWise", "global": "Global"}
+        if "Global88" in d:                    # Global-88 ablation, when analysed
+            src["global88"] = "Global88"
+            bars.append(("global88", C_GLOBAL88, "Global-88"))
         rec = {m: [100 * d[s]["recall@50"][k]["mean_over_runs"] for _, _, k in groups] for m, s in src.items()}
         err = {m: [[rec[m][i] - 100 * d[s]["recall@50"][k]["ci95"][0] for i, (_, _, k) in enumerate(groups)],
                    [100 * d[s]["recall@50"][k]["ci95"][1] - rec[m][i] for i, (_, _, k) in enumerate(groups)]]
@@ -121,13 +128,16 @@ def fig3_register(analysis=None):
         rec = {m: [100 * d[m][s][k][0] / d[m][s][k][1] for _, s, k in groups] for m in ("per_key", "global")}
     fig, ax = plt.subplots(figsize=(3.4, 2.3))
     x = range(len(groups))
-    for dx, m, c, lab in ((-0.19, "per_key", C_KEY, "KeyWise"), (0.19, "global", C_GLOBAL, "Global variant")):
-        ax.bar([i + dx for i in x], rec[m], width=0.36, color=c, label=lab,
-               yerr=err[m] if err else None, error_kw=dict(lw=0.6, capsize=1.5, ecolor="#333333"))
+    width = 0.72 / len(bars)
+    offsets = [(j - (len(bars) - 1) / 2) * width for j in range(len(bars))]
+    for dx, (m, c, lab) in zip(offsets, bars):
+        ax.bar([i + dx for i in x], rec[m], width=width * 0.95, color=c, label=lab,
+               yerr=err[m] if err else None, error_kw=dict(lw=0.6, capsize=1.2, ecolor="#333333"))
     for i in x:
-        for dx, m in ((-0.19, "per_key"), (0.19, "global")):
+        for dx, (m, _, _) in zip(offsets, bars):
             top = rec[m][i] + (err[m][1][i] if err else 0.0)
-            ax.text(i + dx, top + 0.4, f"{rec[m][i]:.0f}", ha="center", va="bottom", fontsize=5.8)
+            ax.text(i + dx, top + 0.4, f"{rec[m][i]:.0f}", ha="center", va="bottom",
+                    fontsize=5.8 if len(bars) == 2 else 4.8)
     ax.set_xticks(list(x))
     ax.set_xticklabels([g[0] for g in groups])
     ax.set_ylim(60, 101)
@@ -135,7 +145,7 @@ def fig3_register(analysis=None):
     ax.grid(axis="y", color="#DDDDDD", lw=0.6)
     ax.set_axisbelow(True)
     ax.axvline(3.5, color="#999999", lw=0.6, ls="--")
-    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2, frameon=False)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=len(bars), frameon=False)
     fig.tight_layout()
     save(fig, "fig3_register")
 
