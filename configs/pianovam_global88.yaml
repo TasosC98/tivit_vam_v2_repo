@@ -1,0 +1,14 @@
+# Ablation: Global-88 (three runs).
+#
+# The global variant with 88 bins: one feature column per key, as in KeyWise, but the
+# columns are flattened (192 x 88 = 16,896 values) and projected to one vector per frame,
+# so every key keeps its own weights. It separates the effect of the horizontal resolution
+# from that of the weights shared by all keys.
+base: pianovam.yaml
+
+model:
+  arch: strip
+  strip_bins: 88
+
+train:
+  out_dir: runs/pianovam_global88

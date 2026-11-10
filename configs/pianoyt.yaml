@@ -1,0 +1,113 @@
+# KeyWise on PianoYT, trained from scratch (three runs with train.seed=1234/1235/1236).
+#
+# Same model, training and decoding as configs/pianovam.yaml; only the dataset differs.
+# PianoYT labels are MIDI files transcribed from the audio: their offsets include the
+# sustain pedal, so the thresholds are calibrated on onset F1 and onset F1 is reported.
+#
+#   python -m pianovam_vision.build_cache --config configs/pianoyt.yaml --workers 6
+#   python -m pianovam_vision.train --config configs/pianoyt.yaml train.seed=1234 train.out_dir=runs/pianoyt_s1
+#   bash scripts/evaluate.sh pianoyt_s1 configs/pianoyt.yaml runs/pianoyt_s1/best.pt onset_f1
+#
+# Zero-shot (a PianoVAM model on PianoYT, thresholds calibrated on the PianoYT validation split):
+#   DATA_CONFIG=configs/pianoyt.yaml bash scripts/evaluate.sh zeroshot_s1 configs/pianovam.yaml \
+#       runs/pianovam_s1/best.pt onset_f1
+
+data:
+  format: pianoyt                   # PianoYT loaders: CSV metadata + MIDI labels
+  root: data/PianoYT
+  metadata: pianoyt.csv             # id, url, split (1 = train, 3 = test), min_y, max_y, min_x, max_x
+  video_dir: raw_videos
+  midi_dir: pianoyt_MIDI
+  video_ext: .mp4
+  video_pattern: "video_{id}.0.mp4"
+  midi_pattern: "audio_{id}.0.midi"
+  # PianoYT has no validation split: this fraction of the training videos is held out,
+  # always the same ones for the same valid_seed (21 videos).
+  valid_frac: 0.1
+  valid_seed: 1234
+  train_splits: [train]
+  valid_splits: [valid]
+  test_splits: [test]
+  # Training videos removed (the test set is unchanged):
+  #   267       a text screen instead of a keyboard; the crop box runs off the frame
+  #   407       the crop box does not span A0..C8
+  #   426, 428  an animation (falling notes), not camera footage
+  #   429, 433  an animation; both rows are the same YouTube video
+  #   410       the same YouTube video as 402 (kept once)
+  exclude_records: ["267", "407", "410", "426", "428", "429", "433"]
+  strip_cache: cache/pianoyt
+
+keyboard:
+  warp_width: 1408                  # the crop box is axis-aligned: the warp is a crop + resize
+  warp_height: 112
+  grayscale: false
+  decode_height: 720                # videos below 720p are decoded at their own size
+  read_chunk: 8
+
+labels:
+  fps: 30.0
+  pitch_min: 21
+  pitch_max: 108
+  offset_field: key_offset          # not used for MIDI labels (kept for symmetry)
+  onset_window_frames: 2
+  min_note_frames: 1
+
+model:
+  arch: tiled
+  encoder_channels: [32, 64, 128, 192]
+  tile_feature_dim: 64
+  tile_gru_hidden: 128
+  feature_dim: 256
+  gru_hidden: 256
+  gru_layers: 2
+  dropout: 0.2
+  use_velocity: false
+
+train:
+  clip_len: 32
+  clip_hop: 32
+  batch_size: 8
+  num_workers: 4
+  max_open_readers: 256
+  max_cached_targets: 32
+  epochs: 25
+  lr: 0.0006
+  weight_decay: 0.0001
+  lr_schedule: cosine
+  warmup_frac: 0.03
+  min_lr_ratio: 0.02
+  amp: true
+  grad_clip: 3.0
+  onset_pos_weight: 8.0
+  frame_pos_weight: 2.0
+  velocity_loss_weight: 1.0
+  select_metric: onset_f1_best
+  log_every: 20
+  eval_every_epochs: 1
+  seed: 1234
+  out_dir: runs/pianoyt
+  device: auto
+  max_frames_per_record: 0
+
+decode:
+  onset_threshold: 0.5
+  frame_threshold: 0.5
+  default_velocity: 80
+  min_duration_s: 0.03
+
+infer:
+  window_frames: 512
+  window_hop: 448
+
+augment:
+  enable: true
+  p: 0.8
+  hscale: 0.006
+  hshift_px: 3
+  vshift_px: 3
+  rotate_deg: 0.3
+  brightness: 0.15
+  contrast: 0.15
+  gray_p: 0.1
+  noise_std: 0.02
+  noise_p: 0.3

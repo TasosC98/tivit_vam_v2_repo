@@ -1,0 +1,13 @@
+# Ablation: the global variant (conventional design; three runs).
+#
+# The same encoder, data and training as KeyWise, but the feature map is pooled to 16
+# horizontal bins, flattened (192 x 16 = 3072 values) and projected to one 256-d vector
+# per frame, followed by one BiGRU (256 units per direction) and heads with 88 outputs.
+base: pianovam.yaml
+
+model:
+  arch: strip
+  strip_bins: 16
+
+train:
+  out_dir: runs/pianovam_global

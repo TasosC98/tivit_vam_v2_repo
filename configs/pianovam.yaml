@@ -1,0 +1,94 @@
+# KeyWise on PianoVAM (the paper's main model; three runs with train.seed=1234/1235/1236).
+#
+#   python -m pianovam_vision.build_cache --config configs/pianovam.yaml --workers 6
+#   python -m pianovam_vision.train --config configs/pianovam.yaml train.seed=1234 train.out_dir=runs/pianovam_s1
+#   bash scripts/evaluate.sh pianovam_s1 configs/pianovam.yaml runs/pianovam_s1/best.pt full_f1
+#
+# Set data.root (and data.strip_cache) here or on the command line (data.root=/path/to/PianoVAM).
+
+data:
+  root: data/PianoVAM               # contains Video/, TSV/ and metadata_v2.json
+  metadata: metadata_v2.json        # official split (train/ext-train/valid/test) + keyboard corners
+  video_dir: Video
+  tsv_dir: TSV
+  video_ext: .mp4
+  train_splits: [train, ext-train]
+  valid_splits: [valid]
+  test_splits: [test]
+  exclude_records: ["2024-09-05_21-37-08"]   # this video does not decode
+  strip_cache: cache/pianovam       # warped-strip cache, filled by build_cache ("" = decode the videos)
+
+keyboard:
+  warp_width: 1408                  # 88 keys x 16 px: one encoder column per key ROI
+  warp_height: 112
+  grayscale: false
+  decode_height: 720                # videos are decoded at 720p before the warp
+  read_chunk: 8                     # frames decoded at once (caps peak memory)
+
+labels:
+  fps: 30.0                         # model / label frame rate (videos are resampled to it)
+  pitch_min: 21                     # A0
+  pitch_max: 108                    # C8
+  offset_field: key_offset          # note offset = key release (what a camera can see)
+  onset_window_frames: 2            # onset target: the onset frame and the next one
+  min_note_frames: 1
+
+model:
+  arch: tiled                       # tiled = KeyWise; strip = the global variant (ablation)
+  encoder_channels: [32, 64, 128, 192]
+  tile_feature_dim: 64              # KeyWise: per-key vector after the 1x1 projection
+  tile_gru_hidden: 128              # KeyWise: BiGRU units per direction (shared by all keys)
+  feature_dim: 256                  # global variant: per-frame vector
+  gru_hidden: 256                   # global variant: BiGRU units per direction
+  gru_layers: 2
+  dropout: 0.2
+  use_velocity: false
+
+train:
+  clip_len: 32                      # frames per training clip (1.07 s)
+  clip_hop: 32
+  batch_size: 8
+  num_workers: 4
+  max_open_readers: 256             # strip-cache readers kept open per worker
+  max_cached_targets: 32            # target rolls cached per worker
+  epochs: 25
+  lr: 0.0006
+  weight_decay: 0.0001
+  lr_schedule: cosine               # linear warm-up, then cosine decay to min_lr_ratio * lr
+  warmup_frac: 0.03
+  min_lr_ratio: 0.02
+  amp: true                         # mixed precision
+  grad_clip: 3.0
+  onset_pos_weight: 8.0             # positive weight of the onset BCE
+  frame_pos_weight: 2.0             # positive weight of the frame BCE
+  velocity_loss_weight: 1.0
+  select_metric: onset_f1_best      # best.pt = best validation onset F1 over thresholds 0.1..0.9
+  log_every: 20
+  eval_every_epochs: 1
+  seed: 1234
+  out_dir: runs/pianovam
+  device: auto                      # cuda if available, else cpu
+  max_frames_per_record: 0          # 0 = whole videos (N = only the first N frames, for quick tests)
+
+decode:
+  onset_threshold: 0.5              # replaced by the thresholds calibrate finds on valid
+  frame_threshold: 0.5
+  default_velocity: 80              # velocity written when the model has no velocity head
+  min_duration_s: 0.03
+
+infer:
+  window_frames: 512                # test-time windows of 512 frames ...
+  window_hop: 448                   # ... starting every 448 frames (64-frame overlap, averaged)
+
+augment:                            # one random transform per training clip
+  enable: true
+  p: 0.8                            # fraction of clips augmented
+  hscale: 0.006                     # horizontal scale +-0.6%
+  hshift_px: 3                      # horizontal shift +-3 px (a key column is 16 px)
+  vshift_px: 3
+  rotate_deg: 0.3
+  brightness: 0.15
+  contrast: 0.15
+  gray_p: 0.1
+  noise_std: 0.02
+  noise_p: 0.3

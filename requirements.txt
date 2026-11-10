@@ -1,0 +1,13 @@
+# Install the PyTorch build that matches your GPU first (https://pytorch.org).
+torch>=2.1
+numpy>=1.24
+pyyaml>=6.0
+tqdm>=4.65
+opencv-python>=4.8      # keyboard warp, strip cache (JPEG)
+decord>=0.6.0           # video decoding (only to build the strip cache / transcribe a video)
+pretty_midi>=0.2.10     # MIDI labels (PianoYT) and predicted MIDI
+mir_eval>=0.7           # note metrics
+scipy>=1.10             # Wilcoxon tests, Spearman correlations
+matplotlib>=3.7         # paper/make_figures.py
+pytest>=7               # tests
+# paper/speed_vs_v2n.py also needs torchvision (V2N's ResNet-18 blocks)

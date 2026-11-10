@@ -1,0 +1,16 @@
+# PianoVAM -> PianoYT: KeyWise pre-trained on PianoVAM, fine-tuned on PianoYT (three runs).
+#
+# Starts from the weights of a PianoVAM run (fresh optimizer and schedule) and trains on
+# PianoYT with a lower learning rate. In the paper, fine-tuning run k starts from PianoVAM
+# run k and uses the same seed:
+#
+#   python -m pianovam_vision.train --config configs/pianoyt_finetune.yaml train.seed=1234 \
+#       train.init_from=runs/pianovam_s1/best.pt train.out_dir=runs/pianoyt_finetune_s1
+base: pianoyt.yaml
+
+train:
+  init_from: runs/pianovam/best.pt  # weights only
+  lr: 0.0002
+  epochs: 12
+  warmup_frac: 0.05
+  out_dir: runs/pianoyt_finetune

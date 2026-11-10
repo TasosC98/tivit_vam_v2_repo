@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pianovam-vision"
+version = "0.1.0"
+description = "KeyWise: video-only piano transcription with a lightweight per-key architecture"
+requires-python = ">=3.9"
+
+[tool.setuptools]
+packages = ["pianovam_vision"]

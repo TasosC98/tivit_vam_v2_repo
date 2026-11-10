@@ -1,0 +1,14 @@
+# KeyWise with a velocity head ("KeyWise + velocity" in the paper; three runs).
+#
+# One more linear head (257 parameters) on the shared BiGRU; its sigmoid output is the
+# MIDI velocity / 127. It is trained with the squared error at the onset frames only,
+# added to the loss with weight train.velocity_loss_weight, and a decoded note takes the
+# velocity of its onset frame. Everything else is configs/pianovam.yaml.
+base: pianovam.yaml
+
+model:
+  use_velocity: true
+
+train:
+  velocity_loss_weight: 1.0
+  out_dir: runs/pianovam_velocity
