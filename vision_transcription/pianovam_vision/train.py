@@ -87,8 +87,28 @@ def lr_at(step: int, total_steps: int, t: Dict[str, Any]) -> float:
     return base * (floor + (1.0 - floor) * 0.5 * (1.0 + math.cos(math.pi * prog)))
 
 
+def model_inputs(batch, device) -> Dict[str, torch.Tensor]:
+    """Extra forward() inputs besides the frames (the skeleton, for a hand model)."""
+    return {"skel": batch["skel"].to(device, non_blocking=True)} if "skel" in batch else {}
+
+
+def hand_loss(out, batch, device):
+    """Cross-entropy of the 10 hand/finger classes on the labelled (key, frame)s."""
+    logits = out["hand_logits"].float()
+    tgt = batch["hand"].to(device)
+    n = (tgt >= 0).sum()
+    if n == 0:
+        return logits.sum() * 0.0
+    ce = nn.functional.cross_entropy(logits.reshape(-1, logits.shape[-1]), tgt.reshape(-1),
+                                     ignore_index=-1, reduction="sum")
+    return ce / n
+
+
 def compute_loss(out, batch, cfg, device):
     t = cfg["train"]
+    if t.get("freeze_transcription", False):
+        # Only the hand branch learns; the transcription part is a fixed checkpoint.
+        return float(t.get("hand_loss_weight", 1.0)) * hand_loss(out, batch, device)
     onset_w = torch.tensor(t["onset_pos_weight"], device=device)
     frame_w = torch.tensor(t["frame_pos_weight"], device=device)
     bce_onset = nn.BCEWithLogitsLoss(pos_weight=onset_w)
@@ -106,7 +126,35 @@ def compute_loss(out, batch, cfg, device):
         mask = onset_t  # only supervise velocity where a note starts
         mse = ((out["velocity"] - vel_t) ** 2 * mask).sum() / (mask.sum() + 1e-6)
         loss = loss + t["velocity_loss_weight"] * mse
+    if "hand_logits" in out and "hand" in batch:
+        loss = loss + float(t.get("hand_loss_weight", 1.0)) * hand_loss(out, batch, device)
     return loss
+
+
+def freeze_transcription(model: nn.Module) -> None:
+    """Fix every weight outside the hand branch (train.freeze_transcription)."""
+    if getattr(model, "hand_branch", None) is None:
+        raise SystemExit("train.freeze_transcription needs a model with model.hands.enable: true")
+    for mod in model.transcription_modules():
+        for p in mod.parameters():
+            p.requires_grad_(False)
+
+
+def set_train_mode(model: nn.Module, frozen: bool) -> None:
+    """model.train(), but a frozen transcription part stays in eval mode, so its
+    BatchNorm statistics and dropout do not change: its notes stay exactly those
+    of the checkpoint it was initialised from."""
+    model.train()
+    if frozen:
+        for mod in model.transcription_modules():
+            mod.eval()
+
+
+def hand_classes(probs: torch.Tensor) -> torch.Tensor:
+    """(..., 10) probabilities -> class, deciding the hand first (as hands.decide)."""
+    right = probs[..., 5:].sum(-1) >= 0.5
+    finger = torch.where(right, probs[..., 5:].argmax(-1), probs[..., :5].argmax(-1))
+    return right.long() * 5 + finger
 
 
 class BatchNormGuard:
@@ -144,16 +192,30 @@ class BatchNormGuard:
 
 
 VALID_THRESHOLDS = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
-SELECT_METRICS = ("frame_f1", "onset_f1", "frame_f1_best", "onset_f1_best")
+SELECT_METRICS = ("frame_f1", "onset_f1", "frame_f1_best", "onset_f1_best",
+                  "hand_acc", "finger_acc")
 
 
 @torch.no_grad()
 def evaluate(model, loader, cfg, device) -> Dict[str, float]:
     model.eval()
     onset_p, frame_p, onset_t, frame_t = [], [], [], []
+    hand_n = hand_ok = finger_ok = 0
     for batch in loader:
         frames = batch["frames"].to(device, non_blocking=True)
-        out = model(frames)
+        out = model(frames, **model_inputs(batch, device))
+        if "hand_logits" in out and "hand" in batch:
+            # Frame-level accuracy on the labelled (key, frame)s of the valid
+            # recordings (automatic Fingering/ labels; see evaluate_hands for
+            # note-level scores against the manual labels).
+            tgt = batch["hand"].to(device)
+            m = tgt >= 0
+            if m.any():
+                pred = hand_classes(torch.softmax(out["hand_logits"].float(), -1))[m]
+                tgt = tgt[m]
+                hand_n += int(m.sum())
+                hand_ok += int(((pred >= 5) == (tgt >= 5)).sum())
+                finger_ok += int((pred == tgt).sum())
         onset_p.append(torch.sigmoid(out["onset_logits"]).cpu().numpy())
         frame_p.append(torch.sigmoid(out["frame_logits"]).cpu().numpy())
         onset_t.append(batch["onset"].numpy())
@@ -176,6 +238,9 @@ def evaluate(model, loader, cfg, device) -> Dict[str, float]:
         f1s = [(frame_prf(p, tgt, thr)["f1"], thr) for thr in VALID_THRESHOLDS]
         best_f1, best_thr = max(f1s)
         out[f"{name}_f1_best"], out[f"{name}_thr_best"] = best_f1, best_thr
+    if hand_n:
+        out["hand_acc"] = hand_ok / hand_n
+        out["finger_acc"] = finger_ok / hand_n
     return out
 
 
@@ -215,7 +280,15 @@ def main() -> None:
     n_params = sum(p.numel() for p in model.parameters()) / 1e6
     print(f"model params: {n_params:.2f}M")
 
-    opt = torch.optim.AdamW(model.parameters(), lr=t["lr"],
+    frozen = bool(t.get("freeze_transcription", False))
+    if frozen:
+        if not (t.get("init_from") or args.resume):
+            raise SystemExit("train.freeze_transcription needs train.init_from (the "
+                             "transcription checkpoint to keep fixed)")
+        freeze_transcription(model)
+        n_train = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"transcription frozen: training the hand branch only ({n_train:,} parameters)")
+    opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=t["lr"],
                             weight_decay=t["weight_decay"])
     use_amp = bool(t["amp"]) and device == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
@@ -226,6 +299,8 @@ def main() -> None:
     select = t.get("select_metric", "frame_f1")
     if select not in SELECT_METRICS:
         raise SystemExit(f"train.select_metric must be one of {SELECT_METRICS}, got {select!r}")
+    if select in ("hand_acc", "finger_acc") and getattr(model, "hand_branch", None) is None:
+        raise SystemExit(f"train.select_metric={select} needs model.hands.enable: true")
     best_f1 = -1.0
     start_epoch = 0
     resume_path = args.resume
@@ -272,7 +347,7 @@ def main() -> None:
         raise SystemExit("BatchNorm statistics of the starting weights are not finite "
                          "(a checkpoint saved after a non-finite step?): resume from an earlier one")
     for epoch in range(start_epoch, t["epochs"]):
-        model.train()
+        set_train_mode(model, frozen)
         running, n_ok, n_bad = 0.0, 0, 0
         t_epoch = time.time()
         pbar = tqdm(train_loader, desc=f"epoch {epoch}")
@@ -284,7 +359,7 @@ def main() -> None:
             opt.zero_grad(set_to_none=True)
             bn_guard.snapshot()
             with torch.amp.autocast("cuda", enabled=use_amp):
-                out = model(frames)
+                out = model(frames, **model_inputs(batch, device))
                 loss = compute_loss(out, batch, cfg, device)
             loss_value = loss.item()
             if not math.isfinite(loss_value) or not bn_guard.finite():

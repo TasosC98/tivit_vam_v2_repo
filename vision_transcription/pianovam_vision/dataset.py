@@ -20,6 +20,7 @@ import torch
 from torch.utils.data import Dataset
 
 from . import augment as aug
+from . import hands as hand_utils
 from . import labels as label_utils
 from .metadata import Recording
 from .strip_cache import open_reader
@@ -59,6 +60,18 @@ class ClipDataset(Dataset):
         # Parsed label notes for every recording (small). Re-parsing a MIDI on
         # each target-roll cache miss is slow enough to bottleneck training.
         self._notes: Dict[str, List[label_utils.Note]] = {}
+
+        # Hand/finger targets (+ skeleton input) for a model with a hand branch.
+        # Off by default: then items, caches and random draws are exactly as before.
+        mh = cfg["model"].get("hands") or {}
+        hc = cfg.get("hands") or {}
+        self.hands = bool(mh.get("enable", False))
+        self.use_skel = self.hands and bool(mh.get("skeleton", True))
+        self.hand_label_frames = int(hc.get("label_frames", 8))
+        self.skel_drop_p = float(hc.get("skeleton_dropout", 0.1)) if train else 0.0
+        self._hand_rolls: "OrderedDict[str, np.ndarray]" = OrderedDict()
+        self._skeletons: "OrderedDict[str, np.ndarray]" = OrderedDict()
+        self._no_fingering: set[str] = set()
 
         # Records whose video could not be decoded (logged once, then skipped).
         self._bad_records: set[str] = set()
@@ -145,6 +158,67 @@ class ClipDataset(Dataset):
             self._targets.move_to_end(rec.record_time)
         return t
 
+    def _lru(self, store: "OrderedDict", key: str, make):
+        v = store.get(key)
+        if v is None:
+            v = make()
+            store[key] = v
+            while len(store) > self.max_cached_targets:
+                store.popitem(last=False)
+        else:
+            store.move_to_end(key)
+        return v
+
+    def _get_hand_roll(self, ri: int) -> np.ndarray:
+        """(n, 88) int8 hand/finger classes from Fingering/, IGNORE (-1) where unknown."""
+        rec = self.recs[ri]
+        n = self._num_frames[rec.record_time]
+
+        def make():
+            path = hand_utils.fingering_path(self.cfg, rec.record_time)
+            if not path.exists():
+                if rec.record_time not in self._no_fingering:
+                    self._no_fingering.add(rec.record_time)
+                    print(f"[dataset] WARNING: no fingering labels for {rec.record_time} "
+                          f"({path}); its hand targets are all 'unknown'")
+                lab = []
+            else:
+                lab = hand_utils.read_fingering(path, self.cfg["labels"]["offset_field"])
+            roll = hand_utils.build_hand_roll(lab, n, self.fps, self.hand_label_frames,
+                                              self.min_note_frames)
+            return roll.astype(np.int8)
+        return self._lru(self._hand_rolls, rec.record_time, make)
+
+    def _get_skeleton(self, ri: int) -> np.ndarray:
+        """(n, 2, 6, 4) float32 model input (wrist + fingertips per hand)."""
+        rec = self.recs[ri]
+        n = self._num_frames[rec.record_time]
+
+        def make():
+            track = hand_utils.load_skeleton(self.cfg, rec).fit(n)
+            return track.model_input(np.arange(n))
+        return self._lru(self._skeletons, rec.record_time, make)
+
+    def _hand_items(self, ri: int, idx: np.ndarray, affine, width: int,
+                    height: int) -> Dict[str, torch.Tensor]:
+        out = {"hand": torch.from_numpy(self._get_hand_roll(ri)[idx].astype(np.int64))}
+        if self.use_skel:
+            sk = self._get_skeleton(ri)[idx].copy()                  # (T,2,6,4)
+            if affine is not None:
+                # The landmarks move with the strip: the same affine map, in pixels.
+                px = np.stack([sk[..., 0] * width, sk[..., 1] * height, np.ones_like(sk[..., 0])], -1)
+                q = px @ affine.T.astype(np.float32)
+                pres = sk[..., 3] > 0
+                sk[..., 0] = np.where(pres, q[..., 0] / width, 0.0)
+                sk[..., 1] = np.where(pres, q[..., 1] / height, 0.0)
+            if self.skel_drop_p > 0:
+                # A hand MediaPipe misses: teach the model to fall back on the video.
+                for h in range(2):
+                    if np.random.random() < self.skel_drop_p:
+                        sk[:, h] = 0.0
+            out["skel"] = torch.from_numpy(sk)
+        return out
+
     # -------------------------------------------------------------------- core
     def __len__(self) -> int:
         return len(self.clips)
@@ -184,12 +258,13 @@ class ClipDataset(Dataset):
 
         reader = self._get_reader(ri)
         frames = reader.read_warped(idx)                 # (T,H,W,C) uint8
-        rng = None
+        rng = affine = None
         if self.aug is not None and np.random.random() < float(self.aug.get("p", 0.8)):
             # Seeded from numpy's global RNG, which set_seed / DataLoader workers seed.
             rng = np.random.default_rng(np.random.randint(0, 2**31 - 1))
-            frames = aug.apply_geometric(
-                frames, aug.sample_affine(frames.shape[2], frames.shape[1], self.aug, rng))
+            affine = aug.sample_affine(frames.shape[2], frames.shape[1], self.aug, rng)
+            frames = aug.apply_geometric(frames, affine)
+        strip_h, strip_w = frames.shape[1], frames.shape[2]
         frames = torch.from_numpy(frames).float().div_(255.0)
         frames = frames.permute(0, 3, 1, 2).contiguous()  # (T,C,H,W)
         if rng is not None:
@@ -201,7 +276,7 @@ class ClipDataset(Dataset):
         onset_t = torch.from_numpy(oroll[sl].copy())
         vel_t = torch.from_numpy(vroll[sl].copy())
 
-        return {
+        item = {
             "frames": frames,
             "frame": frame_t,
             "onset": onset_t,
@@ -209,3 +284,6 @@ class ClipDataset(Dataset):
             "record_time": rec.record_time,
             "start": start,
         }
+        if self.hands:
+            item.update(self._hand_items(ri, idx, affine, strip_w, strip_h))
+        return item

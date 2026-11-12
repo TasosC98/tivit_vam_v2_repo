@@ -1,0 +1,13 @@
+# Ablation of vam_hands.yaml: the hand branch sees ONLY the MediaPipe landmarks
+# (in key coordinates), not the video. With vam_hands.yaml this measures what the
+# per-key video features add on top of the skeleton.
+#
+#   CONFIG=configs/vam_hands_skel.yaml bash scripts/run_experiment.sh vam_hands_skel tiled
+base: vam_hands.yaml
+
+model:
+  hands:
+    video: false
+
+train:
+  out_dir: runs/vam_hands_skel

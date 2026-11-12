@@ -1,0 +1,15 @@
+# KeyWise-hands experiments on PianoVAM (see HANDS.md), trained one after another:
+#   vam_hands        fusion: key ROI video features + landmarks; transcription frozen (= E1 run 2)
+#   vam_hands_video  ablation: video only (can the key ROIs alone tell hands/fingers apart?)
+#   vam_hands_skel   ablation: landmarks only (what does the video add?)
+#   vam_hands_joint  optional: whole network fine-tuned; its notes change, so it gets a
+#                    transcription evaluation too (H1_vam_hands_joint)
+#
+#   BASELINE_MIDI=/home/achatzigiannis/V2N/predicted_midi/pianovam_test bash scripts/queue_hands.sh scripts/jobs_hands.txt
+#
+# To drop or reorder jobs: stop the queue, edit this file, start it again (finished jobs are skipped).
+# run name        config                          transcription evaluation   overrides
+vam_hands         configs/vam_hands.yaml          -
+vam_hands_video   configs/vam_hands_video.yaml    -
+vam_hands_skel    configs/vam_hands_skel.yaml     -
+vam_hands_joint   configs/vam_hands_joint.yaml    H1_vam_hands_joint

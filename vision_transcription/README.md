@@ -12,6 +12,9 @@ PianoVAM v1.0 labels.
 open [`reports/pianovam_pianoyt_study.html`](reports/pianovam_pianoyt_study.html)
 in a browser. The run plan is in [`EXPERIMENT_PLAN.md`](EXPERIMENT_PLAN.md).
 
+**Which hand / finger played each note** (PianoVAM only, branch `KeyWise-hands`):
+see [`HANDS.md`](HANDS.md) — data, method, baselines, commands.
+
 ---
 
 ## 1. Pipeline overview

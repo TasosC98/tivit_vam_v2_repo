@@ -1,0 +1,63 @@
+# KeyWise-hands: which hand, and which finger, pressed each note (PianoVAM only;
+# PianoYT has no hand labels). See HANDS.md.
+#
+# The transcription network is E1 run 2 (runs/vam_full_s2/best.pt), kept FIXED
+# (train.freeze_transcription: weights and BatchNorm statistics), so its notes are
+# exactly the paper's. Only the hand branch learns (~0.3 M parameters): per key and
+# frame, 10 classes L1..L5 / R1..R5, from the key's own BiGRU feature (what its ROI
+# tile saw) + the MediaPipe landmarks projected into key coordinates, with context
+# across +/-30 keys. Targets: the dataset's automatic Fingering/ labels (Noinfo
+# ignored); scored against the manual Fingering_GT/ labels by evaluate_hands.
+# Ablations: vam_hands_video.yaml (no landmarks), vam_hands_skel.yaml (no video).
+#
+#   0. data (once):  python scripts/download_hand_data.py --root <data.root>
+#                    python -m pianovam_vision.check_hands --config configs/vam_hands.yaml --skeleton --workers 4
+#   1. train:        CONFIG=configs/vam_hands.yaml bash scripts/run_experiment.sh vam_hands tiled
+#   2. score:        bash scripts/evaluate_hands.sh vam_hands configs/vam_hands.yaml runs/vam_hands/best.pt
+base: vam_full.yaml
+
+profiles:
+  dib:
+    overrides:
+      data.skeleton_cache: /raid_storage/data_achatzigiannis/skeleton_cache/pianovam_fps30
+
+data:
+  fingering_dir: Fingering          # automatic labels (training targets)
+  fingering_gt_dir: Fingering_GT    # manual labels (evaluation only)
+  handskeleton_dir: Handskeleton    # MediaPipe landmarks per native frame
+  skeleton_cache: ""                # landmarks in strip coordinates at labels.fps (set per server)
+  # Landmark time offsets (label frames). The Handskeleton files of the Sep 04-05
+  # videos were not redone when v1.1 replaced those videos with sync-corrected
+  # ones: 35-42 frames too long, landmarks 2-5 frames out of sync. Estimated without
+  # labels by check_hands --skeleton --write_offsets (12 recordings, all train /
+  # ext-train); "" = use the landmarks as published.
+  skeleton_offsets: configs/pianovam_skeleton_offsets.json
+
+hands:
+  label_frames: 8          # a note's hand/finger is learned and read on its first 8 frames (0.27 s)
+  swap_tags: true          # PianoVAM's Handskeleton Left/Right tags are mirrored (checked by check_hands)
+  native_fps: 60
+  native_size: [1920, 1080]
+  skeleton_dropout: 0.1    # training: hide one hand's landmarks in 10% of the clips (MediaPipe misses)
+  chord_matching: false    # one finger per chord note (Hungarian); evaluate_hands --chord_matching
+  split_pitch: 60          # pitch-split baseline: below C4 = left hand
+
+model:
+  hands:
+    enable: true
+    video: true            # input: the key's BiGRU feature
+    skeleton: true         # input: landmarks relative to the key
+    dim: 96
+    key_kernel: 5
+    key_dilations: [1, 2, 4, 8]   # context across keys: +/-30 keys
+    time_kernel: 5
+    dropout: 0.1
+
+train:
+  init_from: runs/vam_full_s2/best.pt
+  freeze_transcription: true
+  hand_loss_weight: 1.0
+  epochs: 6
+  lr: 0.001
+  select_metric: finger_acc     # best.pt = best valid hand+finger accuracy (frame level)
+  out_dir: runs/vam_hands

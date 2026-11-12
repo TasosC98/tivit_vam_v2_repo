@@ -42,10 +42,12 @@ def parse_corners(s: str) -> np.ndarray:
 
 
 @torch.no_grad()
-def predict_rolls(model, reader: WarpedVideo, cfg: Dict[str, Any], device: str):
-    """Run the model over a video and return averaged probability rolls
-    (onset_p, frame_p, vel_p) of shape (T, 88). Decoding/thresholding is left to
-    the caller, so the same rolls can be re-thresholded cheaply (calibration)."""
+def predict_outputs(model, reader: WarpedVideo, cfg: Dict[str, Any], device: str,
+                    skel: Optional[np.ndarray] = None) -> Dict[str, Optional[np.ndarray]]:
+    """Run the model over a whole video in overlapping windows, averaging the
+    overlaps. Returns {"onset", "frame": (T, 88), "velocity": (T, 88) or None,
+    "hands": (T, 88, 10) softmax or None}. ``skel`` is the (T, 2, 6, 4) skeleton
+    input of a hand model that uses landmarks (``hands.SkeletonTrack.model_input``)."""
     model.eval()
     n = len(reader)
     K = 88
@@ -54,6 +56,8 @@ def predict_rolls(model, reader: WarpedVideo, cfg: Dict[str, Any], device: str):
     vel_acc = np.zeros((n, K), dtype=np.float64)
     count = np.zeros((n, 1), dtype=np.float64)
     has_vel = cfg["model"]["use_velocity"]
+    has_hands = getattr(model, "hand_branch", None) is not None
+    hand_acc = np.zeros((n, K, 10), dtype=np.float32) if has_hands else None
 
     win = cfg["infer"]["window_frames"]
     hop = cfg["infer"]["window_hop"]
@@ -66,15 +70,31 @@ def predict_rolls(model, reader: WarpedVideo, cfg: Dict[str, Any], device: str):
         frames = reader.read_warped(idx)                  # (T,H,W,C)
         x = torch.from_numpy(frames).float().div_(255.0)
         x = x.permute(0, 3, 1, 2).unsqueeze(0).to(device)  # (1,T,C,H,W)
-        out = model(x)
+        extra = {}
+        if skel is not None:
+            extra["skel"] = torch.from_numpy(skel[s:e]).unsqueeze(0).to(device)
+        out = model(x, **extra)
         onset_acc[s:e] += torch.sigmoid(out["onset_logits"])[0].cpu().numpy()
         frame_acc[s:e] += torch.sigmoid(out["frame_logits"])[0].cpu().numpy()
         if has_vel and "velocity" in out:
             vel_acc[s:e] += out["velocity"][0].cpu().numpy()
+        if hand_acc is not None:
+            hand_acc[s:e] += torch.softmax(out["hand_logits"][0].float(), -1).cpu().numpy()
         count[s:e] += 1.0
 
     count = np.clip(count, 1.0, None)
-    return onset_acc / count, frame_acc / count, (vel_acc / count) if has_vel else None
+    return {"onset": onset_acc / count, "frame": frame_acc / count,
+            "velocity": (vel_acc / count) if has_vel else None,
+            "hands": (hand_acc / count[:, :, None].astype(np.float32)) if has_hands else None}
+
+
+@torch.no_grad()
+def predict_rolls(model, reader: WarpedVideo, cfg: Dict[str, Any], device: str):
+    """Run the model over a video and return averaged probability rolls
+    (onset_p, frame_p, vel_p) of shape (T, 88). Decoding/thresholding is left to
+    the caller, so the same rolls can be re-thresholded cheaply (calibration)."""
+    o = predict_outputs(model, reader, cfg, device)
+    return o["onset"], o["frame"], o["velocity"]
 
 
 @torch.no_grad()

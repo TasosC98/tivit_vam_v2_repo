@@ -1,0 +1,13 @@
+# Ablation of vam_hands.yaml: the hand branch sees ONLY the video (the keys' ROI
+# features), no MediaPipe landmarks. Answers "can the per-key tiles alone tell the
+# hands and fingers apart?" (the strip is the keyboard only: the wrists are not in it).
+#
+#   CONFIG=configs/vam_hands_video.yaml bash scripts/run_experiment.sh vam_hands_video tiled
+base: vam_hands.yaml
+
+model:
+  hands:
+    skeleton: false
+
+train:
+  out_dir: runs/vam_hands_video

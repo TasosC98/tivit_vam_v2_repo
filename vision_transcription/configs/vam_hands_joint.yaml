@@ -1,0 +1,15 @@
+# Optional variant of vam_hands.yaml: the WHOLE network is fine-tuned (from E1 run
+# 2) on transcription + hands together, so the key ROI features can also learn what
+# tells hands and fingers apart (in vam_hands.yaml they stay as trained for
+# transcription only). Its notes are no longer exactly E1's: re-calibrate and
+# re-score them (scripts/evaluate_run.sh) before quoting any transcription number.
+#
+#   CONFIG=configs/vam_hands_joint.yaml bash scripts/run_experiment.sh vam_hands_joint tiled
+base: vam_hands.yaml
+
+train:
+  freeze_transcription: false
+  lr: 0.0002                 # lower: the transcription part starts from a trained optimum
+  hand_loss_weight: 0.5
+  select_metric: finger_acc
+  out_dir: runs/vam_hands_joint
