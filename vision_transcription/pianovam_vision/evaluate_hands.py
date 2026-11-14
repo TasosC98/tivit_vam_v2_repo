@@ -11,6 +11,8 @@ Methods (``--methods``, default: all that the inputs allow):
          MediaPipe rule, tags swapped)
   roi    nearest fingertip to the key's real surface, averaged over the note's
          first ``hands.label_frames`` frames (the key-ROI rule)
+  ayf    At Your Fingertips' rule (Moryossef et al.): Gaussian of each fingertip
+         around the key centre, normalised over fingers, first frame weighted most
   auto   the dataset's own automatic labels (Fingering/), given notes only
   model  our hand branch (needs --checkpoint with model.hands)
 
@@ -51,10 +53,11 @@ from .labels import Note
 from .metadata import recordings_from_cfg
 from .metrics import _pitchwise_matching
 
-ALL_METHODS = ("pitch", "tip", "roi", "auto", "model")
+ALL_METHODS = ("pitch", "tip", "roi", "ayf", "auto", "model")
 E2E_TOLERANCES = (0.05, 0.10)          # onset tolerances of the paper (50 / 100 ms)
 METHOD_NAMES = {"pitch": "pitch split (C4)", "tip": "fingertip rule (centre)",
-                "roi": "fingertip rule (key ROI)", "auto": "dataset labels",
+                "roi": "fingertip rule (key ROI)", "ayf": "At Your Fingertips rule",
+                "auto": "dataset labels",
                 "model": "KeyWise-hands"}
 
 
@@ -99,6 +102,8 @@ def method_scores(method: str, notes: List[Note], cfg, ctx) -> Optional[np.ndarr
         return H.pitch_split(notes, int(hc.get("split_pitch", 60)))
     if method in ("tip", "roi"):
         return H.fingertip_scores(notes, ctx["track"], fps, lf, roi=(method == "roi"))
+    if method == "ayf":
+        return H.ayf_scores(notes, ctx["track"], fps)
     if method == "model":
         return H.probs_scores(notes, ctx["probs"], fps, lf)
     raise ValueError(method)
@@ -123,6 +128,11 @@ def main() -> None:
     ap.add_argument("--csv", default=None, help="per-recording rows")
     ap.add_argument("--save_dir", default=None,
                     help="write the end-to-end decisions (TSV per recording) here")
+    ap.add_argument("--save_probs", default=None,
+                    help="write every reference note's class probabilities (model) and rule "
+                         "scores here, one <record_time>.npz each, for hand_report")
+    ap.add_argument("--save_probs_manual_only", action="store_true",
+                    help="--save_probs only for recordings with manual labels")
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
 
@@ -171,7 +181,7 @@ def main() -> None:
             print(f"  {rec.record_time}: [skipped] {e}")
             continue
         ctx = {}
-        if any(m in methods for m in ("tip", "roi")) or (
+        if any(m in methods for m in ("tip", "roi", "ayf")) or args.save_probs or (
                 "model" in methods and (cfg["model"].get("hands") or {}).get("skeleton", True)):
             ctx["track"] = H.load_skeleton(cfg, rec)
         sources: Dict[str, List[Note]] = {}
@@ -233,7 +243,7 @@ def main() -> None:
             if m == "auto":
                 cls = auto.copy()
             else:
-                cls, _ = H.decide(notes, method_scores(m, notes, cfg, ctx), chord)
+                cls, _ = H.decide(notes, method_scores(m, notes, cfg, ctx), chord, joint=(m == "ayf"))
             decided[m] = cls
             for lname, lab, mask in label_sets:
                 if m == "auto" and lname == "automatic":
@@ -250,12 +260,29 @@ def main() -> None:
                              if len(c) else 0.0,
                              "finger_acc": round(float(((c >= 0) & (c == y)).mean()), 4) if len(c) else 0.0})
 
+        if args.save_probs and (gt is not None or not args.save_probs_manual_only):
+            from .hand_notes import NO_GT, make_noteset, rule_scores, save_note_npz
+
+            full_gt = np.full(len(notes), NO_GT)
+            if gt is not None:
+                full_gt[:len(gt)] = gt
+            ns = make_noteset(notes, cfg, None, rec.corners, auto, full_gt,
+                              {"record_time": rec.record_time, "split": rec.split,
+                               "performer": rec.performer}, ctx.get("track"))
+            from .hand_notes import session_of
+            ns.meta["session"] = session_of(cfg, rec.record_time)
+            probs = {}
+            if "probs" in ctx:
+                probs["p_frame"] = H.softmax_rows(H.probs_scores(ns.notes, ctx["probs"], fps, lf))
+            save_note_npz(Path(args.save_probs) / f"{rec.record_time}.npz", ns, probs,
+                          rule_scores(ns, cfg) if ns.track is not None else {}, {"seed": 1})
+
         # ---- end-to-end
         for src, est in sources.items():
             for m in methods:
                 if m == "auto":
                     continue
-                cls, conf = H.decide(est, method_scores(m, est, cfg, ctx), chord)
+                cls, conf = H.decide(est, method_scores(m, est, cfg, ctx), chord, joint=(m == "ayf"))
                 if args.save_dir and m in ("model", "roi"):
                     H.write_hand_tsv(Path(args.save_dir) / f"{src}_{m}" / f"{rec.record_time}.tsv",
                                      est, cls, conf)
@@ -310,8 +337,9 @@ def main() -> None:
             fing = "" if m == "pitch" else f"{100 * r['finger'].mean():12.1f}"
             print(f"  {METHOD_NAMES[m]:26s} {100 * r['dec'].mean():9.1f} {100 * r['hand'].mean():7.1f} {fing:>12}")
         present = [m for m in methods if m in res]
-        pairs = [(a, b) for a, b in (("roi", "tip"), ("roi", "auto"), ("model", "roi"),
-                                     ("model", "auto"), ("roi", "pitch")) if a in present and b in present]
+        pairs = [(a, b) for a, b in (("roi", "tip"), ("roi", "ayf"), ("roi", "auto"), ("model", "roi"),
+                                     ("model", "ayf"), ("model", "auto"), ("roi", "pitch"))
+                 if a in present and b in present]
         if pairs:
             print("  exact McNemar p (paired, same notes):")
             for a, b in pairs:

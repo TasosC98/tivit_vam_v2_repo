@@ -461,6 +461,48 @@ def fingertip_scores(notes: Sequence[Note], track: SkeletonTrack, fps: float,
     return out
 
 
+def ayf_scores(notes: Sequence[Note], track: SkeletonTrack, fps: float,
+               decay: float = 0.5, max_frames: int = 16) -> np.ndarray:
+    """At Your Fingertips' rule (Moryossef et al., arXiv 2303.03745, Sec. III-E),
+    re-implemented on our landmarks: (N, 10) log-probabilities.
+
+    Per frame, every detected fingertip gets a Gaussian score of its horizontal
+    position around the pressed key's centre with the key's width as standard
+    deviation, normalised over all detected fingers; the per-frame distributions
+    of the press frames are summed with exponentially declining weights (the
+    first frame weighs most) and normalised. The paper gives neither the decay
+    rate nor how a 2-D fingertip becomes a position on the key, so: horizontal
+    position in the rectified strip, ``decay`` 0.5 per frame, at most
+    ``max_frames`` frames while the key is held (later weights are < 1e-4).
+    Decide with ``decide(..., joint=True)``: the paper takes the arg max over
+    the 10 fingers."""
+    cx, hw, _ = key_layout()
+    out = np.full((len(notes), N_CLASSES), -np.inf)
+    T = len(track)
+    for i, n in enumerate(notes):
+        if not (PITCH_MIN <= n.pitch <= PITCH_MAX):
+            continue
+        k = n.pitch - PITCH_MIN
+        fr = note_frames(n, fps, max_frames, T)
+        if len(fr) == 0:
+            continue
+        x = track.pts[fr][:, :, FINGERTIPS, 0]                          # (F,2,5)
+        pres = np.repeat(track.present[fr][:, :, None], 5, axis=2)       # (F,2,5)
+        z = (x - cx[k]) / (2.0 * hw[k])
+        logit = np.where(pres, -0.5 * z ** 2, -np.inf).reshape(len(fr), -1)   # (F,10)
+        seen = np.isfinite(logit).any(1)
+        if not seen.any():
+            continue
+        logit = logit[seen]
+        p = np.exp(logit - logit.max(1, keepdims=True))
+        p /= p.sum(1, keepdims=True)
+        w = float(decay) ** (fr[seen] - fr[0])
+        q = (w[:, None] * p).sum(0) / w.sum()
+        with np.errstate(divide="ignore"):
+            out[i] = np.log(q)
+    return out
+
+
 def probs_scores(notes: Sequence[Note], probs: np.ndarray, fps: float,
                  label_frames: int = 6) -> np.ndarray:
     """(N, 10) log-probabilities of the model's hand/finger output (T, 88, 10),
@@ -488,12 +530,26 @@ def chord_groups(notes: Sequence[Note], tol_s: float) -> List[List[int]]:
     return groups
 
 
+def softmax_rows(scores: np.ndarray) -> np.ndarray:
+    """(N, 10) scores (log-probabilities up to a constant, -inf allowed) ->
+    probabilities; rows without any finite score become all zeros."""
+    s = np.asarray(scores, dtype=np.float64)
+    out = np.zeros_like(s)
+    ok = np.isfinite(s).any(1) if len(s) else np.zeros(0, bool)
+    if ok.any():
+        z = s[ok] - s[ok].max(1, keepdims=True)
+        p = np.exp(np.where(np.isfinite(z), z, -np.inf))
+        out[ok] = p / p.sum(1, keepdims=True)
+    return out
+
+
 def decide(notes: Sequence[Note], scores: np.ndarray, chord_matching: bool = False,
-           chord_tol_s: float = 0.034) -> Tuple[np.ndarray, np.ndarray]:
+           chord_tol_s: float = 0.034, joint: bool = False) -> Tuple[np.ndarray, np.ndarray]:
     """Turn (N, 10) scores into one class per note.
 
     The hand is decided first (larger total softmax mass over its 5 fingers),
-    then the finger within that hand. With ``chord_matching`` the notes of one
+    then the finger within that hand; ``joint`` takes the arg max over the 10
+    classes instead (At Your Fingertips' rule). With ``chord_matching`` the notes of one
     chord (onsets within ``chord_tol_s``) get DIFFERENT fingers: the assignment
     with the best total score (Hungarian algorithm) -- one finger cannot press
     two keys at once, which independent per-key decisions cannot know.
@@ -510,8 +566,12 @@ def decide(notes: Sequence[Note], scores: np.ndarray, chord_matching: bool = Fal
     p = np.exp(np.where(np.isfinite(z), z, -np.inf))
     p /= p.sum(1, keepdims=True)
     pr = p[:, 5:].sum(1)
-    hand = (pr >= 0.5).astype(int)
-    fing = np.where(hand == 1, p[:, 5:].argmax(1), p[:, :5].argmax(1))
+    if joint:
+        best = p.argmax(1)
+        hand, fing = best // 5, best % 5
+    else:
+        hand = (pr >= 0.5).astype(int)
+        fing = np.where(hand == 1, p[:, 5:].argmax(1), p[:, :5].argmax(1))
     cls[ok] = hand * 5 + fing
     conf[ok] = np.where(hand == 1, pr, 1 - pr)
     if chord_matching:
@@ -529,6 +589,93 @@ def decide(notes: Sequence[Note], scores: np.ndarray, chord_matching: bool = Fal
                 ph = np.exp(logp[g[r], 5:]).sum()
                 conf[g[r]] = ph if c >= 5 else 1 - ph
     return cls, conf
+
+
+# ----------------------------------------------------------------- fingering prior
+PRIOR_MAX_INTERVAL = 12          # semitones; larger jumps share the outermost bin
+
+
+def hand_sequences(notes: Sequence[Note], hands: np.ndarray) -> List[np.ndarray]:
+    """For the left (0) and right (1) hand: indices of its notes in playing
+    order (onset, then pitch, so a chord is read upwards)."""
+    order = sorted(range(len(notes)), key=lambda i: (notes[i].onset, notes[i].pitch))
+    return [np.array([i for i in order if hands[i] == h], dtype=np.int64) for h in (0, 1)]
+
+
+def _transition_bins(notes: Sequence[Note], idx: np.ndarray,
+                     chord_tol_s: float) -> Tuple[np.ndarray, np.ndarray]:
+    """For each consecutive pair of ``idx``: struck together (1) or not, and the
+    pitch-interval bin (0 .. 2 * PRIOR_MAX_INTERVAL)."""
+    on = np.array([notes[i].onset for i in idx])
+    pi = np.array([notes[i].pitch for i in idx])
+    chord = (np.diff(on) <= chord_tol_s).astype(np.int64)
+    d = np.clip(np.diff(pi), -PRIOR_MAX_INTERVAL, PRIOR_MAX_INTERVAL) + PRIOR_MAX_INTERVAL
+    return chord, d.astype(np.int64)
+
+
+@dataclass
+class FingerPrior:
+    """First-order fingering model, per hand (as in Nakamura et al.'s HMMs):
+    P(finger of the hand's next note | its previous finger, the pitch interval,
+    struck together or not). ``log_t``: (2 hands, 2, 2 * PRIOR_MAX_INTERVAL + 1,
+    5 previous fingers, 5 next fingers), log-probabilities over the last axis.
+    Learned from the TRAINING recordings' labels only (stored with the model)."""
+    log_t: np.ndarray
+    chord_tol_s: float = 0.034
+
+    @classmethod
+    def fit(cls, labelled: Sequence[Tuple[Sequence[Note], np.ndarray]],
+            chord_tol_s: float = 0.034, alpha: float = 1.0) -> "FingerPrior":
+        """``labelled``: (notes, classes) per recording; unlabelled notes (IGNORE)
+        are skipped (the hand's sequence goes on with its next labelled note)."""
+        c = np.full((2, 2, 2 * PRIOR_MAX_INTERVAL + 1, 5, 5), float(alpha))
+        for notes, y in labelled:
+            y = np.asarray(y)
+            hands = np.where(y < 0, -1, y // 5)
+            for h, idx in enumerate(hand_sequences(notes, hands)):
+                if len(idx) < 2:
+                    continue
+                chord, d = _transition_bins(notes, idx, chord_tol_s)
+                f = y[idx] % 5
+                np.add.at(c, (h, chord, d, f[:-1], f[1:]), 1.0)
+        return cls(np.log(c / c.sum(-1, keepdims=True)), float(chord_tol_s))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"log_t": self.log_t.tolist(), "chord_tol_s": self.chord_tol_s}
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "FingerPrior":
+        return cls(np.asarray(d["log_t"], dtype=np.float64), float(d["chord_tol_s"]))
+
+
+def viterbi_fingers(notes: Sequence[Note], probs: np.ndarray, prior: FingerPrior,
+                    weight: float = 1.0) -> np.ndarray:
+    """Note-sequence decoding of the fingers: each note keeps the hand of its
+    (N, 10) probabilities (larger mass); then, per hand, the finger sequence
+    maximising  sum log p(finger | note) + weight * sum log prior(transition)
+    (Viterbi). Rows of zeros (no evidence) stay IGNORE. Returns classes."""
+    p = np.asarray(probs, dtype=np.float64)
+    ok = p.sum(1) > 0
+    hands = np.where(ok, (p[:, 5:].sum(1) >= 0.5).astype(np.int64), -1)
+    cls = np.full(len(p), IGNORE, dtype=np.int64)
+    for h, idx in enumerate(hand_sequences(notes, hands)):
+        if len(idx) == 0:
+            continue
+        q = p[idx, 5 * h:5 * h + 5]
+        em = np.log(np.clip(q / np.maximum(q.sum(1, keepdims=True), 1e-12), 1e-9, 1.0))
+        chord, d = _transition_bins(notes, idx, prior.chord_tol_s)
+        delta = em[0].copy()
+        back = np.zeros((len(idx), 5), dtype=np.int64)
+        for t in range(1, len(idx)):
+            sc = delta[:, None] + weight * prior.log_t[h, chord[t - 1], d[t - 1]]
+            back[t] = sc.argmax(0)
+            delta = sc.max(0) + em[t]
+        path = np.zeros(len(idx), dtype=np.int64)
+        path[-1] = int(delta.argmax())
+        for t in range(len(idx) - 1, 0, -1):
+            path[t - 1] = back[t, path[t]]
+        cls[idx] = 5 * h + path
+    return cls
 
 
 # ----------------------------------------------------------------- outputs

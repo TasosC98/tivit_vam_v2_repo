@@ -1,0 +1,36 @@
+# KeyWise-hands experiments (HANDS.md part 5), run in this order by scripts/hands_suite.sh.
+# Each line: <run name> <scheme> <seeds> [config overrides...]  -> runs/hn/<run name>/
+#   schemes: official (train + ext-train -> valid + test) | loro (leave one manually labelled
+#            recording out, 11 folds) | lopo (leave one pianist out, 7) | session (leave one
+#            recording session = camera set-up out, 3)
+# One fold trains for 3,000 steps (about 5-10 min on the GPU, see preflight_hands.sh).
+# Finished folds are skipped, so the suite can be stopped and started again, and lines can
+# be added at the end at any time.
+#
+# --- 1. essential: does the learned model hold beyond 3 recordings?
+official_keyrel    official  1,2,3
+loro_keyrel        loro      1,2,3
+lopo_keyrel        lopo      1,2,3
+# --- 2. baselines and the representation (Directions 1 + 3)
+loro_none          loro      1      hand_notes.features=none
+loro_image         loro      1      hand_notes.features=image
+loro_strip         loro      1      hand_notes.features=strip
+session_keyrel     session   1,2,3
+session_image      session   1      hand_notes.features=image
+session_strip      session   1      hand_notes.features=strip
+session_none       session   1      hand_notes.features=none
+lopo_image         lopo      1      hand_notes.features=image
+lopo_none          lopo      1      hand_notes.features=none
+# --- 3. do the fingers help the hand decision?
+loro_handsup       loro      1      hand_notes.supervision=hand
+# --- 4. ablations on the official split (450 unseen manual notes + 36,000 automatic)
+official_none      official  1,2,3  hand_notes.features=none
+official_image     official  1,2,3  hand_notes.features=image
+official_strip     official  1,2,3  hand_notes.features=strip
+official_noseq     official  1,2,3  hand_notes.sequence=false
+official_nokeyctx  official  1,2,3  model.hands.key_dilations=[]
+official_notimectx official  1,2,3  model.hands.time_kernel=1
+official_handsup   official  1,2,3  hand_notes.supervision=hand
+# --- 5. generalisation: keyboard-corner jitter during training
+session_cornerjit  session   1      hand_notes.corner_jitter=0.005
+official_cornerjit official  1,2,3  hand_notes.corner_jitter=0.005

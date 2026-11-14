@@ -133,12 +133,19 @@ whether a bottom margin (a new strip cache) would be worth building.
 | `configs/vam_hands.yaml` (+ `_video`, `_skel`, `_joint`) | fusion model on a frozen E1 run 2; ablations; joint fine-tuning |
 | `configs/pianovam_skeleton_offsets.json` | landmark time offsets per recording (written by `check_hands --write_offsets`) |
 | `tests/test_hands.py` | 15 tests (labels, geometry, tag swap, rules, landmark alignment, chord matching, frozen training, transcription unchanged) |
+| `pianovam_vision/hand_notes.py` | **fast path (§5)**: the skeleton-only hand model trained without video + a note-sequence model; folds (`official`, `loro`, `lopo`, `session`), `cv`, `robust`, `e2e` |
+| `pianovam_vision/hand_report.py` | all tables from the per-note outputs: accuracy with block-bootstrap CIs, recording-level tests, error analysis by subset, precision–coverage, confusion |
+| `hands.py` (added) | `ayf_scores` (At Your Fingertips' rule), `decide(joint=True)`, `FingerPrior` + `viterbi_fingers` (fingering HMM per hand) |
+| `evaluate_hands.py` (added) | method `ayf`; `--save_probs` (per-note probabilities/scores for `hand_report`) |
+| `configs/hand_notes.yaml` | the fast path's recipe |
+| `scripts/preflight_hands.sh`, `hands_suite.sh`, `jobs_hands_suite.txt`, `hands_reports.sh` | readiness check, every experiment in one restartable background queue, all reports |
+| `tests/test_hand_notes.py` | 17 tests (rules, prior + Viterbi, note data, the 4 feature variants train and predict, residual start, folds never leak, perturbations, end-to-end counts, report) |
 
 Transcription with a hand model is bit-identical to the checkpoint it was built
 on (tested: same weights with and without the branch give equal onset/frame
 outputs; a frozen run's valid onset F1 does not move).
 
-## 4. Results so far (no training needed)
+## 4. Results so far
 
 Measured on the edit PC with `evaluate_hands` (landmark offsets on, read-out
 window 8 frames, chosen on train recordings only). Accuracy is over **all**
@@ -187,11 +194,107 @@ Chord matching (one finger per chord note) did not help the rules (manual test
 89.3 → 89.3, automatic 91.8 → 91.0 hand+finger); it stays off unless it helps the
 model.
 
-The learned KeyWise-hands numbers come from the GPU run (§5). Only the 450
-unseen manual notes (valid + test) and the automatic test labels may be used
-for it.
+**The learned model (GPU runs of 2026-11-14, one seed each).** 450 unseen manual
+notes (valid 150 + test 300), hand / hand + finger %:
 
-## 5. How to run (GPU server)
+| method | hand | hand + finger |
+|---|---|---|
+| pitch split | 76.4 | – |
+| classic rule / key-ROI rule | 97.6 / 97.8 | 82.0 / 82.4 |
+| dataset labels (87.6 % decided) | 86.2 | 81.8 |
+| **vam_hands (video + landmarks, transcription frozen)** | **99.6** | **91.8** |
+| landmarks only (`vam_hands_skel`) | 99.8 | 91.8 |
+| video only (`vam_hands_video`) | 99.8 | 85.8 |
+| joint fine-tuning (`vam_hands_joint`) | 99.1 | 88.7 |
+
+Automatic test labels (36,443 notes): fusion 98.9 / 97.1 vs key-ROI rule 99.2 / 91.8.
+Joint fine-tuning made the notes worse (93.65 / 97.16 vs 94.20 / 97.65 for E1 run 2)
+and is dropped; chord matching was slightly worse for the model and stays off.
+Read per note (audit of 2026-11-14): on the 426 manual notes matched to the model's
+own notes, model 92.5 % vs key-ROI rule 82.9 % (block-bootstrap 95 % CI of the
+difference +6.9 to +12.5); against the dataset labels the gain is coverage (94.9 vs
+93.8 % where they answer, 76 % on the 54 they leave out). The video adds nothing
+measurable to the finger once the landmarks are there, so the learned part can be
+studied with the landmarks alone — that is the fast path of §5.
+
+## 5. The experiments for the second paper (fast path, cross-validation)
+
+Three test recordings and one unseen pianist cannot carry a paper. The fast path
+(`hand_notes.py`) trains the landmarks-only model in minutes (no video decoding),
+so every claim is tested by cross-validation over **all 1,800 manual notes**
+(11 recordings, 7 pianists, 3 recording sessions). Manual labels are never used
+for training or model selection anywhere; folds train for a fixed number of steps.
+
+**Model.** Frame part = `HandBranch` with landmarks only (as `vam_hands_skel`),
+run on a 12-frame clip around each onset and read on the note's key; note part =
+a BiGRU over the notes in playing order (hidden feature of the frame part + pitch
+and timing context), whose output is added to the frame read-out (starts at it,
+learns corrections). Decoders compared on the same notes: `frame` (frame read-out
+= what vam_hands_skel does), `seq` (note-sequence model), `+hmm` (Viterbi per hand
+with a finger-transition prior learned from the training labels).
+Hard chord constraints were rejected on the data: in the manual labels 22 of 306
+one-hand chords break "fingers in pitch order", 13 because one finger plays two keys.
+
+**Folds** (`hand_notes folds`): `official` (train + ext-train → valid + test),
+`loro` (leave one manually labelled recording out: 11), `lopo` (leave one pianist
+out — all their recordings leave training: 7), `session` (leave one session out:
+Feb / Mar–Apr / Sep 2024; the camera moved between them — keyboard at x 121–1839 px
+in Feb, 251–1652 px in Sep, 18 % narrower).
+
+**Experiments** (`scripts/jobs_hands_suite.txt`, in priority order) and the
+question each answers:
+
+| runs | question |
+|---|---|
+| `official_keyrel` ×3 seeds | does the fast path reproduce vam_hands_skel (99.8 / 91.8 on the 450 notes)? |
+| `loro_keyrel`, `lopo_keyrel` ×3 | does the learned model beat the rules (classic, key-ROI, At Your Fingertips) and match the dataset labels on all 1,800 notes, for unseen recordings and unseen pianists? |
+| `seq` vs `frame` vs `+hmm` (every run) | does note-sequence decoding help, and where (ring / little finger, chords, fast passages, Noinfo notes)? |
+| `*_none` | a learned MIDI-only hand separation (pitch + timing, no video): what does vision add for the hand? |
+| `*_image`, `*_strip` | is the key-relative representation what generalises (raw image or absolute strip coordinates instead)? Decisive in `session` (unseen camera set-up). |
+| `session_*`, `lopo_*`, `robust` | Direction 3: unseen pianists and camera set-ups; corrupted keyboard corners (0.5–2 % of the width), landmark noise, swapped hand tags, missed hands |
+| `*_handsup` | do the fingers help the hand? Same model trained on the hand only |
+| `official_noseq / nokeyctx / notimectx` | which context matters |
+| `*_cornerjit` | does corner jitter in training buy robustness to keyboard-detection errors? |
+| `e2e` on `official_keyrel` | Direction 2: notes + hand + finger from video only, KeyWise vs V2N notes, per recording, errors split into missed note / wrong hand / wrong finger; hand-separated MIDI per recording |
+
+**Statistics** (`hand_report`): accuracy over all notes (no decision = wrong);
+mean ± s.d. over seeds; 95 % CI by block bootstrap (blocks of 10 consecutive notes,
+within recordings) and, for differences, also with recordings resampled; exact
+sign-flip test over recordings; McNemar only as a note-level aside;
+precision–coverage (to compare with the dataset labels' 88 % coverage and with
+At Your Fingertips' P/R/F1).
+
+**At Your Fingertips' rule** (`hands.ayf_scores`), re-implemented from Sec. III-E:
+Gaussian of each fingertip's horizontal position around the key centre (σ = key
+width), normalised over the detected fingers, press frames weighted 0.5ⁿ from the
+first, arg max over the 10 fingers. The paper gives neither the decay nor the
+fingertip-to-position mapping; these are our choices. On the 300 manual test notes:
+89.0 % hand + finger (key-ROI rule 89.3, classic 88.3).
+
+## 6. How to run (GPU server)
+
+**The second-paper experiments (§5):**
+
+```bash
+cd ~/tivit_vam_v2_repo/vision_transcription && git pull
+bash scripts/preflight_hands.sh        # GPU, code, tests, data, speed -> READY / NOT READY
+BASELINE_MIDI=/home/achatzigiannis/V2N/predicted_midi/pianovam_test bash scripts/hands_suite.sh
+tail -f logs/hands_suite.log           # progress; stop: kill $(cat logs/hands_suite.pid)
+bash scripts/hands_reports.sh          # all reports so far -> results/hn/*.txt (any time)
+```
+
+One fold = 3,000 steps; `preflight_hands.sh` measures the speed and prints the
+total (≈160 training runs). Single pieces by hand:
+
+```bash
+python -m pianovam_vision.hand_notes folds --config configs/hand_notes.yaml --scheme loro,lopo,session
+python -m pianovam_vision.hand_notes cv --config configs/hand_notes.yaml --scheme loro --out runs/hn/loro_keyrel --seeds 1,2,3
+python -m pianovam_vision.hand_report --run keyrel=runs/hn/loro_keyrel --run midi_only=runs/hn/loro_none --out results/hn/loro_manual.txt
+python -m pianovam_vision.hand_notes e2e --config configs/hand_notes.yaml --model runs/hn/official_keyrel/official_s1/model.pt \
+  --pred KeyWise=out/E1s2_vam_full_test --pred V2N=$BASELINE_MIDI --split test --out out/hn/e2e
+```
+
+**The video models of §4 (done):**
 
 ```bash
 cd ~/tivit_vam_v2_repo/vision_transcription && git fetch && git checkout KeyWise-hands
@@ -217,14 +320,18 @@ python -m pianovam_vision.transcribe_hands --config configs/vam_hands.yaml \
 `PHD/server/runs/vam_full_s2`). Use the onset/frame thresholds that
 `results/E1s2_vam_full_calibrate.txt` gives (evaluate_hands.sh reads them).
 
-## 6. Open points
+## 7. Open points
 
-* The learned model needs the GPU run before any claim; report the three unseen
-  manual recordings (450 notes) **and** the automatic test labels, with McNemar
-  tests against the key-ROI rule and the dataset labels.
-* 300 manual test notes are few: a 1-point difference is 3 notes. More manual
-  labels on test recordings would make the comparison much stronger.
-* For a new video (not PianoVAM) the landmarks must be extracted first (MediaPipe
-  Hands, 21 points, same JSON layout); the video-only model needs nothing extra.
-* Not done: a wider strip with the wrists (new cache), finger crossing / thumb-under
-  constraints, using hands to improve transcription.
+* More manual labels (human work): ~150 notes in each of the 7 test recordings
+  without them would double the unseen test set (PianoVAM's annotation tool is public).
+* Other cameras / keyboards beyond PianoVAM's three sessions: check whether At Your
+  Fingertips' annotated pieces or SKY-Piano can be used (needs keyboard corners and
+  MediaPipe landmarks).
+* For a new video the landmarks must be extracted first (MediaPipe Hands, 21 points,
+  same JSON layout).
+* Towards a playable score (PhD goal): the two-track MIDI is the hand split a
+  notation program needs (one staff per hand). Still to do: rhythm quantisation /
+  beat tracking from the performance MIDI, voices within a hand, and MusicXML export
+  with the finger numbers (MIDI has no field for them).
+* Not done: a wider strip with the wrists (new cache), using hands to improve
+  transcription.

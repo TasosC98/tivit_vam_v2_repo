@@ -218,6 +218,12 @@ class HandBranch(nn.Module):
 
     def forward(self, g: torch.Tensor, skel: torch.Tensor | None) -> torch.Tensor:
         """g (B, T, K, Dg), skel (B, T, 2, 6, 4) or None -> logits (B, T, K, 10)."""
+        return self.out(self.drop(self.encode(g, skel)))
+
+    def encode(self, g: torch.Tensor, skel: torch.Tensor | None) -> torch.Tensor:
+        """The hidden feature per key and frame (B, T, K, dim) that ``forward``
+        classifies; the note-level model (hand_notes.py) reads it too. ``g`` may
+        have 0 channels (no video: pass ``g.new_zeros(B, T, K, 0)``)."""
         B, T, K, _ = g.shape
         parts = [g] if self.use_video else []
         if self.skel is not None:
@@ -234,7 +240,7 @@ class HandBranch(nn.Module):
             z = y.permute(0, 2, 3, 1).reshape(B * K, D, T)
             z = z + torch.relu(self.time_conv(self.drop(z)))
             y = z.reshape(B, K, D, T).permute(0, 3, 1, 2)
-        return self.out(self.drop(y))
+        return y
 
 
 class TiledVisualOnsetsFrames(nn.Module):

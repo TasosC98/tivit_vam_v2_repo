@@ -1,0 +1,48 @@
+# KeyWise-hands, fast path: hand and finger of every note from the landmarks
+# alone, no video decoding (pianovam_vision/hand_notes.py, HANDS.md part 5).
+#
+# Same frame model as vam_hands_skel.yaml (model.hands below, skeleton only),
+# plus a note-sequence model on top; trained on the automatic Fingering/ labels,
+# scored on the manual Fingering_GT/ ones. One training run = minutes, so every
+# experiment is a cross-validation (scripts/hands_suite.sh runs them all):
+#
+#   python -m pianovam_vision.hand_notes folds --config configs/hand_notes.yaml --scheme loro,lopo,session
+#   python -m pianovam_vision.hand_notes cv --config configs/hand_notes.yaml --scheme loro --out runs/hn/loro_keyrel --seeds 1,2,3
+#   python -m pianovam_vision.hand_report --run keyrel=runs/hn/loro_keyrel --out results/hn_loro.txt
+base: vam_hands.yaml
+
+hand_notes:
+  features: keyrel        # keyrel (ours) | strip | image | none (pitch + timing only)
+  sequence: true          # BiGRU over the notes in playing order; false = per-note MLP
+  residual: true          # the note output refines the frame read-out (logits added, start at 0)
+  supervision: finger     # finger (10 classes) | hand (only the hand is supervised)
+  window_notes: 64        # notes per training window / inference window (half overlap)
+  note_dim: 128
+  seq_layers: 2
+  key_embed_dim: 16
+  dropout: 0.1
+  frame_loss_weight: 1.0  # loss of the frame read-out (as vam_hands_skel)
+  note_loss_weight: 1.0   # loss of the note-sequence output
+  steps: 3000             # fixed budget, the last weights are used (no model selection)
+  batch_windows: 16       # windows per step (16 x 64 = 1,024 notes)
+  lr: 0.001
+  weight_decay: 0.0001
+  warmup_frac: 0.03
+  grad_clip: 1.0
+  amp: true
+  augment: true           # the video pipeline's strip jitter (augment block) + hands.skeleton_dropout
+  corner_jitter: 0.0      # + keyboard corners moved by N(0, s * keyboard width) (generalisation runs)
+  chord_tol_s: 0.034      # onsets this close = struck together (note context, fingering prior)
+  log_every: 100
+  eval_every: 500         # monitor on valid's automatic labels (official scheme only)
+  # folds
+  official_train_splits: [train, ext-train]
+  official_eval_splits: [valid, test]
+  monitor_splits: [valid]
+  pool_splits: [train, ext-train, valid, test]   # cross-validation folds draw from these
+  sessions:               # recording session = camera set-up (keyboard elsewhere in the image)
+    "2024-02": feb
+    "2024-03": mar-apr
+    "2024-04": mar-apr
+    "2024-09": sep
+  limit_recordings: 0     # >0: only that many training recordings per fold (smoke tests)
