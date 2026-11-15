@@ -1,0 +1,22 @@
+# KeyWise-hands, round 2 (after scripts/jobs_hands_suite.txt): corner jitter and manual labels,
+# cross-validated on all 1,800 manual notes. Format as jobs_hands_suite.txt:
+#   <run name> <scheme> <seeds> [overrides...]
+#
+#   ROBUST_RUNS="loro_cornerjit loro_manual loro_cornerjit0025 loro_cornerjit01 loro_cj_manual" \
+#     bash scripts/hands_suite.sh scripts/jobs_hands_round2.txt
+#
+# Why (results of round 1, HANDS.md part 4):
+#  - corner jitter: with keyboard corners off by 1/4 key, the normal model falls from 91 to 55 %
+#    hand+finger, the corner-jitter model (session folds, 1 seed) keeps 90 % -> confirm on all
+#    11 recordings with 3 seeds, and find the jitter level (0.0025 / 0.005 / 0.01)
+#  - manual labels: 76 % of the errors are notes whose automatic label is missing or wrong ->
+#    also learn from the manual labels of the OTHER recordings (never the evaluated one)
+# Most important first; ~146 runs of ~9 min = ~21 h on the RTX 3090 (the first two jobs: ~10 h).
+loro_cornerjit       loro      1,2,3  hand_notes.corner_jitter=0.005
+loro_manual          loro      1,2,3  hand_notes.manual_frac=0.1
+loro_cornerjit0025   loro      1      hand_notes.corner_jitter=0.0025
+loro_cornerjit01     loro      1      hand_notes.corner_jitter=0.01
+lopo_cornerjit       lopo      1      hand_notes.corner_jitter=0.005
+lopo_manual          lopo      1      hand_notes.manual_frac=0.1
+loro_cj_manual       loro      1,2,3  hand_notes.corner_jitter=0.005 hand_notes.manual_frac=0.1
+loro_manual25        loro      1      hand_notes.manual_frac=0.25

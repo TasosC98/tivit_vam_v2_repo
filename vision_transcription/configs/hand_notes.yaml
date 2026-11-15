@@ -32,6 +32,8 @@ hand_notes:
   amp: true
   augment: true           # the video pipeline's strip jitter (augment block) + hands.skeleton_dropout
   corner_jitter: 0.0      # + keyboard corners moved by N(0, s * keyboard width) (generalisation runs)
+  manual_frac: 0.0        # >0: also learn from the MANUAL labels of the training recordings (never the
+                          # evaluated one's); this share of the windows contains a manually labelled note
   chord_tol_s: 0.034      # onsets this close = struck together (note context, fingering prior)
   log_every: 100
   eval_every: 500         # monitor on valid's automatic labels (official scheme only)

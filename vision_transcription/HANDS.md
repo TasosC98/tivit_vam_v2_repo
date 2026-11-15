@@ -217,6 +217,47 @@ difference +6.9 to +12.5); against the dataset labels the gain is coverage (94.9
 measurable to the finger once the landmarks are there, so the learned part can be
 studied with the landmarks alone — that is the fast path of §5.
 
+**Cross-validation suite (§5, run 2026-11-14/15 on the RTX 3090: 160 trainings,
+20 h, no failure; reports in `results/hn/`).** Hand / hand + finger % over all
+1,800 manual notes, the evaluated recording never in training; `keyrel:seq`
+(3 seeds, s.d. ≤ 0.3) unless noted:
+
+| test | ours | At Your Fingertips' rule | MIDI only (`none`) | raw image coords |
+|---|---|---|---|---|
+| unseen recording (`loro`) | **99.3 / 93.0** | 98.3 / 86.1 | 89.8 / 55.1 | 98.5 / 84.8 |
+| unseen pianist (`lopo`) | **99.5 / 92.2** | 98.3 / 86.1 | 88.2 / 51.0 | 98.1 / 78.6 |
+| unseen camera set-up (`session`) | **99.6 / 90.6** | 98.3 / 86.1 | 90.1 / 52.8 | 96.3 / 59.4 |
+
+* vs the rules: +6.9 points hand + finger over At Your Fingertips (CI +5.5 … +8.4),
+  better than the key-ROI rule on 11 / 11 recordings (sign-flip p = 0.001).
+* What matters is the key-relative input, not the architecture: on the official
+  split, no sequence head / no key context / no time context / hand-only training
+  all land within 1 point (none significant); `seq`, `frame` and `+hmm` decoders
+  are equal on clean input (93.0 / 93.3 / 93.2–93.5). Training plateaus at
+  1,500–2,000 of the 3,000 steps.
+* Robustness (`loro`, seed 1, frame read-out vs key-ROI rule): landmark noise of
+  ¼ key 93.2 vs 85.4; hand tags swapped on 20 % of frames 91.2 vs 68.3; hands
+  missing on 50 % of frames 91.5 (hand 99.3) vs 78.0. **Keyboard corners off by
+  ¼ / ½ / 1 white key (0.5 / 1 / 2 % of the width) break every method**: 55 / 32 / 25
+  vs rule 56 / 32 / 28. Trained with corner jitter (0.005) the sequence decoder
+  keeps 89.9 / 85.8 / 60.9 (hand 99.4 / 98.8 / 92.3) at no clean cost on the session
+  folds (90.9; one seed) — the sequence head is what turns the jitter into
+  robustness (the same model's frame read-out: 73.6 / 58.9 / 41.0). → round 2.
+* End to end (test, 9 recordings, F1 at 100 ms, automatic labels): KeyWise notes
+  97.8 → + hand 96.7 → + finger 94.8; V2N notes 97.1 / 96.1 / 94.4; hands from MIDI
+  only 90.6. On the 300 manual test notes no KeyWise note got the wrong hand.
+* For the score use the hand of the frame read-out: the sequence head moves notes
+  to the other hand when one hand is not detected (10 of its 11 extra hand errors,
+  one passage of 2024-02-15_20-07-54; with 50 % of hands missing its hand accuracy
+  is 92.8 vs 99.3).
+* Where the remaining errors are: 76 % of the wrong notes are notes whose automatic
+  label is missing (42 %, the 12 % "Noinfo" notes, model 74 %) or wrong (34 %);
+  where the dataset gives a label the model equals it (95.5 vs 95.7). Finger errors
+  go one finger toward the thumb at the outer registers only (key-ROI rule: right
+  hand above C5 82 vs 4, left hand below C3 30 vs 0; balanced in the middle; differs
+  per camera set-up): perspective of fingertips above the key plane. The dataset's
+  labels share it. Correcting the output afterwards gains only 0.4–0.7.
+
 ## 5. The experiments for the second paper (fast path, cross-validation)
 
 Three test recordings and one unseen pianist cannot carry a paper. The fast path
@@ -284,7 +325,20 @@ bash scripts/hands_reports.sh          # all reports so far -> results/hn/*.txt 
 ```
 
 One fold = 3,000 steps; `preflight_hands.sh` measures the speed and prints the
-total (≈160 training runs). Single pieces by hand:
+total (≈160 training runs).
+
+**Round 2** (`scripts/jobs_hands_round2.txt`, ~146 runs ≈ 21 h, most important
+first): corner jitter on all 11 recordings with 3 seeds and at three levels, and
+training that also uses the manual labels of the *other* recordings
+(`hand_notes.manual_frac`, never the evaluated one's):
+
+```bash
+ROBUST_RUNS="loro_cornerjit loro_manual loro_cornerjit0025 loro_cornerjit01 loro_cj_manual" \
+  bash scripts/hands_suite.sh scripts/jobs_hands_round2.txt
+bash scripts/hands_reports.sh          # adds results/hn/round2_*.txt and robust2_*.txt
+```
+
+Single pieces by hand:
 
 ```bash
 python -m pianovam_vision.hand_notes folds --config configs/hand_notes.yaml --scheme loro,lopo,session
@@ -324,9 +378,11 @@ python -m pianovam_vision.transcribe_hands --config configs/vam_hands.yaml \
 
 * More manual labels (human work): ~150 notes in each of the 7 test recordings
   without them would double the unseen test set (PianoVAM's annotation tool is public).
-* Other cameras / keyboards beyond PianoVAM's three sessions: check whether At Your
-  Fingertips' annotated pieces or SKY-Piano can be used (needs keyboard corners and
-  MediaPipe landmarks).
+* Other cameras / keyboards beyond PianoVAM's three sessions: no public video set
+  has manual hand / finger labels per note (At Your Fingertips' APFD is labelled by
+  their own rule; PianoMotion10M has 3-D hands but no fingers). Plan: PianoYT test
+  videos (already in this repo's pipeline, crop box = rough corners) + MediaPipe
+  landmarks + a small manual set (~1,000 notes hand, ~300 finger) → zero-shot test.
 * For a new video the landmarks must be extracted first (MediaPipe Hands, 21 points,
   same JSON layout).
 * Towards a playable score (PhD goal): the two-track MIDI is the hand split a

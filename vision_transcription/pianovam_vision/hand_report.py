@@ -452,7 +452,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         rows_idx = np.concatenate([ref[rt]["rows"][sel[rt]] for rt in recs])
         with open(args.csv, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            w.writerow(["record", "row", "onset", "pitch", "label", "dataset"] + methods)
+            # "midi_pitch", not "pitch": the pitch-split rule is a method column called "pitch"
+            w.writerow(["record", "row", "onset", "midi_pitch", "label", "dataset"] + methods)
             for i in range(n):
                 w.writerow([rec_of[i], int(rows_idx[i]), round(float(onset[i]), 4), int(pitch[i]),
                             H.CLASS_NAMES[y[i]] if y[i] >= 0 else "?",

@@ -14,6 +14,7 @@
 #   2. every training job of the jobs file (hand_notes cv)          -> runs/hn/<run>/
 #   3. robustness of loro_keyrel / session_keyrel / session_image (seed 1), test-time
 #      corruptions of the landmarks                                 -> runs/hn/<run>/<fold>/pred_<test>/
+#      (other runs: ROBUST_RUNS="loro_cornerjit loro_manual ...")
 #   4. end to end on test: hands for KeyWise's notes (and V2N's with BASELINE_MIDI)
 #        -> results/hn/e2e_<run>_s<seed>.txt, hand-separated MIDI in out/hn/e2e_<run>_s<seed>/
 #   5. FUSION=1 only: per-note probabilities of the video model vam_hands (GPU + videos, ~2 h)
@@ -77,7 +78,7 @@ while read -r name scheme seeds rest <&3; do
 done 3< "$JOBS"
 
 # ---- 3. robustness
-for run in loro_keyrel session_keyrel session_image; do
+for run in ${ROBUST_RUNS:-loro_keyrel session_keyrel session_image}; do
   if [ -d "runs/hn/${run}" ]; then
     say "robustness: ${run} (seed 1)"
     python -m pianovam_vision.hand_notes robust --config "$CONFIG" --run_dir "runs/hn/${run}" --seeds 1 \

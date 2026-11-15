@@ -41,6 +41,20 @@ for t in corner0.005 corner0.01 corner0.02 noise0.1 noise0.25 swap0.05 swap0.2 d
   rep "robust_session_${t}" --run keyrel=$R/session_keyrel --run image=$R/session_image \
       --pred_dir "pred_${t}" --main keyrel:seq --n_boot 500
 done
+# Round 2 (scripts/jobs_hands_round2.txt): corner jitter and manual labels
+if ls -d $R/loro_cornerjit $R/loro_manual >/dev/null 2>&1; then
+  rep round2_loro_manual --run keyrel=$R/loro_keyrel --run corner_jitter=$R/loro_cornerjit \
+      --run manual=$R/loro_manual --run cj_manual=$R/loro_cj_manual --run cj0025=$R/loro_cornerjit0025 \
+      --run cj01=$R/loro_cornerjit01 --run manual25=$R/loro_manual25 --main keyrel:seq \
+      --csv results/hn/round2_loro_notes.csv
+  rep round2_lopo_manual --run keyrel=$R/lopo_keyrel --run corner_jitter=$R/lopo_cornerjit \
+      --run manual=$R/lopo_manual --main keyrel:seq
+  for t in corner0.005 corner0.01 corner0.02 noise0.1 noise0.25 swap0.05 swap0.2 drop0.2 drop0.5; do
+    rep "robust2_loro_${t}" --run keyrel=$R/loro_keyrel --run corner_jitter=$R/loro_cornerjit \
+        --run manual=$R/loro_manual --run cj_manual=$R/loro_cj_manual --run cj0025=$R/loro_cornerjit0025 \
+        --run cj01=$R/loro_cornerjit01 --pred_dir "pred_${t}" --main keyrel:seq --n_boot 500
+  done
+fi
 echo
 echo "end to end: results/hn/e2e_*.txt"
 for f in results/hn/e2e_*.txt; do

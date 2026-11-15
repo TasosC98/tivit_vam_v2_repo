@@ -67,7 +67,7 @@ import math
 import random
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -388,16 +388,39 @@ def class_nll(logits, y, supervision: str = "finger"):
 
 
 # ===================================================================== batches
+def with_manual_labels(sets: Sequence[NoteSet]) -> Tuple[List[NoteSet], int]:
+    """Training copies whose target is the MANUAL label wherever one exists (also
+    on notes the dataset left without a label); the shared pool is not touched.
+    Only ever called on training recordings, so the evaluated one's labels stay unseen."""
+    out, n = [], 0
+    for s in sets:
+        m = s.gt >= 0
+        if m.any():
+            s = replace(s, y=np.where(m, s.gt, s.y))
+            n += int(m.sum())
+        out.append(s)
+    return out, n
+
+
 def sample_batch(sets: Sequence[NoteSet], weights: np.ndarray, n_windows: int, n_notes: int,
                  margin: int, clip_len: int, features: str, aug: Optional[Dict[str, Any]],
-                 rng: np.random.Generator) -> Dict[str, np.ndarray]:
+                 rng: np.random.Generator, manual_frac: float = 0.0) -> Dict[str, np.ndarray]:
     """Windows of ``n_notes`` consecutive notes from random training recordings;
-    the notes of a window that start on the same frame share one clip."""
+    the notes of a window that start on the same frame share one clip.
+    ``manual_frac`` > 0: that share of the windows contains a randomly chosen
+    manually labelled note (the few manual notes are seen often enough to matter)."""
     clips, clip_of, keys, nread, sym, y = [], [], [], [], [], []
     m0 = 0
+    man = [i for i, s in enumerate(sets) if (s.gt >= 0).any()] if manual_frac > 0 else []
+    man_w = np.array([float((sets[i].gt >= 0).sum()) for i in man])
     for _ in range(n_windows):
-        s = sets[int(rng.choice(len(sets), p=weights))]
-        st = int(rng.integers(0, len(s) - n_notes + 1))
+        if man and rng.random() < manual_frac:
+            s = sets[man[int(rng.choice(len(man), p=man_w / man_w.sum()))]]
+            g = int(rng.choice(np.flatnonzero(s.gt >= 0)))
+            st = int(np.clip(g - int(rng.integers(0, n_notes)), 0, len(s) - n_notes))
+        else:
+            s = sets[int(rng.choice(len(sets), p=weights))]
+            st = int(rng.integers(0, len(s) - n_notes + 1))
         sl = slice(st, st + n_notes)
         uniq, inv = np.unique(s.on_f[sl], return_inverse=True)
         if features != "none":
@@ -620,6 +643,17 @@ def train_model(cfg: Dict[str, Any], train_sets: Sequence[NoteSet], seed: int, l
         log(f"  ({len(train_sets) - len(sets)} training recordings with < {W} notes left out)")
     if not sets:
         raise SystemExit("no training recordings")
+    manual_frac = float(hn.get("manual_frac", 0.0))
+    if manual_frac > 0:
+        sets, n_man = with_manual_labels(sets)
+        n_rec = sum(1 for s in sets if (s.gt >= 0).any())
+        if n_man:
+            log(f"  manual labels of the training recordings: {n_man} notes in {n_rec} recordings "
+                f"({100 * manual_frac:.0f} % of the windows contain one)")
+        else:
+            log("  manual labels of the training recordings: none (no manually labelled recording "
+                "in this fold's training set)")
+            manual_frac = 0.0
     lab = np.array([float((s.y >= 0).sum()) for s in sets])
     weights = lab / lab.sum()
     prior = H.FingerPrior.fit([(s.notes, s.y) for s in sets], float(hn.get("chord_tol_s", 0.034)))
@@ -661,7 +695,7 @@ def train_model(cfg: Dict[str, Any], train_sets: Sequence[NoteSet], seed: int, l
         for g in opt.param_groups:
             g["lr"] = lr_at(step)
         b = to_device(sample_batch(sets, weights, B, W, model.margin, model.clip_len,
-                                   model.features, aug, rng), device)
+                                   model.features, aug, rng, manual_frac), device)
         with torch.amp.autocast("cuda", enabled=use_amp):
             out = model(b["clips"], b["clip_of"], b["key"], b["n_read"], b["sym"])
         loss_n = class_nll(out["note_logits"], b["y"], sup)

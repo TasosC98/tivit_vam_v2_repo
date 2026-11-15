@@ -164,6 +164,45 @@ def test_residual_note_head_starts_at_the_frame_readout():
     assert np.allclose(pf, ps, atol=1e-4)                     # note output = read-out at init
 
 
+def _with_manual(n=200, seed=0, n_gt=12):
+    """A note set whose first n_gt notes have the manual label R5 (9); 9 nowhere else."""
+    from dataclasses import replace
+    ns = _noteset(n=n, seed=seed)[0]
+    ns = replace(ns, y=np.where(ns.y == 9, 8, ns.y), auto=np.where(ns.auto == 9, 8, ns.auto))
+    gt = ns.gt.copy()
+    gt[:n_gt] = 9
+    return replace(ns, gt=gt)
+
+
+def test_manual_labels_only_in_the_training_copies():
+    ns, other = _with_manual(), _noteset(n=200, seed=1)[0]
+    before = ns.y.copy()
+    sets, n = HN.with_manual_labels([ns, other])
+    assert n == 12
+    assert (sets[0].y[:12] == 9).all() and (sets[0].y[12:] == before[12:]).all()
+    assert (ns.y == before).all()                              # the shared pool is untouched
+    assert sets[1] is other
+
+
+def test_manual_windows_contain_a_manual_note():
+    sets, _ = HN.with_manual_labels([_with_manual(), _noteset(n=200, seed=1)[0]])
+    sets[1].y[sets[1].y == 9] = 8
+    w = np.array([0.5, 0.5])
+    b = HN.sample_batch(sets, w, 40, 8, 2, 12, "none", None, np.random.default_rng(0), manual_frac=1.0)
+    assert ((b["y"] == 9).any(1)).all()                        # every window holds a manual note
+    b0 = HN.sample_batch(sets, w, 40, 8, 2, 12, "none", None, np.random.default_rng(0))
+    b1 = HN.sample_batch(sets, w, 40, 8, 2, 12, "none", None, np.random.default_rng(0), manual_frac=0.0)
+    assert all(np.array_equal(b0[k], b1[k]) for k in b0)       # off = exactly the old sampling
+
+
+def test_training_with_manual_labels_runs():
+    pytest.importorskip("torch")
+    cfg = _cfg(features="keyrel", steps=2, batch_windows=2, log_every=1, manual_frac=0.5)
+    lines = []
+    model, prior = HN.train_model(cfg, [_with_manual(n=40), _noteset(seed=2)[0]], seed=0, log=lines.append)
+    assert any("manual labels of the training recordings: 12 notes in 1 recordings" in s for s in lines)
+
+
 def test_hand_supervision_only_scores_the_hand():
     torch = pytest.importorskip("torch")
     logits = torch.zeros(1, 10)
