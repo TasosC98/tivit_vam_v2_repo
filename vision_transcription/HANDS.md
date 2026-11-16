@@ -140,6 +140,8 @@ whether a bottom margin (a new strip cache) would be worth building.
 | `configs/hand_notes.yaml` | the fast path's recipe |
 | `scripts/preflight_hands.sh`, `hands_suite.sh`, `jobs_hands_suite.txt`, `hands_reports.sh` | readiness check, every experiment in one restartable background queue, all reports |
 | `tests/test_hand_notes.py` | 17 tests (rules, prior + Viterbi, note data, the 4 feature variants train and predict, residual start, folds never leak, perturbations, end-to-end counts, report) |
+| `scripts/extract_landmarks.py` | MediaPipe Hands landmarks for any video in PianoVAM's `Handskeleton` JSON layout (`extract`, parallel, restartable), agreement with a reference (`compare`), and which settings reproduce PianoVAM's own landmarks (`validate`). Own environment (`~/venvs/mediapipe`, mediapipe 0.10.14); imports nothing from the project |
+| `tests/test_extract_landmarks.py` | 3 tests (duplicate hand tags, the JSON is read by `hands.read_skeleton_json`, compare: identical / shifted / swapped) |
 
 Transcription with a hand model is bit-identical to the checkpoint it was built
 on (tested: same weights with and without the branch give equal onset/frame
@@ -257,6 +259,36 @@ studied with the landmarks alone — that is the fast path of §5.
   hand above C5 82 vs 4, left hand below C3 30 vs 0; balanced in the middle; differs
   per camera set-up): perspective of fingertips above the key plane. The dataset's
   labels share it. Correcting the output afterwards gains only 0.4–0.7.
+* **Round 2** (`loro`, all 1,800 manual notes; hand + finger %, sequence decoder;
+  clean and perturbations seed 1):
+
+  | trained with | clean | corners off ¼ / ½ / 1 key | 50 % hands missing | 20 % tags swapped |
+  |---|---|---|---|---|
+  | nothing extra (`keyrel`) | 92.9 | 56.2 / 32.4 / 25.9 | 85.6 | 90.6 |
+  | corner jitter 0.0025 (⅛ key) | 92.6 | 89.2 / 65.4 / 44.1 | 88.9 | 89.6 |
+  | corner jitter 0.005 (¼ key) | 91.7 | 90.7 / 85.2 / 64.2 | 86.3 | 87.4 |
+  | corner jitter 0.01 (½ key) | 88.9 | 88.4 / 87.2 / 79.9 | 79.3 | 84.8 |
+  | manual labels (10 % of windows) | 93.1 | 55.7 / 32.8 / 27.7 | 88.9 | 90.1 |
+  | jitter 0.005 + manual labels | 92.1 | 91.3 / 86.6 / 63.9 | 85.2 | 88.0 |
+  | key-ROI rule | 85.9 | 56.2 / 31.7 / 28.2 | 78.0 | 68.3 |
+
+  - Corner jitter: each level holds up to about its own size of error, then falls.
+    0.005 costs ~1 point on clean corners (3 seeds 92.2 vs 93.0, CI −0.1 … +1.7,
+    6 / 5 recordings, n.s.; LOPO −1.4, one seed; official −2.1 on 450 notes) and keeps
+    the hand at 99.3 / 99.1 / 91.4 % with corners ¼ / ½ / 1 key off (no jitter:
+    95.9 / 89.6 / 79.7). With jitter only the sequence decoder is usable (frame
+    read-out 86.6 clean). It also removes the sequence head's hand flips when a hand
+    is missing (hand 98.7 vs 92.8 with 50 % of hands missing).
+  - Manual labels of the other recordings: **no gain** (93.1 vs 93.0, 3 seeds,
+    recordings 4 / 4; 25 % of windows 93.6, one seed, n.s.; LOPO 92.3 vs 92.2), although
+    every fold used 1,650 notes, each seen over 100 times (the labelled notes are the
+    first 150 of each recording, so a manual window is mostly manual notes). So the
+    remaining ~7 % errors come from the landmarks, not from noisy training labels:
+    ring / little finger (R4→R3 22, R5→R4 21 notes), Noinfo notes (74 %), one hand
+    seen (63 %). The automatic labels fail on the same notes for the same reason.
+  - Two settings for the paper: no jitter when the corners are accurate (PianoVAM's
+    are set by hand), jitter 0.005 when they come from a detector or a crop box.
+    The PianoYT test decides the level.
 
 ## 5. The experiments for the second paper (fast path, cross-validation)
 
@@ -383,8 +415,24 @@ python -m pianovam_vision.transcribe_hands --config configs/vam_hands.yaml \
   their own rule; PianoMotion10M has 3-D hands but no fingers). Plan: PianoYT test
   videos (already in this repo's pipeline, crop box = rough corners) + MediaPipe
   landmarks + a small manual set (~1,000 notes hand, ~300 finger) → zero-shot test.
-* For a new video the landmarks must be extracted first (MediaPipe Hands, 21 points,
-  same JSON layout).
+* For a new video the landmarks are extracted first with `scripts/extract_landmarks.py`
+  (MediaPipe Hands, 21 points, the same JSON layout and tag convention). MediaPipe's
+  default settings (video mode, model complexity 1, confidences 0.5) **reproduce
+  PianoVAM's own landmarks**: on the first 20 s of 2024-02-17_21-44-37,
+  2024-03-11_22-23-29 and 2024-09-02_14-10-41 the median difference is 0.1–0.2 px,
+  the same hands are found in 99–100 % of the frames, no tags are swapped and the
+  frames are in sync; complexity 0 or static-image mode differ by 2–6 px. So new
+  data gets landmarks like the ones the model was trained on.
+
+  ```bash
+  PY=~/venvs/mediapipe/bin/python      # python3 -m venv ~/venvs/mediapipe; pip install mediapipe==0.10.14
+  $PY scripts/extract_landmarks.py validate --root /raid_storage/data_achatzigiannis/PianoVAM_v1.0
+  $PY scripts/extract_landmarks.py extract <videos or globs> --out_dir <dir> --workers 16
+  ```
+* Candidate test sets (checked 2026-11-16): **SKY-Piano** (ISMIR 2026, Hugging Face
+  `SKY-Piano/SKY-Piano`, 51.7 GB, gated; top-view video, MIDI, fingering from motion
+  capture — the first labels not made from MediaPipe) and **R3** (PPAN's dataset,
+  81.4 GB raw on the Internet Archive; silent-piano MIDI, no hand labels).
 * Towards a playable score (PhD goal): the two-track MIDI is the hand split a
   notation program needs (one staff per hand). Still to do: rhythm quantisation /
   beat tracking from the performance MIDI, voices within a hand, and MusicXML export
