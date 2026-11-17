@@ -95,7 +95,8 @@ def main() -> None:
             print(f"{rec.record_time}: [skipped] missing {missing}")
             continue
         ref = read_reference(rec, cfg)
-        row = {"record": rec.record_time, "ref_notes": len(ref)}
+        row = {"record": rec.record_time, **({"subset": rec.subset} if rec.subset else {}),
+               "ref_notes": len(ref)}
         for k, p in files.items():
             notes = load_midi_notes(p)
             velocities[k].update(n.velocity for n in notes)
@@ -111,23 +112,33 @@ def main() -> None:
         print(f"{k}: {len(v)} distinct velocities" + (f" ({min(v)}..{max(v)})" if v else "")
               + (" -- constant, so the velocity scores mean nothing" if len(v) <= 1 else ""))
 
-    head = f"\n{'mean over ' + str(len(rows)) + ' recordings':54s} {'pred':>7}"
-    if args.baseline:
-        head += f" {'baseline':>9} {'Wilcoxon p':>11}"
-    print(head)
-    for m, desc in METRICS:
-        a = np.array([s[m] for s in per["pred"]])
-        line = f"{desc:54s} {100 * a.mean():7.1f}"
+    def table(idx: List[int], title: str) -> None:
+        head = f"\n{title:54s} {'pred':>7}"
         if args.baseline:
-            from scipy.stats import wilcoxon
+            head += f" {'baseline':>9} {'Wilcoxon p':>11}"
+        print(head)
+        for m, desc in METRICS:
+            a = np.array([per["pred"][i][m] for i in idx])
+            line = f"{desc:54s} {100 * a.mean():7.1f}"
+            if args.baseline:
+                from scipy.stats import wilcoxon
 
-            b = np.array([s[m] for s in per["baseline"]])
-            p = wilcoxon(a, b).pvalue if np.any(a != b) else 1.0
-            line += f" {100 * b.mean():9.1f} {p:11.3f}"
-        print(line)
-    if args.baseline:
-        wins = sum(x["onset_f1@50"] > y["onset_f1@50"] for x, y in zip(per["pred"], per["baseline"]))
-        print(f"\npred beats baseline on onset F1 @50 ms in {wins}/{len(rows)} recordings")
+                b = np.array([per["baseline"][i][m] for i in idx])
+                p = wilcoxon(a, b).pvalue if np.any(a != b) else 1.0
+                line += f" {100 * b.mean():9.1f} {p:11.3f}"
+            print(line)
+        if args.baseline:
+            for m in ("onset_f1@50", "onset_f1@100"):
+                wins = sum(per["pred"][i][m] > per["baseline"][i][m] for i in idx)
+                print(f"pred beats baseline on {m} in {wins}/{len(idx)} recordings")
+
+    table(list(range(len(rows))), f"mean over {len(rows)} recordings")
+    # R3: R3s and R3x are reported separately in the literature (V2N, PPAN)
+    subsets = sorted({r["subset"] for r in rows if r.get("subset")})
+    if len(subsets) > 1:
+        for s in subsets:
+            idx = [i for i, r in enumerate(rows) if r.get("subset") == s]
+            table(idx, f"subset {s}: mean over {len(idx)} recordings")
 
     if args.csv:
         Path(args.csv).parent.mkdir(parents=True, exist_ok=True)

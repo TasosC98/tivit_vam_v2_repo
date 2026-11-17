@@ -1,0 +1,74 @@
+# R3 from scratch with the paper-1 recipe (run "r3_full" = E1 on R3).
+#
+# R3 = Zivanovic, Pilkov, Cancino-Chacon, IJCAI 2025 (PPAN): ~31 h of practice
+# sessions by two pianists, MIDI from silent pianos (Yamaha GB1K grand, Essex
+# EUP-116 upright), top-down GoPro video 1920x1080 at 30 fps, cut into chunks of
+# 0.5-7.5 min. Raw release: archive.org/details/r3dataset_raw (CC BY-NC-ND).
+# Two subsets with their own train/test split (kept apart by recording date):
+#   R3s  one pianist, Rachmaninoff's 3rd concerto   219 train / 74 test chunks
+#   R3x  both pianists, varied repertoire           495 train / 107 test chunks
+# Results are reported per subset (evaluate / score_midi print both).
+#
+# Everything below the data block is vam_full.yaml (the paper's KeyWise recipe):
+# same model, warp, labels, augmentation, schedule, epochs and checkpoint choice.
+# Only two things differ from PianoVAM:
+#   * the data block (folders, boxes, a valid split held out by date);
+#   * decode_height 1080 (native): the R3 keyboard fills ~45 % of the frame width
+#     (PianoVAM ~90 %), so 1080p gives it about as many pixels (~880) as
+#     PianoVAM's keyboard has at 720p (~1150); at 720p it would get ~590.
+#
+#   1. check the data:   python -m pianovam_vision.check_data --config configs/r3.yaml
+#   2. build the cache:  CONFIGS=configs/r3.yaml GB_PER_CACHE=100 bash scripts/build_caches.sh
+#   3. train:            CONFIG=configs/r3.yaml bash scripts/run_experiment.sh r3_full tiled
+#   (the whole runbook is R3.md)
+base: vam_full.yaml
+
+profiles:
+  dit:
+    overrides:
+      data.root: /home/mkoziri/datasets/R3_raw          # adjust if R3 is ever copied there
+  dib:
+    overrides:
+      data.root: /raid_storage/data_achatzigiannis/R3_raw
+      data.strip_cache: /raid_storage/data_achatzigiannis/strip_cache/r3_w1408_h112_dh1080
+
+data:
+  format: r3
+  root: /raid_storage/data_achatzigiannis/R3_raw
+  strip_cache: ""
+  video_dir: ""               # the loader gives each chunk's path below root
+  midi_dir: ""
+  # folder -> [subset, split], as in the archive.org release. Change only if the
+  # download was unpacked under other folder names.
+  r3_split_dirs:
+    r3s_train: [r3s, train]
+    r3s_test: [r3s, test]
+    train: [r3x, train]
+    test: [r3x, test]
+  r3_box_files: {r3s: r3s_bounding_boxes.json, r3x: r3x_bounding_boxes.json}
+  subsets: [r3s, r3x]         # train and evaluate on both (as V2N and PPAN)
+  frame_size: [1920, 1080]    # every R3 video; the box rotation is about its centre
+  orientation: rot180         # camera faces the pianist: A0 at the image's right
+  # R3 has no valid split: per subset, whole recording dates are moved from train
+  # to valid until >= 10 % of the train chunks (fixed by valid_seed).
+  valid_frac: 0.1
+  valid_seed: 1234
+  # Never put these sessions in valid: their MIDI is > 200 ms out of sync with the
+  # video (V2N, arXiv 2608.03419, r3_package/sync_analysis.json: 60 train chunks in
+  # these 13 sessions + 10 test chunks, see r3_nosync.yaml). They stay in train,
+  # uncorrected, exactly as V2N and PPAN trained.
+  valid_avoid_sessions: [ls_2024-02-05_a04, ls_2024-02-07_a03, ls_2024-02-12_a02,
+                         ls_2024-02-12_a03, ls_2024-02-12_a04, ls_2024-02-26_a02,
+                         ls_2024-02-26_a04, ls_2024-10-23_a02, rach3_2020-10-09_a01,
+                         warmup_2023-02-13_a04, warmup_2023-02-14_a02,
+                         warmup_2023-02-24_a01, warmup_2023-03-01_a01]
+  train_splits: [train]
+  valid_splits: [valid]
+  test_splits: [test]
+  exclude_records: []
+
+keyboard:
+  decode_height: 1080         # native (see the header)
+
+train:
+  out_dir: runs/r3_full

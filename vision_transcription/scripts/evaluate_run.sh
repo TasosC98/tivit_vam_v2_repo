@@ -19,6 +19,10 @@
 #   TIMING=1                           also tune onset timing on valid (sub-frame
 #                                      onsets, a time shift, an extra shift for black keys)
 #   TIMING_GRID=-0.05:0.20:0.01        time shifts to try (s); widen for cross-dataset
+#   OVERRIDES="keyboard.decode_height=1080"
+#                                      extra config overrides for calibrate + evaluate
+#                                      (cross-dataset: read the other dataset's videos at
+#                                      the resolution its strip cache was built with)
 #
 # Evaluations run one at a time: start several and they queue up by themselves.
 # The model's outputs are kept in rolls/<name>/ (not downloaded with out/), so
@@ -31,7 +35,7 @@ SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$SELF")/.."
 
 if [ $# -ne 4 ]; then
-  sed -n '2,28p' "$SELF"; exit 1
+  sed -n '2,32p' "$SELF"; exit 1
 fi
 NAME="$1"; CONFIG="$2"; CKPT="$3"; TARGET="$4"
 [ -f "$CONFIG" ] || { echo "ERROR: no config $CONFIG"; exit 1; }
@@ -66,8 +70,10 @@ export DECORD_EOF_RETRY_MAX="${DECORD_EOF_RETRY_MAX:-2048}"
 export PYTHONUNBUFFERED=1                  # logs show progress as it happens
 DC=()
 [ -n "${DATA_CONFIG:-}" ] && DC=(--data_config "$DATA_CONFIG")
+OV=()
+[ -n "${OVERRIDES:-}" ] && read -ra OV <<< "$OVERRIDES"
 echo "=== $(date '+%Y-%m-%d %H:%M') ${NAME}: ${CKPT}" \
-     "${DATA_CONFIG:+on the dataset of $DATA_CONFIG}"
+     "${DATA_CONFIG:+on the dataset of $DATA_CONFIG}" "${OVERRIDES:+with $OVERRIDES}"
 
 # One evaluation at a time: each needs up to ~11 GB of GPU memory, so two of
 # them next to a training run do not fit in 24 GB. An evaluation started while
@@ -98,7 +104,7 @@ else
     [ -n "${TIMING_GRID:-}" ] && TM+=("--shift_grid=${TIMING_GRID}")
     if ! python -m pianovam_vision.calibrate --config "$CONFIG" --checkpoint "$CKPT" \
          --split valid --target "$TARGET" ${DC[@]+"${DC[@]}"} ${TM[@]+"${TM[@]}"} \
-         --rolls_dir "rolls/${NAME}/valid" > "$src" 2>&1; then
+         --rolls_dir "rolls/${NAME}/valid" ${OV[@]+"${OV[@]}"} > "$src" 2>&1; then
       echo "FAILED: calibration -- see ${src}"; exit 1
     fi
     grep -E "NOTE|Note F1|best timing" "$src"
@@ -117,7 +123,7 @@ echo "--- scoring test with onset=${OT} frame=${FT} -> results/${NAME}_test.txt"
 if ! python -m pianovam_vision.evaluate --config "$CONFIG" --checkpoint "$CKPT" \
      --split test ${DC[@]+"${DC[@]}"} --csv "results/${NAME}_test.csv" \
      --save_midi "out/${NAME}_test" --rolls_dir "rolls/${NAME}/test" \
-     $DECODE > "results/${NAME}_test.txt" 2>&1; then
+     ${OV[@]+"${OV[@]}"} $DECODE > "results/${NAME}_test.txt" 2>&1; then
   echo "FAILED: evaluation -- see results/${NAME}_test.txt"; exit 1
 fi
 sed -n '/=== mean over recordings/,$p' "results/${NAME}_test.txt"

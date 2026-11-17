@@ -51,12 +51,14 @@ def read_tsv(
 
 
 def read_midi(path: str | Path) -> List[Note]:
-    """Read a MIDI file (PianoYT ground truth) into a list of Note.
+    """Read a MIDI file (PianoYT / R3 ground truth) into a list of Note.
 
-    PianoYT labels come as MIDI (extracted by Onsets-and-Frames from the audio),
-    so there is only note-on/note-off -- the offset is the MIDI note-off time.
-    NOTE: these offsets include sustain-pedal tails, which a camera cannot see,
-    so onset+pitch is the fair metric for a visual model (offset F1 will be low).
+    The offset is the MIDI note-off time; sustain-pedal messages are ignored.
+    PianoYT labels were transcribed from the audio by Onsets-and-Frames, so their
+    note-offs include sustain-pedal tails, which a camera cannot see: onset+pitch
+    is the fair metric there. R3 labels were recorded by silent pianos: note-off
+    is the physical key release (the pedal is a separate CC64 controller), like
+    PianoVAM's ``key_offset`` and V2N's default R3 scoring.
     """
     import pretty_midi  # imported lazily so the package imports without pretty_midi
 
@@ -72,12 +74,16 @@ def read_midi(path: str | Path) -> List[Note]:
     return notes
 
 
+# dataset formats whose labels are MIDI files (named per recording by the loader)
+MIDI_LABEL_FORMATS = ("pianoyt", "r3")
+
+
 def reference_path(rec, cfg: Dict[str, Any]) -> Path:
     """Path to a recording's ground-truth label file, per ``data.format``."""
     d = cfg["data"]
     root = Path(d["root"])
-    if d.get("format", "pianovam") == "pianoyt":
-        return rec.label_path(root, d["midi_dir"])
+    if d.get("format", "pianovam") in MIDI_LABEL_FORMATS:
+        return rec.label_path(root, d.get("midi_dir", ""))
     return rec.tsv_path(root, d["tsv_dir"])
 
 
@@ -108,7 +114,7 @@ def shift_notes(notes: List[Note], seconds: float) -> List[Note]:
 
 
 def read_reference(rec, cfg: Dict[str, Any]) -> List[Note]:
-    """Read a recording's ground-truth notes (TSV for PianoVAM, MIDI for PianoYT).
+    """Read a recording's ground-truth notes (TSV for PianoVAM, MIDI for PianoYT/R3).
 
     If ``data.label_offsets`` names a JSON of per-recording time shifts (e.g.
     audio-derived PianoYT labels that are out of sync with the picture), the
@@ -116,7 +122,7 @@ def read_reference(rec, cfg: Dict[str, Any]) -> List[Note]:
     tools all see the same corrected labels.
     """
     path = reference_path(rec, cfg)
-    if cfg["data"].get("format", "pianovam") == "pianoyt":
+    if cfg["data"].get("format", "pianovam") in MIDI_LABEL_FORMATS:
         notes = read_midi(path)
     else:
         notes = read_tsv(path, cfg["labels"]["offset_field"])

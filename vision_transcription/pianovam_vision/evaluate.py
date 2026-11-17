@@ -41,6 +41,28 @@ from .rolls import RollsCache, rolls_meta
 from .strip_cache import open_reader
 
 
+def print_subsets(rows: List[dict], velocity: bool = False) -> None:
+    """Means per subset (R3s / R3x), which the R3 literature reports separately.
+
+    Prints nothing for datasets without subsets. ++Off = offset within the onset
+    tolerance (V2N's rule); all values are means over the subset's recordings.
+    """
+    subsets = sorted({r["subset"] for r in rows if r.get("subset")})
+    if len(subsets) < 2:
+        return
+    cols = [("onset_f1@50", "On@50"), ("onset_f1@100", "On@100"),
+            ("offtol_f1@50", "++Off@50"), ("offtol_f1@100", "++Off@100"),
+            ("frame_f1", "Frame")]
+    if velocity:
+        cols += [("vel_f1@50", "++Vel@50"), ("vel_f1@100", "++Vel@100")]
+    print("\n=== per subset (mean over its recordings, F1 %) ===")
+    print(f"  {'subset':8} {'recs':>5} " + " ".join(f"{h:>9}" for _, h in cols))
+    for s in subsets:
+        rs = [r for r in rows if r.get("subset") == s]
+        print(f"  {s:8} {len(rs):5d} "
+              + " ".join(f"{100 * np.mean([r[k] for r in rs]):9.2f}" for k, _ in cols))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
@@ -128,7 +150,9 @@ def main() -> None:
             agg[k].append(v)
         n_ref_total += len(ref)
         n_est_total += len(est)
-        rows.append({"record": rec.record_time, "seconds": round(t_max, 1),
+        rows.append({"record": rec.record_time,
+                     **({"subset": rec.subset} if rec.subset else {}),
+                     "seconds": round(t_max, 1),
                      "ref_notes": len(ref), "est_notes": len(est), **scores})
         print(f"{rec.record_time}: onset_f1@50={scores['onset_f1@50']:.3f} "
               f"@100={scores['onset_f1@100']:.3f} | onset+offset_f1="
@@ -160,6 +184,7 @@ def main() -> None:
     print(f"  evaluated {len(rows)} recording(s), {n_ref_total} reference notes, "
           f"{n_est_total} predicted"
           + (f"; skipped {skipped} (undecodable video)" if skipped else ""))
+    print_subsets(rows, bool(cfg["model"].get("use_velocity")))
 
     if args.csv:
         Path(args.csv).parent.mkdir(parents=True, exist_ok=True)

@@ -65,11 +65,12 @@ def main() -> None:
 
     cfg = load_config(args.config, args.overrides)
     root = Path(cfg["data"]["root"])
-    ref_dir = Path(args.ref_dir) if args.ref_dir else root / cfg["data"]["midi_dir"]
+    ref_dir = Path(args.ref_dir) if args.ref_dir else root / cfg["data"].get("midi_dir", "")
     pred_dir = Path(args.pred_dir)
-    # PianoYT reference MIDIs are named audio_<id>.0.midi, not <id>.mid.
+    # PianoYT reference MIDIs are named audio_<id>.0.midi, not <id>.mid; R3's sit in
+    # one folder per split. The loader knows each recording's label file.
     by_id = {}
-    if not args.ref_dir and cfg["data"].get("format", "pianovam") == "pianoyt":
+    if not args.ref_dir and cfg["data"].get("format", "pianovam") in ("pianoyt", "r3"):
         by_id = index_by_record_time(recordings_from_cfg(cfg))
 
     preds = sorted(pred_dir.glob("*.mid"))

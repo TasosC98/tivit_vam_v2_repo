@@ -1,0 +1,16 @@
+# R3 test without the 10 R3x test chunks whose MIDI is 0.73-0.86 s out of sync
+# with the video (V2N, arXiv 2608.03419, r3_package/sync_analysis.json; offsets
+# from cross-correlating the MIDI onsets with the video's own audio). V2N reports
+# its R3x scores with and without them; use this ONLY as a second line next to
+# the full test set, never instead of it.
+#
+#   python -m pianovam_vision.score_midi --config configs/r3_nosync.yaml --split test \
+#       --pred out/R3E1_r3_full_test --baseline <V2N r3 test MIDI folder>
+base: r3.yaml
+
+data:
+  exclude_records: [ls_2024-02-06_a02_split1, ls_2024-02-06_a02_split2,
+                    ls_2024-02-06_a02_split3, ls_2024-02-06_a02_split4,
+                    ls_2024-02-06_a02_split5, ls_2024-02-06_a02_split6,
+                    ls_2024-02-06_a03_split1, ls_2024-02-06_a03_split2,
+                    ls_2024-02-06_a03_split3, ls_2024-02-06_a03_split4]

@@ -50,9 +50,10 @@ def probe(recs, cfg, root: Path) -> None:
         end = max((n.offset for n in ref), default=0.0)
         print(f"{r.record_time:>20} {r.split:>6} {f'{w}x{h}':>10} {fps:6.2f} "
               f"{dur:7.1f} {end:9.1f}  {len(ref)}")
-        hours[r.split] += dur / 3600
-        notes[r.split] += len(ref)
-        count[r.split] += 1
+        group = f"{r.subset}/{r.split}" if r.subset else r.split
+        hours[group] += dur / 3600
+        notes[group] += len(ref)
+        count[group] += 1
         res[f"{w}x{h}"] += 1
         rates[f"{fps:.2f}"] += 1
         x, y = r.corners[:, 0], r.corners[:, 1]
@@ -66,7 +67,7 @@ def probe(recs, cfg, root: Path) -> None:
 
     print("\n=== usable data per split ===")
     for s in sorted(count):
-        print(f"  {s:>8}: {count[s]:4d} videos, {hours[s]:6.2f} h, {notes[s]:8d} notes")
+        print(f"  {s:>9}: {count[s]:4d} videos, {hours[s]:6.2f} h, {notes[s]:8d} notes")
     print(f"  resolutions: {dict(res.most_common())}")
     print(f"  frame rates: {dict(rates.most_common())}")
     print(f"\n{len(issues)} issue(s):" if issues else "\nno issues found")
@@ -84,15 +85,22 @@ def main() -> None:
 
     cfg = load_config(args.config, args.overrides)
     root = Path(cfg["data"]["root"])
-    meta = root / cfg["data"]["metadata"]
+    fmt = cfg["data"].get("format", "pianovam")
+    # R3 has no single metadata file: its loader reads the split folders + box files.
+    meta = root if fmt == "r3" else root / cfg["data"]["metadata"]
     if not meta.exists():
         print(f"[FATAL] metadata not found: {meta}")
         return
 
     recs = recordings_from_cfg(cfg)
-    print(f"metadata: {meta}  ({len(recs)} recordings, "
-          f"format={cfg['data'].get('format', 'pianovam')})")
+    print(f"metadata: {meta}  ({len(recs)} recordings, format={fmt})")
     print("split counts:", dict(Counter(r.split for r in recs)))
+    if any(r.subset for r in recs):
+        print("subset/split counts:", dict(sorted(Counter(f"{r.subset}/{r.split}"
+                                                           for r in recs).items())))
+        for sub in sorted({r.subset for r in recs}):
+            vs = sorted({r.session for r in recs if r.subset == sub and r.split == "valid"})
+            print(f"  {sub} valid sessions ({len(vs)}): {' '.join(vs)}")
 
     missing = missing_video = missing_label = 0
     for r in recs:

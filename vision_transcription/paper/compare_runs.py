@@ -1,4 +1,4 @@
-"""Paired comparison of two systems on the PianoVAM test set, over several training runs.
+"""Paired comparison of two systems on a test set (PianoVAM, R3), over several training runs.
 
 Reads the per-recording files results/<name>_vs_baseline.csv that evaluate_run.sh writes
 when BASELINE_MIDI is set. Each side is one or more evaluation names (one per run);
@@ -15,6 +15,10 @@ each run, the paired exact two-sided Wilcoxon test over the recordings on the ru
 interval of the mean difference (10,000 resamplings of the recordings) and the number of
 recordings on which --a is better. With the same number of runs on both sides, run k of
 --a is also tested against run k of --b.
+
+R3 is reported per subset, as in V2N and PPAN:
+    python paper/compare_runs.py --results results --subset r3s \
+        --a R3E1_r3_full,R3E1s2_r3_full,R3E1s3_r3_full --b V2N
 """
 from __future__ import annotations
 
@@ -59,6 +63,10 @@ def main() -> None:
                     help="main (the five of Table 2), velocity (++Vel, ++Off++Vel at 50/100 ms; a separate"
                          " Holm family), or a comma-separated list of CSV metric names")
     ap.add_argument("--bootstrap", type=int, default=10000)
+    ap.add_argument("--subset", default=None,
+                    help="R3: only the recordings of this subset (r3s or r3x), from the 'subset' column")
+    ap.add_argument("--exclude", default="",
+                    help="comma-separated recordings to leave out (e.g. R3's 10 out-of-sync test chunks)")
     ap.add_argument("--json", default=None, help="also write every number here")
     args = ap.parse_args()
     metrics = {"main": METRICS, "velocity": VELOCITY}.get(args.metrics) or args.metrics.split(",")
@@ -68,6 +76,13 @@ def main() -> None:
         B, col_b = [A[0]], "baseline:"
     else:
         B, col_b = [read(args.results, n) for n in args.b.split(",")], "pred:"
+    drop = {x for x in args.exclude.split(",") if x}
+    if args.subset or drop:
+        if args.subset and not any(r.get("subset") == args.subset for r in A[0].values()):
+            raise SystemExit(f"no recording of subset {args.subset!r} in the files")
+        keep = lambda r: (not args.subset or r.get("subset") == args.subset) and r["record"] not in drop
+        A = [{k: r for k, r in t.items() if keep(r)} for t in A]
+        B = [{k: r for k, r in t.items() if keep(r)} for t in B]
     recs = sorted(A[0])
     for t in A + B:
         if sorted(t) != recs:
@@ -101,7 +116,9 @@ def main() -> None:
     for row, q in zip(rows, holm(np.array(ps))):
         row["p_holm"] = float(q)
 
-    print(f"A = {args.a}\nB = {args.b}\n{len(recs)} recordings; exact two-sided Wilcoxon on the run means,"
+    print(f"A = {args.a}\nB = {args.b}" + (f"\nsubset {args.subset}" if args.subset else "")
+          + (f"\nwithout {len(drop)} excluded recordings" if drop else "")
+          + f"\n{len(recs)} recordings; exact two-sided Wilcoxon on the run means,"
           f" Holm over {len(metrics)} metrics, 95% bootstrap CI of the mean difference\n")
     print(f"{'metric':14s} {'A':>12s} {'B':>12s} {'A-B':>6s} {'CI95':>15s} {'p':>7s} {'p_Holm':>7s} {'A better':>9s}  per-run p")
     for r in rows:

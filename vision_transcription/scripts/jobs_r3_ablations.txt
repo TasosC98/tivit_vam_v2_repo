@@ -1,0 +1,18 @@
+# R3, part 2: the paper-1 ablations on R3, 3 seeds each (start after jobs_r3.txt):
+#   A1   global variant, 16 bins   (r3.yaml with arch strip, like A1 = vam_full.yaml + strip)
+#   G88  global variant, 88 bins   (configs/r3_global88.yaml)
+#   E7   KeyWise + velocity head   (configs/r3_vel.yaml; V2N's ++Vel / ++Off++Vel on R3)
+# About 30 h per run: ~11-12 days for all nine. Drop what the paper does not need.
+#
+#   BASELINE_MIDI=$HOME/V2N_r3_test bash scripts/queue.sh scripts/jobs_r3_ablations.txt
+#
+# run name        arch   config                     evaluation name       target   overrides
+r3_vel            tiled  configs/r3_vel.yaml        R3E7_r3_vel           full_f1  train.seed=1234
+r3_vel_s2         tiled  configs/r3_vel.yaml        R3E7s2_r3_vel         full_f1  train.seed=1235
+r3_vel_s3         tiled  configs/r3_vel.yaml        R3E7s3_r3_vel         full_f1  train.seed=1236
+r3_strip          strip  configs/r3.yaml            R3A1_r3_strip         full_f1  train.seed=1234
+r3_strip_s2       strip  configs/r3.yaml            R3A1s2_r3_strip       full_f1  train.seed=1235
+r3_strip_s3       strip  configs/r3.yaml            R3A1s3_r3_strip       full_f1  train.seed=1236
+r3_g88            strip  configs/r3_global88.yaml   R3G88_r3_g88          full_f1  train.seed=1234
+r3_g88_s2         strip  configs/r3_global88.yaml   R3G88s2_r3_g88        full_f1  train.seed=1235
+r3_g88_s3         strip  configs/r3_global88.yaml   R3G88s3_r3_g88        full_f1  train.seed=1236
