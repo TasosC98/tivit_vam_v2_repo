@@ -29,12 +29,12 @@ profiles:
       data.root: /home/mkoziri/datasets/R3_raw          # adjust if R3 is ever copied there
   dib:
     overrides:
-      data.root: /raid_storage/data_achatzigiannis/R3_raw
+      data.root: /raid_storage/data_achatzigiannis/R3_raw/r3dataset_raw   # as the archive.org download unpacks
       data.strip_cache: /raid_storage/data_achatzigiannis/strip_cache/r3_w1408_h112_dh1080
 
 data:
   format: r3
-  root: /raid_storage/data_achatzigiannis/R3_raw
+  root: /raid_storage/data_achatzigiannis/R3_raw/r3dataset_raw
   strip_cache: ""
   video_dir: ""               # the loader gives each chunk's path below root
   midi_dir: ""
