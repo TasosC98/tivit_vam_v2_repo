@@ -37,8 +37,9 @@ data:
   root: /raid_storage/data_achatzigiannis/R3_raw/r3dataset_raw
   strip_cache: ""
   # Build the cache with OpenCV, front to back (video.SequentialWarpedVideo): R3 is
-  # 1080p HEVC and decord needed ~7 GB of RAM per 3-minute chunk (2026-11-18: 373 of
-  # 895 videos failed with 8 workers). Same frames, same warp; training reads the cache.
+  # 1080p HEVC and decord needs ~7 GB of RAM per video, whatever its length
+  # (2026-11-18: 373 of 895 failed with 8 workers). Same frames, same warp; training
+  # reads the cache.
   cache_reader: cv2
   video_dir: ""               # the loader gives each chunk's path below root
   midi_dir: ""

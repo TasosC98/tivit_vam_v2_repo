@@ -132,9 +132,10 @@ class SequentialWarpedVideo:
     Same frames as ``WarpedVideo`` -- the same frame plan (``plan_frame_sampling``),
     the same corners and warp, RGB strips -- but each frame is decoded once, in
     order, without seeking, so memory stays at a few hundred MB. Chosen with
-    ``data.cache_reader: cv2`` (R3). Why: decord needed 7 GB of RAM for one
-    3-minute R3 chunk (1080p HEVC), and 8 parallel builds failed on 373 of 895
-    videos (out of memory, "no frames", EOF errors).
+    ``data.cache_reader: cv2`` (R3). Why: decord needs ~7 GB of RAM per R3 video
+    (1080p HEVC; 7.1 GB for a 3-min chunk, 6.9 GB for a 7.5-min one), so 8
+    parallel builds failed on 373 of 895 videos, and on 217 of 372 when retried
+    (out of memory, "no frames", EOF errors).
     """
 
     def __init__(self, video_path: str | Path, corners: np.ndarray, warp_width: int,
