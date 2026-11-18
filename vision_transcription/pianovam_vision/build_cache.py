@@ -54,29 +54,86 @@ def _strips(reader, chunk: int, status: Dict[str, Any]):
             yield fr
 
 
+def cache_reader(cfg: Dict[str, Any]) -> str:
+    """How build_cache decodes videos: ``data.cache_reader``, "decord" (default:
+    PianoVAM, PianoYT) or "cv2" (R3: front-to-back OpenCV, see
+    ``video.SequentialWarpedVideo``)."""
+    name = cfg["data"].get("cache_reader") or "decord"
+    if name not in ("decord", "cv2"):
+        raise ValueError(f"data.cache_reader must be decord or cv2, not {name!r}")
+    return name
+
+
 def build_one(cfg: Dict[str, Any], rec, quality: int, chunk: int) -> Dict[str, Any]:
     """Cache one recording. Runs inside a worker process."""
     import cv2
-    from .video import WarpedVideo
+    from .video import SequentialWarpedVideo, WarpedVideo
 
     cv2.setNumThreads(1)                              # one core per worker
     t0 = time.time()
     kb = cfg["keyboard"]
     vp = video_path_for(cfg, rec)
+    status: Dict[str, Any] = {}
     # Always cache colour, full length; grayscale / max_frames apply on read.
-    reader = WarpedVideo(vp, rec.corners, kb["warp_width"], kb["warp_height"], False,
-                         cfg["labels"]["fps"], 0, kb.get("decode_height", 0),
-                         kb.get("read_chunk", 8))
+    if cache_reader(cfg) == "cv2":
+        reader = SequentialWarpedVideo(vp, rec.corners, kb["warp_width"], kb["warp_height"],
+                                       cfg["labels"]["fps"], kb.get("decode_height", 0))
+        strips = reader.strips(status)
+    else:
+        reader = WarpedVideo(vp, rec.corners, kb["warp_width"], kb["warp_height"], False,
+                             cfg["labels"]["fps"], 0, kb.get("decode_height", 0),
+                             kb.get("read_chunk", 8))
+        strips = _strips(reader, chunk, status)
     meta = expected_meta(cfg, rec)
     meta.update(record_time=rec.record_time, video=str(vp),
                 video_bytes=vp.stat().st_size, native_fps=reader.native_fps,
-                native_len=reader.native_len, expected_frames=len(reader))
-    status: Dict[str, Any] = {}
-    meta = write_record_cache(_strips(reader, chunk, status), cfg["data"]["strip_cache"],
-                              rec.record_time, meta, quality)
+                native_len=reader.native_len, expected_frames=len(reader),
+                reader=cache_reader(cfg))
+    try:
+        meta = write_record_cache(strips, cfg["data"]["strip_cache"],
+                                  rec.record_time, meta, quality)
+    except IOError as e:                              # keep the decoder's own reason
+        if status.get("error"):
+            raise IOError(f"{e} ({status['error']})") from e
+        raise
     return {"record": rec.record_time, "frames": meta["num_frames"],
             "expected": len(reader), "mb": meta["bytes"] / 2**20,
             "sec": time.time() - t0, "error": status.get("error")}
+
+
+def compare_readers(cfg: Dict[str, Any], rec, n_frames: int) -> None:
+    """The OpenCV reader against a recording's existing cache, frame by frame.
+
+    For time shifts -2..2 frames: mean absolute pixel difference and the share of
+    pixels off by more than 20 levels. Same frames <=> shift 0 is near zero (JPEG
+    noise only) and every other shift is clearly larger (hands move).
+    """
+    from .video import SequentialWarpedVideo
+
+    cached, why = try_open_cached(cfg, rec, 0)
+    if cached is None:
+        raise SystemExit(f"{rec.record_time} has no usable cache ({why}): pick a built one")
+    kb = cfg["keyboard"]
+    seq = SequentialWarpedVideo(video_path_for(cfg, rec), rec.corners, kb["warp_width"],
+                                kb["warp_height"], cfg["labels"]["fps"],
+                                kb.get("decode_height", 0))
+    print(f"{rec.record_time}: cache ({cached.meta.get('reader', 'decord')}) "
+          f"{len(cached)} frames, native {cached.meta.get('native_len')} at "
+          f"{cached.meta.get('native_fps')} fps | OpenCV {len(seq)} frames, native "
+          f"{seq.native_len} at {seq.native_fps} fps")
+    n = min(n_frames, len(seq), len(cached))
+    new = np.stack([s for _, s in zip(range(n), seq.strips())]).astype(np.int16)
+    old = cached.read_warped(np.arange(n)).astype(np.int16)
+    if old.shape[-1] == 1:                            # grayscale config: compare in gray
+        import cv2
+        new = np.stack([cv2.cvtColor(f.astype(np.uint8), cv2.COLOR_RGB2GRAY)[..., None]
+                        for f in new]).astype(np.int16)
+    print(f"first {n} frames, OpenCV frame k vs cached frame k+shift:")
+    for sh in (-2, -1, 0, 1, 2):
+        k0, k1 = max(0, -sh), min(n, n - sh)
+        d = np.abs(new[k0:k1] - old[k0 + sh:k1 + sh])
+        print(f"  shift {sh:+d}: mean abs diff {d.mean():5.2f}, pixels off by >20: "
+              f"{100 * (d > 20).mean():5.2f} %")
 
 
 def build_isolated(args, record_time: str) -> Dict[str, Any]:
@@ -132,6 +189,10 @@ def main() -> None:
     ap.add_argument("--timeout_min", type=float, default=120,
                     help="give up on a video after this many minutes")
     ap.add_argument("--only", default=None, help=argparse.SUPPRESS)  # internal: one video
+    ap.add_argument("--compare", default=None, metavar="RECORD",
+                    help="decode RECORD with the OpenCV reader and compare it with its "
+                         "existing cache (same frames? same pixels?); builds nothing")
+    ap.add_argument("--compare_frames", type=int, default=900)
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
 
@@ -142,6 +203,12 @@ def main() -> None:
             return                                   # no cache configured: nothing to wait for
         raise SystemExit("set data.strip_cache in the config (or as an override)")
 
+    if args.compare:
+        rec = next((r for r in recordings_from_cfg(cfg) if r.record_time == args.compare), None)
+        if rec is None:
+            raise SystemExit(f"no recording {args.compare!r} in the metadata")
+        compare_readers(cfg, rec, args.compare_frames)
+        return
     if args.only:                                    # child process of build_isolated
         rec = next((r for r in recordings_from_cfg(cfg) if r.record_time == args.only), None)
         try:
@@ -190,7 +257,10 @@ def main() -> None:
         if not video_path_for(cfg, r).exists():
             print(f"  [skip] {r.record_time}: video missing")
             continue
-        if not args.force and try_open_cached(cfg, r)[0] is not None:
+        cached = None if args.force else try_open_cached(cfg, r)[0]
+        # A cache made by the other reader is rebuilt (R3: the decord caches of the
+        # first attempt are redone with cv2, so all of R3 comes from one decoder).
+        if cached is not None and cached.meta.get("reader", "decord") == cache_reader(cfg):
             continue
         todo.append(r)
     print(f"cache: {d['strip_cache']}\n{len(recs)} recordings in {splits}: "

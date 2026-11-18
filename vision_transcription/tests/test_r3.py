@@ -122,6 +122,7 @@ def test_r3_config_is_the_paper_recipe():
     assert r3["keyboard"] == dict(vam["keyboard"], decode_height=1080)
     assert r3["train"] == dict(vam["train"], out_dir="runs/r3_full")
     assert r3["data"]["format"] == "r3" and r3["data"]["exclude_records"] == []
+    assert r3["data"]["cache_reader"] == "cv2" and "cache_reader" not in vam["data"]
     for name, change in (("r3_vel", {"use_velocity": True}),
                          ("r3_global88", {"arch": "strip", "strip_bins": 88})):
         c = load_yaml(ROOT / "configs" / f"{name}.yaml")
@@ -204,3 +205,96 @@ def test_evaluate_prints_subset_means(capsys):
     assert "r3s" in out and "50.00" in out and "80.00" in out
     print_subsets([dict({k: 0.5 for k in keys})])          # PianoVAM rows: nothing printed
     assert capsys.readouterr().out == ""
+
+
+# --- strip cache built with OpenCV (data.cache_reader: cv2) -------------------------
+
+def write_video(path: Path, n: int, fps: float, size=(320, 180)):
+    """Frame i: grey level 8*i, the left quarter pure red (checks RGB order)."""
+    cv2 = pytest.importorskip("cv2")
+    w = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), fps, size)
+    if not w.isOpened():
+        pytest.skip("OpenCV cannot write mp4 here")
+    for i in range(n):
+        f = np.full((size[1], size[0], 3), 8 * i, np.uint8)
+        f[:, : size[0] // 4] = (0, 0, 255)                     # BGR red
+        w.write(f)
+    w.release()
+
+
+def test_sequential_reader_follows_the_frame_plan(tmp_path):
+    from pianovam_vision.video import SequentialWarpedVideo
+    p = tmp_path / "v.mp4"
+    write_video(p, 20, 60.0)
+    whole = np.float32([[0, 0], [320, 0], [320, 180], [0, 180]])
+    v = SequentialWarpedVideo(p, whole, 64, 16, 30.0)
+    assert (v.native_len, v.native_fps, len(v)) == (20, 60.0, 10)   # 60 -> 30 fps
+    strips = list(v.strips())
+    assert len(strips) == 10 and strips[0].shape == (16, 64, 3) and strips[0].dtype == np.uint8
+    grey = [float(s[:, 40:, 1].mean()) for s in strips]
+    assert np.allclose(grey, [16 * k for k in range(10)], atol=4)   # native frames 0, 2, 4, ...
+    red = strips[5][:, :12].reshape(-1, 3).mean(axis=0)
+    assert red[0] > 200 and red[2] < 60                              # RGB out, like decord
+    small = list(SequentialWarpedVideo(p, whole, 64, 16, 30.0, decode_height=90).strips())
+    assert np.abs(np.float32(small) - np.float32(strips)).mean() < 3  # resize keeps the content
+
+
+def _real_tree(tmp_path: Path) -> Path:
+    """Four folders, one chunk each; the two test chunks get real 320x180 videos."""
+    root = make_tree(tmp_path / "r3", {"r3s_train": [("rach3_2021-01-01_a01", 1)],
+                                       "r3s_test": [("rach3_2022-05-05_a01", 1)],
+                                       "train": [("warmup_2023-01-10_a01", 1)],
+                                       "test": [("ls_2024-02-06_a02", 1)]})
+    box = {"rot_angle": "0.0", "x1": "40", "y1": "60", "x2": "280", "y2": "120"}
+    for sub in ("r3s", "r3x"):
+        f = root / f"{sub}_bounding_boxes.json"
+        f.write_text(json.dumps({k: box for k in json.loads(f.read_text())}))
+    write_video(root / "r3s_test" / "rach3_2022-05-05_a01_full_split1.mp4", 12, 30.0)
+    write_video(root / "test" / "ls_2024-02-06_a02_full_split1.mp4", 9, 30.0)
+    return root
+
+
+def test_build_cache_with_opencv_reader(tmp_path, capsys, monkeypatch):
+    pytest.importorskip("cv2")
+    from pianovam_vision import build_cache
+    from pianovam_vision.metadata import recordings_from_cfg
+    from pianovam_vision.strip_cache import cache_paths, try_open_cached
+    from pianovam_vision.video import SequentialWarpedVideo
+    root, cache = _real_tree(tmp_path), tmp_path / "cache"
+    ov = [f"data.root={root.as_posix()}", f"data.strip_cache={cache.as_posix()}",
+          "data.frame_size=[320, 180]"]
+    argv = ["build_cache", "--config", str(ROOT / "configs" / "r3.yaml"), "--splits", "test",
+            "--workers", "1", "--min_free_gb", "0", *ov]
+    monkeypatch.setattr("sys.argv", argv)
+    build_cache.main()
+    assert "0 already cached / skipped, 2 to build" in capsys.readouterr().out
+
+    cfg = load_config(ROOT / "configs" / "r3.yaml", ov)
+    cfg["data"]["root"] = str(root)
+    rec = next(r for r in recordings_from_cfg(cfg) if r.record_time == "rach3_2022-05-05_a01_split1")
+    cached, why = try_open_cached(cfg, rec)
+    assert cached is not None, why
+    assert cached.meta["reader"] == "cv2" and len(cached) == 12
+    kb = cfg["keyboard"]
+    direct = np.stack(list(SequentialWarpedVideo(
+        root / "r3s_test" / "rach3_2022-05-05_a01_full_split1.mp4", rec.corners,
+        kb["warp_width"], kb["warp_height"], 30.0, kb["decode_height"]).strips()))
+    got = cached.read_warped(np.arange(12))
+    assert got.shape == (12, 112, 1408, 3)
+    assert np.abs(got.astype(np.int16) - direct).mean() < 2         # JPEG noise only
+
+    # a cache written by decord (the first R3 attempt) is rebuilt; a cv2 one is kept
+    meta_p = cache_paths(cache, rec.record_time)[2]
+    meta = json.loads(meta_p.read_text())
+    meta_p.write_text(json.dumps(dict(meta, reader="decord")))
+    build_cache.main()
+    assert "1 already cached / skipped, 1 to build" in capsys.readouterr().out
+    assert json.loads(meta_p.read_text())["reader"] == "cv2"
+
+    # --compare: OpenCV vs the cache, shift 0 = same frames
+    monkeypatch.setattr("sys.argv", ["build_cache", "--config", str(ROOT / "configs" / "r3.yaml"),
+                                     "--compare", rec.record_time, *ov])
+    build_cache.main()
+    out = capsys.readouterr().out
+    zero = next(x for x in out.splitlines() if "shift +0" in x)
+    assert float(zero.split("mean abs diff")[1].split(",")[0]) < 2
