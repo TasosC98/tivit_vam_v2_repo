@@ -18,6 +18,9 @@
 # A training that fails is reported in the log and the queue goes on.
 #
 # Optional: BASELINE_MIDI=<V2N's predicted_midi/pianovam_test> for every evaluation.
+#           EVAL_WAIT=1: wait for each evaluation to finish before the next training
+#           (when RAM is short: an R3 training + an evaluation used all ~10 GB the
+#           server had free, 2026-11-18). Costs the evaluation time per job.
 # Log: logs/queue_<jobs file name>.log
 # Stop the queue: kill $(cat logs/queue_<jobs file name>.pid)
 #   (the training that is running goes on; stop it too: kill $(cat runs/<run>/run.pid))
@@ -86,6 +89,12 @@ while read -r name arch config ename target rest <&3; do
   else
     say "${ename}: evaluation queued (log: logs/${ename}.log)"
     bash scripts/evaluate_run.sh "$ename" "$config" "${out}/best.pt" "$target"
+    if [ "${EVAL_WAIT:-0}" = "1" ]; then           # no training next to an evaluation
+      while [ -f "logs/${ename}.pid" ] && kill -0 "$(cat "logs/${ename}.pid")" 2>/dev/null; do
+        sleep 60
+      done
+      say "${ename}: evaluation finished"
+    fi
   fi
 done 3< "$JOBS"
 say "queue ${JOBS}: all trainings done (the last evaluation may still be running: see logs/)"

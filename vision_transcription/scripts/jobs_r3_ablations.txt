@@ -2,9 +2,10 @@
 #   A1   global variant, 16 bins   (r3.yaml with arch strip, like A1 = vam_full.yaml + strip)
 #   G88  global variant, 88 bins   (configs/r3_global88.yaml)
 #   E7   KeyWise + velocity head   (configs/r3_vel.yaml; V2N's ++Vel / ++Off++Vel on R3)
-# About 30 h per run: ~11-12 days for all nine. Drop what the paper does not need.
+# About 40 h per run + its evaluation: ~16 days for all nine. Drop what the paper does
+# not need.
 #
-#   BASELINE_MIDI=$HOME/V2N_r3_test bash scripts/queue.sh scripts/jobs_r3_ablations.txt
+#   EVAL_WAIT=1 BASELINE_MIDI=$HOME/V2N_r3_test bash scripts/queue.sh scripts/jobs_r3_ablations.txt
 #
 # run name        arch   config                     evaluation name       target   overrides
 r3_vel            tiled  configs/r3_vel.yaml        R3E7_r3_vel           full_f1  train.seed=1234

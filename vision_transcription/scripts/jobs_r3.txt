@@ -1,9 +1,10 @@
 # R3, part 1: the paper-1 baseline on R3 (KeyWise from scratch, 3 seeds = E1), then the
 # PianoVAM -> R3 fine-tuning (E4's counterpart; needs runs/vam_full_s2|s3/best.pt).
-# About 30 h per from-scratch run and 15 h per fine-tuning on the RTX 3090, plus ~1 h of
-# evaluation each (overlaps the next training): ~5 days in all. See R3.md.
+# About 40 h per from-scratch run (epoch 0: ~1 h 45 min) and ~20 h per fine-tuning on the
+# RTX 3090, plus the evaluation of each run, which runs BEFORE the next training
+# (EVAL_WAIT=1: the server has too little RAM for both): ~7 days in all. See R3.md.
 #
-#   BASELINE_MIDI=$HOME/V2N_r3_test bash scripts/queue.sh scripts/jobs_r3.txt
+#   EVAL_WAIT=1 BASELINE_MIDI=$HOME/V2N_r3_test bash scripts/queue.sh scripts/jobs_r3.txt
 #
 # One queue at a time (two trainings do not fit on the GPU). To drop or reorder jobs: stop
 # the queue, edit this file, start it again (finished jobs are skipped).
