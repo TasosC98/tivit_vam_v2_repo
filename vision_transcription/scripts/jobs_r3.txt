@@ -1,16 +1,25 @@
 # R3, part 1: the paper-1 baseline on R3 (KeyWise from scratch, 3 seeds = E1), then the
 # PianoVAM -> R3 fine-tuning (E4's counterpart; needs runs/vam_full_s2|s3/best.pt).
-# About 40 h per from-scratch run (epoch 0: ~1 h 45 min) and ~20 h per fine-tuning on the
-# RTX 3090, plus the evaluation of each run, which runs BEFORE the next training
-# (EVAL_WAIT=1: the server has too little RAM for both): ~7 days in all. See R3.md.
+# About 27 h per from-scratch run (25 epochs of ~65 min with validation) and ~14 h per
+# fine-tuning on the RTX 3090, plus the evaluation of each run, which runs BEFORE the
+# next training (EVAL_WAIT=1: the server has too little RAM for both). See R3.md.
 #
 #   EVAL_WAIT=1 BASELINE_MIDI=$HOME/V2N_r3_test bash scripts/queue.sh scripts/jobs_r3.txt
 #
 # One queue at a time (two trainings do not fit on the GPU). To drop or reorder jobs: stop
-# the queue, edit this file, start it again (finished jobs are skipped).
+# the queue, edit this file, start it again (finished jobs are skipped). No comments at
+# the end of a job line (they would be read as overrides).
+#
+# Official R3 boxes (configs/r3.yaml): the first run and the second seed that was training
+# when the boxes turned out to be too coarse (2026-11-20). Kept as the "official boxes"
+# result; no third seed.
 # run name        arch   config                     evaluation name       target   overrides
 r3_full           tiled  configs/r3.yaml            R3E1_r3_full          full_f1  train.seed=1234
 r3_full_s2        tiled  configs/r3.yaml            R3E1s2_r3_full        full_f1  train.seed=1235
-r3_full_s3        tiled  configs/r3.yaml            R3E1s3_r3_full        full_f1  train.seed=1236
-r3_finetune_s2    tiled  configs/r3_finetune.yaml   R3E4s2_r3_finetune    full_f1  train.seed=1235 train.init_from=runs/vam_full_s2/best.pt
-r3_finetune_s3    tiled  configs/r3_finetune.yaml   R3E4s3_r3_finetune    full_f1  train.seed=1236 train.init_from=runs/vam_full_s3/best.pt
+#
+# Hand-set keyboard corners (configs/r3c.yaml, own strip cache): THE baseline.
+r3c_full          tiled  configs/r3c.yaml           R3E1_r3c_full         full_f1  train.seed=1234
+r3c_full_s2       tiled  configs/r3c.yaml           R3E1s2_r3c_full       full_f1  train.seed=1235
+r3c_full_s3       tiled  configs/r3c.yaml           R3E1s3_r3c_full       full_f1  train.seed=1236
+r3c_finetune_s2   tiled  configs/r3c_finetune.yaml  R3E4s2_r3c_finetune   full_f1  train.seed=1235 train.init_from=runs/vam_full_s2/best.pt
+r3c_finetune_s3   tiled  configs/r3c_finetune.yaml  R3E4s3_r3c_finetune   full_f1  train.seed=1236 train.init_from=runs/vam_full_s3/best.pt

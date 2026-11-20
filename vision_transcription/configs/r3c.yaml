@@ -1,0 +1,28 @@
+# R3 with the keyboard corners set by hand (c = corners): THE R3 config from
+# 2026-11-20 on (runs r3c_full, _s2, _s3 = E1 on R3, and everything built on them).
+#
+# r3.yaml + data.r3_corners: every session gets the four corners of its keyboard
+# (configs/r3_corners.json, set with scripts/corner_tool.html) instead of R3's one
+# rotated box per session. The official boxes put the 88-key grid up to a key off,
+# and KeyWise reads key k from column k of the strip: the first run (r3_full, official
+# boxes) predicted one key too low on 56 of 74 R3s test chunks. r3.yaml stays as it
+# is for the runs made with it (r3_full, r3_full_s2). See R3.md, section 1.
+#
+# The corners are part of the strip cache (they are in each video's meta), so this
+# config has its own cache folder; the official-box cache stays usable for r3.yaml.
+#
+#   1. build the cache:  CONFIGS=configs/r3c.yaml GB_PER_CACHE=100 QUALITY=85 bash scripts/build_caches.sh 4
+#   2. train:            CONFIG=configs/r3c.yaml bash scripts/run_experiment.sh r3c_full tiled
+#   (the whole runbook is R3.md)
+base: r3.yaml
+
+profiles:
+  dib:
+    overrides:
+      data.strip_cache: /raid_storage/data_achatzigiannis/strip_cache/r3c_w1408_h112_dh1080
+
+data:
+  r3_corners: configs/r3_corners.json   # relative to vision_transcription/
+
+train:
+  out_dir: runs/r3c_full

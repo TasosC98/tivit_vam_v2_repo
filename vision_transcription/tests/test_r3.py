@@ -123,14 +123,39 @@ def test_r3_config_is_the_paper_recipe():
     assert r3["train"] == dict(vam["train"], out_dir="runs/r3_full")
     assert r3["data"]["format"] == "r3" and r3["data"]["exclude_records"] == []
     assert r3["data"]["cache_reader"] == "cv2" and "cache_reader" not in vam["data"]
-    for name, change in (("r3_vel", {"use_velocity": True}),
-                         ("r3_global88", {"arch": "strip", "strip_bins": 88})):
+    # r3c.yaml (hand-set corners) = r3.yaml + the corners file + its own cache folder
+    r3c = load_yaml(ROOT / "configs" / "r3c.yaml")
+    for block in ("model", "labels", "decode", "infer", "augment", "keyboard"):
+        assert r3c[block] == r3[block], block
+    assert r3c["train"] == dict(r3["train"], out_dir="runs/r3c_full")
+    assert r3c["data"] == dict(r3["data"], r3_corners="configs/r3_corners.json")
+    cache = lambda c: c["profiles"]["dib"]["overrides"]["data.strip_cache"]
+    assert cache(r3c) != cache(r3) and r3c["profiles"]["dib"]["overrides"]["data.root"] == \
+        r3["profiles"]["dib"]["overrides"]["data.root"]
+    for name, change in (("r3c_vel", {"use_velocity": True}),
+                         ("r3c_global88", {"arch": "strip", "strip_bins": 88})):
         c = load_yaml(ROOT / "configs" / f"{name}.yaml")
-        assert c["model"] == dict(r3["model"], **change) and c["data"] == r3["data"]
-    ft = load_yaml(ROOT / "configs" / "r3_finetune.yaml")["train"]
-    assert ft["init_from"].endswith("best.pt") and ft["lr"] < r3["train"]["lr"]
+        assert c["model"] == dict(r3["model"], **change) and c["data"] == r3c["data"]
+    ft = load_yaml(ROOT / "configs" / "r3c_finetune.yaml")
+    assert ft["data"] == r3c["data"]
+    assert ft["train"]["init_from"].endswith("best.pt") and ft["train"]["lr"] < r3["train"]["lr"]
     ns = load_yaml(ROOT / "configs" / "r3_nosync.yaml")["data"]["exclude_records"]
     assert len(ns) == 10 and all(x.startswith("ls_2024-02-06_a0") for x in ns)
+
+
+def test_r3_corners_file_is_complete_and_oriented():
+    """configs/r3_corners.json: 144 sessions, each a keyboard seen turned by 180 deg."""
+    from pianovam_vision.metadata import load_r3_corners
+
+    c = load_r3_corners(ROOT / "configs" / "r3_corners.json")
+    assert len(c) == 144
+    assert sum(s.startswith("rach3_") for s in c) == 27       # R3s sessions
+    for s, (a0b, c8b, c8f, a0f) in c.items():
+        q = np.array([a0b, c8b, c8f, a0f])
+        assert ((q >= 0) & (q <= [1920, 1080])).all(), s
+        assert a0b[0] > c8b[0] and a0f[0] > c8f[0], s          # rot180: A0 at the right
+        assert a0b[1] > a0f[1] and c8b[1] > c8f[1], s          # key backs below the fronts
+        assert 700 < a0b[0] - c8b[0] < 1350, s                 # 40-65 % of the width
 
 
 def write_midi(path: Path, notes, pedal=True):

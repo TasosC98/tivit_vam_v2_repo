@@ -18,7 +18,7 @@ recordings on which --a is better. With the same number of runs on both sides, r
 
 R3 is reported per subset, as in V2N and PPAN:
     python paper/compare_runs.py --results results --subset r3s \
-        --a R3E1_r3_full,R3E1s2_r3_full,R3E1s3_r3_full --b V2N
+        --a R3E1_r3c_full,R3E1s2_r3c_full,R3E1s3_r3c_full --b V2N
 """
 from __future__ import annotations
 

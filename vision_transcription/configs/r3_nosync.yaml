@@ -2,10 +2,11 @@
 # with the video (V2N, arXiv 2608.03419, r3_package/sync_analysis.json; offsets
 # from cross-correlating the MIDI onsets with the video's own audio). V2N reports
 # its R3x scores with and without them; use this ONLY as a second line next to
-# the full test set, never instead of it.
+# the full test set, never instead of it. Scoring reads only the MIDI, so it serves
+# the runs of r3.yaml (official boxes) and r3c.yaml (hand-set corners) alike.
 #
 #   python -m pianovam_vision.score_midi --config configs/r3_nosync.yaml --split test \
-#       --pred out/R3E1_r3_full_test --baseline <V2N r3 test MIDI folder>
+#       --pred out/R3E1_r3c_full_test --baseline <V2N r3 test MIDI folder>
 base: r3.yaml
 
 data:

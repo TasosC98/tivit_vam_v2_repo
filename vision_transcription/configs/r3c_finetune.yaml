@@ -1,15 +1,16 @@
 # PianoVAM -> R3 transfer: start from a paper KeyWise checkpoint and fine-tune on
 # R3 (the R3 counterpart of yt_finetune.yaml = paper run E4). Weights only: fresh
 # optimizer and schedule, a third of the from-scratch learning rate, 12 epochs.
-# Compare with r3_full (from scratch) and with the zero-shot PianoVAM model.
+# Compare with r3c_full (from scratch) and with the zero-shot PianoVAM model.
+# Hand-set corners (r3c.yaml).
 #
-#   CONFIG=configs/r3_finetune.yaml bash scripts/run_experiment.sh r3_finetune tiled
+#   CONFIG=configs/r3c_finetune.yaml bash scripts/run_experiment.sh r3c_finetune tiled
 #   (run k should start from PianoVAM run k: train.init_from=runs/vam_full_s3/best.pt)
-base: r3.yaml
+base: r3c.yaml
 
 train:
   init_from: runs/vam_full_s2/best.pt   # run 1's checkpoint is lost; runs 2-3 exist
   lr: 0.0002
   epochs: 12
   warmup_frac: 0.05
-  out_dir: runs/r3_finetune
+  out_dir: runs/r3c_finetune

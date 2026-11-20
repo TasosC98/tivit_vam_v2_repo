@@ -1,0 +1,11 @@
+# Global-88 on R3 (paper-1 ablation G88, same as vam_global88.yaml on PianoVAM):
+# the global variant with 88 horizontal bins. Global-16 (A1) needs no config of
+# its own: it is r3c.yaml with arch strip (see scripts/jobs_r3_ablations.txt).
+# Hand-set corners (r3c.yaml).
+#
+#   CONFIG=configs/r3c_global88.yaml bash scripts/run_experiment.sh r3c_g88 strip
+base: r3c.yaml
+
+model:
+  arch: strip
+  strip_bins: 88

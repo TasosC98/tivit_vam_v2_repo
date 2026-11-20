@@ -1,0 +1,11 @@
+# KeyWise with the velocity head on R3 (paper-1 run E7, same as vam_vel.yaml):
+# V2N reports ++Vel and ++Off++Vel on R3s and R3x. Hand-set corners (r3c.yaml).
+#
+#   CONFIG=configs/r3c_vel.yaml bash scripts/run_experiment.sh r3c_vel tiled
+base: r3c.yaml
+
+model:
+  use_velocity: true
+
+train:
+  velocity_loss_weight: 1.0
