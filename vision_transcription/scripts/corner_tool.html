@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R3 keyboard corners</title>
+<!--
+  Annotate the four keyboard corners of every R3 session (see pianovam_vision/corners.py).
+  Open this file in Chrome / Edge / Firefox (no server, nothing is uploaded), choose the
+  folder written by `python -m pianovam_vision.corners export`, set the corners, and
+  download r3_corners.json. Progress is also kept in this browser (localStorage).
+-->
+<style>
+  :root { --bg:#15171c; --panel:#1f232a; --line:#333a44; --fg:#e7e9ec; --muted:#9aa3ad;
+          --acc:#4fc3f7; --ok:#66bb6a; --warn:#ffb74d; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:13px/1.45 system-ui, sans-serif; }
+  header { padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); }
+  header .bar { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  header .help { color:var(--muted); font-size:12px; margin-top:4px; }
+  main { display:flex; height:calc(100vh - 78px); }
+  #list { width:310px; min-width:310px; overflow:auto; border-right:1px solid var(--line); }
+  #list .grp { padding:6px 8px 1px; color:var(--muted); font-size:11px; border-top:1px solid var(--line); }
+  #list .row { padding:1px 8px; cursor:pointer; white-space:nowrap; font-family:ui-monospace, monospace; font-size:12px; }
+  #list .row:hover { background:#262c35; }
+  #list .row.cur { background:#2b3b4f; }
+  .st-done { color:var(--ok); } .st-edit { color:var(--warn); } .test { color:var(--warn); }
+  #view { flex:1; overflow:auto; padding:8px 12px; }
+  #info { margin-bottom:6px; min-height:20px; }
+  canvas { background:#000; display:block; margin-bottom:8px; border:1px solid var(--line); cursor:crosshair; }
+  .zooms { display:flex; gap:8px; }
+  .zooms div { color:var(--muted); font-size:11px; }
+  button { background:#2c333d; color:var(--fg); border:1px solid #46505c; padding:3px 9px; border-radius:3px; cursor:pointer; }
+  button:hover { background:#36404c; }
+  kbd { background:#2c333d; border:1px solid #46505c; border-radius:3px; padding:0 4px; font-size:11px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <b>R3 keyboard corners</b>
+    <label>Exported folder: <input type="file" id="folder" webkitdirectory></label>
+    <label>Continue from JSON: <input type="file" id="prev" accept=".json"></label>
+    <button id="save">Download r3_corners.json</button>
+    <span id="count"></span>
+  </div>
+  <div class="help">
+    Drag a handle, or press <kbd>1</kbd>–<kbd>4</kbd> and click. <kbd>←↑→↓</kbd> nudge 0.25 px
+    (<kbd>Shift</kbd> 2 px) · <kbd>Enter</kbd> done → next · <kbd>N</kbd>/<kbd>P</kbd> next/previous ·
+    <kbd>C</kbd> copy previous session · <kbd>R</kbd> official box · <kbd>O</kbd> show/hide official box.
+    Goal: in the strip at the bottom, every black key sits in its outlined box and the white-key
+    lines fall on the gaps between white keys, from A0 (left) to C8 (right).
+  </div>
+</header>
+<main>
+  <div id="list"></div>
+  <div id="view">
+    <div id="info">Choose the folder written by <code>python -m pianovam_vision.corners export</code>.</div>
+    <canvas id="main" width="1400" height="360"></canvas>
+    <div class="zooms">
+      <div><span id="zl-label">end</span><canvas id="zl" width="640" height="420"></canvas></div>
+      <div><span id="zr-label">end</span><canvas id="zr" width="640" height="420"></canvas></div>
+    </div>
+    <div style="color:var(--muted);font-size:11px">warped strip (what the model sees, height ×2) with the 88-key grid</div>
+    <canvas id="strip" width="1408" height="224"></canvas>
+  </div>
+</main>
+
+<script id="math">
+// ---- pure functions (same conventions as pianovam_vision/keyboard.py and cv2) ----
+function solve(A, b) {                       // Gaussian elimination, partial pivoting
+  const n = b.length, M = A.map((r, i) => r.concat([b[i]]));
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    for (let r = 0; r < n; r++) {
+      if (r === c) continue;
+      const f = M[r][c] / M[c][c];
+      for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k];
+    }
+  }
+  return M.map((r, i) => r[n] / r[i]);
+}
+function homography(src, dst) {              // 3x3 matrix mapping src[i] -> dst[i]
+  const A = [], b = [];
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = src[i], [u, v] = dst[i];
+    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
+    A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
+  }
+  const h = solve(A, b);
+  return [[h[0], h[1], h[2]], [h[3], h[4], h[5]], [h[6], h[7], 1]];
+}
+function applyH(H, x, y) {
+  const w = H[2][0] * x + H[2][1] * y + H[2][2];
+  return [(H[0][0] * x + H[0][1] * y + H[0][2]) / w, (H[1][0] * x + H[1][1] * y + H[1][2]) / w];
+}
+function isWhite(p) { return [0, 2, 4, 5, 7, 9, 11].includes(p % 12); }
+function keyGeometry(W, Hs) {                // keyboard.key_geometry, unrounded
+  const whites = [];
+  for (let p = 21; p <= 108; p++) if (isWhite(p)) whites.push(p);
+  const wk = W / whites.length, wi = {};
+  whites.forEach((p, i) => { wi[p] = i; });
+  const keys = [];
+  for (let p = 21; p <= 108; p++) {
+    if (isWhite(p)) keys.push({ p, kind: "white", x0: wi[p] * wk, y0: 0, x1: (wi[p] + 1) * wk, y1: Hs });
+    else {
+      const cx = (wi[p - 1] + 1) * wk, bw = 0.62 * wk;
+      keys.push({ p, kind: "black", x0: cx - bw / 2, y0: 0, x1: cx + bw / 2, y1: 0.62 * Hs });
+    }
+  }
+  return keys;
+}
+// The strip as cv2.warpPerspective(frame, getPerspectiveTransform(quad, strip rect)) makes
+// it, INTER_LINEAR: strip pixel (u, v) samples the frame at H^-1 (u, v).
+function warpStrip(src, sw, sh, quad, W, Hs) {
+  const H = homography([[0, 0], [W, 0], [W, Hs], [0, Hs]], quad);
+  const out = new Uint8ClampedArray(W * Hs * 4);
+  for (let v = 0; v < Hs; v++) for (let u = 0; u < W; u++) {
+    const [x, y] = applyH(H, u, v), o = 4 * (v * W + u);
+    const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+    out[o + 3] = 255;
+    if (x0 < 0 || y0 < 0 || x0 + 1 >= sw || y0 + 1 >= sh) continue;
+    const i00 = 4 * (y0 * sw + x0), i01 = i00 + 4, i10 = i00 + 4 * sw, i11 = i10 + 4;
+    for (let c = 0; c < 3; c++)
+      out[o + c] = (src[i00 + c] * (1 - fx) + src[i01 + c] * fx) * (1 - fy)
+                 + (src[i10 + c] * (1 - fx) + src[i11 + c] * fx) * fy;
+  }
+  return out;
+}
+</script>
+
+<script>
+// ---------------------------------- app ----------------------------------
+const W = 1408, HS = 112;                                // strip size of configs/r3.yaml
+const NAMES = ["A0 back", "C8 back", "C8 front", "A0 front"];
+const COLORS = ["#ff5252", "#ffd740", "#69f0ae", "#40c4ff"];
+const LS_KEY = "r3_corners_v1";
+const KEYS = keyGeometry(W, HS);
+const S = { sessions: [], files: new Map(), ann: {}, cur: -1, img: null, data: null,
+            sel: 0, showOfficial: true, views: {}, drag: null, frameSize: [1920, 1080] };
+const $ = id => document.getElementById(id);
+
+function loadLocal() { try { const t = localStorage.getItem(LS_KEY); if (t) S.ann = JSON.parse(t) || {}; } catch (e) {} }
+function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify(S.ann)); } catch (e) {} }
+loadLocal();
+
+const sess = () => S.sessions[S.cur];
+const copyPts = p => p.map(q => [q[0], q[1]]);
+function pts() {                                         // current corners of the open session
+  const s = sess(), a = S.ann[s.session];
+  return a ? a.pts : s._start;
+}
+function setPts(p, done) {
+  const s = sess(), a = S.ann[s.session];
+  S.ann[s.session] = { pts: p, done: done === undefined ? (a ? a.done : false) : done };
+  saveLocal();
+}
+
+// ---- loading ----
+$("folder").addEventListener("change", async ev => {
+  S.files.clear();
+  let meta = null;
+  for (const f of ev.target.files) {
+    const rel = f.webkitRelativePath.split("/").slice(1).join("/");
+    S.files.set(rel, f);
+    if (rel === "sessions.json") meta = f;
+  }
+  if (!meta) { $("info").textContent = "No sessions.json in that folder."; return; }
+  const j = JSON.parse(await meta.text());
+  S.sessions = j.sessions;
+  if (S.sessions.length) S.frameSize = S.sessions[0].frame_size;
+  renderList();
+  const first = S.sessions.findIndex(s => !(S.ann[s.session] && S.ann[s.session].done));
+  open(first >= 0 ? first : 0);
+});
+$("prev").addEventListener("change", async ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  const j = JSON.parse(await f.text());
+  if (j.format !== "r3_corners_v1") { alert("Not an r3_corners_v1 file"); return; }
+  for (const [k, p] of Object.entries(j.corners)) S.ann[k] = { pts: copyPts(p), done: true };
+  saveLocal(); renderList(); if (S.cur >= 0) open(S.cur);
+});
+$("save").addEventListener("click", () => {
+  const corners = {};
+  for (const s of S.sessions) {
+    const a = S.ann[s.session];
+    if (a && a.done) corners[s.session] = a.pts.map(q => [+q[0].toFixed(2), +q[1].toFixed(2)]);
+  }
+  const todo = S.sessions.filter(s => !corners[s.session]).map(s => s.session);
+  const out = { format: "r3_corners_v1", frame_size: S.frameSize,
+                order: "A0 back, C8 back, C8 front, A0 front (native frame px)",
+                created: new Date().toISOString(), n: Object.keys(corners).length,
+                not_done: todo, corners };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], { type: "application/json" }));
+  a.download = "r3_corners.json"; a.click();
+  if (todo.length) alert(`Saved ${out.n} sessions; ${todo.length} not done yet (listed in "not_done").`);
+});
+
+function open(i) {
+  if (i < 0 || i >= S.sessions.length) return;
+  S.cur = i;
+  const s = sess(), prev = S.sessions[i - 1];
+  // start: own annotation > previous session with the same official box > official box
+  if (S.ann[s.session]) s._start = S.ann[s.session].pts;
+  else if (prev && prev.group === s.group && S.ann[prev.session]) {
+    s._start = copyPts(S.ann[prev.session].pts); s._from = prev.session;
+  } else { s._start = copyPts(s.official); s._from = "official box"; }
+  const f = S.files.get(s.image);
+  if (!f) { $("info").textContent = `missing image ${s.image}`; return; }
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement("canvas");
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+    S.img = img; S.data = g.getImageData(0, 0, c.width, c.height).data;
+    fitViews(); renderList(); render();
+  };
+  img.src = URL.createObjectURL(f);
+}
+
+// ---- views: image <-> canvas ----
+function makeView(cv, cx, cy, rw, rh) {
+  const s = Math.min(cv.width / rw, cv.height / rh);
+  return { cv, s, x0: cx - cv.width / s / 2, y0: cy - cv.height / s / 2 };
+}
+const toC = (v, x, y) => [(x - v.x0) * v.s, (y - v.y0) * v.s];
+const toI = (v, x, y) => [v.x0 + x / v.s, v.y0 + y / v.s];
+function fitViews() {
+  const p = pts(), xs = p.map(q => q[0]), ys = p.map(q => q[1]);
+  const w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys);
+  S.views.main = makeView($("main"), (Math.max(...xs) + Math.min(...xs)) / 2,
+                          (Math.max(...ys) + Math.min(...ys)) / 2, w * 1.12 + 40, h * 2.2 + 60);
+  const endA = [(p[0][0] + p[3][0]) / 2, (p[0][1] + p[3][1]) / 2];   // A0 end
+  const endC = [(p[1][0] + p[2][0]) / 2, (p[1][1] + p[2][1]) / 2];   // C8 end
+  const depth = Math.max(Math.hypot(p[0][0] - p[3][0], p[0][1] - p[3][1]),
+                         Math.hypot(p[1][0] - p[2][0], p[1][1] - p[2][1]), 40);
+  const [l, r] = endA[0] <= endC[0] ? [endA, endC] : [endC, endA];   // panels as in the image
+  $("zl-label").textContent = (l === endA ? "A0" : "C8") + " end (zoom)";
+  $("zr-label").textContent = (r === endA ? "A0" : "C8") + " end (zoom)";
+  const zh = depth * 1.25, zw = zh * 640 / 420;            // ~3x zoom on the end
+  S.views.zl = makeView($("zl"), l[0], l[1], zw, zh);
+  S.views.zr = makeView($("zr"), r[0], r[1], zw, zh);
+}
+
+// ---- drawing ----
+function drawImageView(v) {
+  const g = v.cv.getContext("2d");
+  g.fillStyle = "#000"; g.fillRect(0, 0, v.cv.width, v.cv.height);
+  g.imageSmoothingEnabled = v.s < 2;
+  g.drawImage(S.img, v.x0, v.y0, v.cv.width / v.s, v.cv.height / v.s, 0, 0, v.cv.width, v.cv.height);
+  const p = pts(), Hm = homography([[0, 0], [W, 0], [W, HS], [0, HS]], p);
+  const line = (a, b) => { g.beginPath(); g.moveTo(...toC(v, ...a)); g.lineTo(...toC(v, ...b)); g.stroke(); };
+  // key grid projected into the frame
+  g.lineWidth = 1;
+  for (const k of KEYS) {
+    if (k.kind === "white") {
+      g.strokeStyle = "rgba(79,195,247,0.45)";
+      line(applyH(Hm, k.x0, 0), applyH(Hm, k.x0, HS));
+    } else {
+      g.strokeStyle = "rgba(255,64,129,0.75)";
+      const q = [[k.x0, k.y0], [k.x1, k.y0], [k.x1, k.y1], [k.x0, k.y1]].map(c => applyH(Hm, ...c));
+      g.beginPath(); g.moveTo(...toC(v, ...q[0])); q.slice(1).forEach(c => g.lineTo(...toC(v, ...c)));
+      g.closePath(); g.stroke();
+    }
+  }
+  if (S.showOfficial) {
+    g.setLineDash([6, 4]); g.strokeStyle = "rgba(255,255,255,0.6)";
+    const o = sess().official;
+    for (let i = 0; i < 4; i++) line(o[i], o[(i + 1) % 4]);
+    g.setLineDash([]);
+  }
+  g.strokeStyle = "#4fc3f7"; g.lineWidth = 1.5;
+  for (let i = 0; i < 4; i++) line(p[i], p[(i + 1) % 4]);
+  p.forEach((q, i) => {
+    const [x, y] = toC(v, ...q);
+    g.beginPath(); g.arc(x, y, i === S.sel ? 7 : 5, 0, 2 * Math.PI);
+    g.strokeStyle = COLORS[i]; g.lineWidth = i === S.sel ? 3 : 2; g.stroke();
+    g.beginPath(); g.moveTo(x - 3, y); g.lineTo(x + 3, y); g.moveTo(x, y - 3); g.lineTo(x, y + 3); g.stroke();
+    g.fillStyle = COLORS[i]; g.font = "12px system-ui"; g.fillText(`${i + 1} ${NAMES[i]}`, x + 9, y - 8);
+  });
+}
+function drawStrip() {
+  const cv = $("strip"), g = cv.getContext("2d");
+  const off = document.createElement("canvas"); off.width = W; off.height = HS;
+  off.getContext("2d").putImageData(
+    new ImageData(warpStrip(S.data, S.img.naturalWidth, S.img.naturalHeight, pts(), W, HS), W, HS), 0, 0);
+  g.imageSmoothingEnabled = false;
+  g.drawImage(off, 0, 0, W, HS, 0, 0, cv.width, cv.height);
+  const sy = cv.height / HS;
+  for (const k of KEYS) {
+    if (k.kind === "white") {
+      g.strokeStyle = "rgba(79,195,247,0.6)"; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(k.x0 + 0.5, 0); g.lineTo(k.x0 + 0.5, cv.height); g.stroke();
+      if (k.p % 12 === 0) { g.fillStyle = "#4fc3f7"; g.font = "11px system-ui";
+                            g.fillText(`C${k.p / 12 - 1}`, k.x0 + 2, cv.height - 4); }
+    } else {
+      g.strokeStyle = "rgba(255,64,129,0.9)"; g.lineWidth = 1;
+      g.strokeRect(k.x0, k.y0 * sy, k.x1 - k.x0, (k.y1 - k.y0) * sy);
+    }
+  }
+}
+function render() {
+  if (!S.img) return;
+  for (const v of Object.values(S.views)) drawImageView(v);
+  drawStrip();
+  const s = sess(), p = pts(), a = S.ann[s.session];
+  const moved = p.map((q, i) => Math.hypot(q[0] - s.official[i][0], q[1] - s.official[i][1]).toFixed(1));
+  $("info").innerHTML = `<b>${s.session}</b> · ${s.subset} · ${s.splits.map(x => x === "test" ? `<span class="test">${x}</span>` : x).join("/")}`
+    + ` · ${s.chunks} chunks · box group ${s.group} · `
+    + (a && a.done ? `<span class="st-done">done</span>` : a ? `<span class="st-edit">edited, not done</span>` : `start: ${s._from}`)
+    + ` · moved from official (px): ${moved.join(" / ")} · selected: <span style="color:${COLORS[S.sel]}">${S.sel + 1} ${NAMES[S.sel]}</span>`;
+  const done = S.sessions.filter(x => S.ann[x.session] && S.ann[x.session].done).length;
+  $("count").textContent = `${done} / ${S.sessions.length} done`;
+}
+function renderList() {
+  const el = $("list"); el.innerHTML = "";
+  let g = -1;
+  S.sessions.forEach((s, i) => {
+    if (s.group !== g) { g = s.group; const h = document.createElement("div"); h.className = "grp"; h.textContent = `box group ${g}`; el.appendChild(h); }
+    const a = S.ann[s.session], r = document.createElement("div");
+    r.className = "row" + (i === S.cur ? " cur" : "");
+    const st = a && a.done ? `<span class="st-done">✓</span>` : a ? `<span class="st-edit">•</span>` : "&nbsp;";
+    r.innerHTML = `${st} ${s.session} <span style="color:var(--muted)">${s.subset}</span>`
+      + (s.splits.includes("test") ? ` <span class="test">test</span>` : "");
+    r.onclick = () => open(i);
+    el.appendChild(r);
+    if (i === S.cur) setTimeout(() => r.scrollIntoView({ block: "nearest" }), 0);
+  });
+}
+
+// ---- interaction ----
+for (const id of ["main", "zl", "zr"]) {
+  const cv = $(id);
+  cv.addEventListener("mousedown", e => {
+    if (!S.img) return;
+    const v = Object.values(S.views).find(x => x.cv === cv), rect = cv.getBoundingClientRect();
+    const cx = (e.clientX - rect.left) * cv.width / rect.width, cy = (e.clientY - rect.top) * cv.height / rect.height;
+    const p = copyPts(pts());
+    let best = -1, bd = 14;
+    p.forEach((q, i) => { const [x, y] = toC(v, ...q), d = Math.hypot(x - cx, y - cy); if (d < bd) { bd = d; best = i; } });
+    if (best >= 0) S.sel = best;
+    else { p[S.sel] = toI(v, cx, cy); setPts(p, false); }
+    S.drag = { v, cv };
+    render();
+  });
+}
+window.addEventListener("mousemove", e => {
+  if (!S.drag) return;
+  const { v, cv } = S.drag, rect = cv.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) * cv.width / rect.width, cy = (e.clientY - rect.top) * cv.height / rect.height;
+  const p = copyPts(pts()); p[S.sel] = toI(v, cx, cy); setPts(p, false); render();
+});
+window.addEventListener("mouseup", () => { S.drag = null; });
+window.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || S.cur < 0) return;
+  const k = e.key, step = e.shiftKey ? 2 : 0.25;
+  const nudge = (dx, dy) => { const p = copyPts(pts()); p[S.sel][0] += dx; p[S.sel][1] += dy; setPts(p, false); render(); };
+  if ("1234".includes(k) && k.length === 1) { S.sel = +k - 1; render(); }
+  else if (k === "ArrowLeft") { nudge(-step, 0); e.preventDefault(); }
+  else if (k === "ArrowRight") { nudge(step, 0); e.preventDefault(); }
+  else if (k === "ArrowUp") { nudge(0, -step); e.preventDefault(); }
+  else if (k === "ArrowDown") { nudge(0, step); e.preventDefault(); }
+  else if (k === "Enter") {
+    e.preventDefault();
+    setPts(copyPts(pts()), true);
+    const nxt = S.sessions.findIndex((s, i) => i > S.cur && !(S.ann[s.session] && S.ann[s.session].done));
+    open(nxt >= 0 ? nxt : Math.min(S.cur + 1, S.sessions.length - 1));
+  }
+  else if (k === "n" || k === "N") open(S.cur + 1);
+  else if (k === "p" || k === "P") open(S.cur - 1);
+  else if (k === "c" || k === "C") {
+    const prev = S.sessions[S.cur - 1];
+    if (prev && S.ann[prev.session]) { setPts(copyPts(S.ann[prev.session].pts), false); fitViews(); render(); }
+  }
+  else if (k === "r" || k === "R") { setPts(copyPts(sess().official), false); fitViews(); render(); }
+  else if (k === "o" || k === "O") { S.showOfficial = !S.showOfficial; render(); }
+});
+</script>
+</body>
+</html>

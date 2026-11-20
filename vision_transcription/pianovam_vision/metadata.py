@@ -229,8 +229,14 @@ def load_recordings_r3(
     valid_frac: float = 0.1,
     valid_seed: int = 1234,
     valid_avoid_sessions: Iterable[str] = (),
+    corners: Mapping[str, Any] | None = None,
 ) -> List[Recording]:
     """Index the raw R3 release (see the module docstring) into Recordings.
+
+    ``corners``: annotated keyboard corners per session ({session: 4 points
+    [A0 back, C8 back, C8 front, A0 front] in native frame pixels}, see
+    ``load_r3_corners``), used instead of the official boxes. Then EVERY session
+    must be in it: a session left out raises (no silent mix of the two).
 
     Every ``<session>_split<N>.mid`` in a split folder is one recording; its
     video is ``video_pattern`` in the same folder. ``subsets`` keeps only those
@@ -247,6 +253,7 @@ def load_recordings_r3(
     keep = set(subsets) if subsets else None
     boxes: Dict[str, Dict[str, Any]] = {}
     recs: List[Recording] = []
+    missing: set = set()
     for dname, (sub, split) in split_dirs.items():
         if keep is not None and sub not in keep:
             continue
@@ -270,15 +277,26 @@ def load_recordings_r3(
             key = box_key_pattern.format(session=session)
             if key not in boxes[sub]:
                 raise KeyError(f"R3: no keyboard box '{key}' in {box_files[sub]} for {mid.name}")
+            if corners is not None:
+                if session not in corners:
+                    missing.add(session)
+                    continue
+                c = np.asarray(corners[session], dtype=np.float32)
+            else:
+                c = r3_box_corners(boxes[sub][key], frame_size, orientation)
             recs.append(Recording(
                 record_time=mid.stem,
                 split=split,
-                corners=r3_box_corners(boxes[sub][key], frame_size, orientation),
+                corners=c,
                 video_filename=f"{dname}/{video_pattern.format(session=session, chunk=chunk)}",
                 label_filename=f"{dname}/{mid.name}",
                 subset=sub,
                 session=session,
             ))
+
+    if missing:
+        raise KeyError(f"R3: {len(missing)} session(s) have no annotated corners "
+                       f"(data.r3_corners): {sorted(missing)}")
 
     if valid_frac and valid_frac > 0:
         avoid = set(valid_avoid_sessions or ())
@@ -309,6 +327,29 @@ def load_recordings_r3(
     return recs
 
 
+def load_r3_corners(path: str | Path) -> Dict[str, np.ndarray]:
+    """Annotated R3 keyboard corners (scripts/corner_tool.html -> JSON).
+
+    ``{"format": "r3_corners_v1", "corners": {session: [[x, y] x 4]}}``, points
+    [A0 back, C8 back, C8 front, A0 front] in native frame pixels. A relative
+    path is looked up from the working directory, then from vision_transcription/.
+    """
+    p = Path(path)
+    if not p.is_absolute() and not p.exists():
+        p = Path(__file__).resolve().parents[1] / p
+    with open(p, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if data.get("format") != "r3_corners_v1":
+        raise ValueError(f"{p}: not an r3_corners_v1 file")
+    out = {}
+    for session, pts in data["corners"].items():
+        a = np.asarray(pts, dtype=np.float32)
+        if a.shape != (4, 2) or not np.isfinite(a).all():
+            raise ValueError(f"{p}: session {session}: need 4 [x, y] points, got {pts}")
+        out[session] = a
+    return out
+
+
 def recordings_from_cfg(cfg: Dict[str, Any]) -> List[Recording]:
     """Load recordings for the active dataset, dispatching on ``data.format``."""
     d = cfg["data"]
@@ -327,6 +368,7 @@ def recordings_from_cfg(cfg: Dict[str, Any]) -> List[Recording]:
             valid_frac=d.get("valid_frac", 0.1),
             valid_seed=d.get("valid_seed", 1234),
             valid_avoid_sessions=d.get("valid_avoid_sessions") or (),
+            corners=load_r3_corners(d["r3_corners"]) if d.get("r3_corners") else None,
         )
     path = root / d["metadata"]
     if fmt == "pianoyt":

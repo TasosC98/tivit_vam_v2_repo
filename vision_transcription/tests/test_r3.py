@@ -298,3 +298,54 @@ def test_build_cache_with_opencv_reader(tmp_path, capsys, monkeypatch):
     out = capsys.readouterr().out
     zero = next(x for x in out.splitlines() if "shift +0" in x)
     assert float(zero.split("mean abs diff")[1].split(",")[0]) < 2
+
+
+# --- annotated keyboard corners (data.r3_corners; corners.py export) ---------------
+
+def test_loader_uses_annotated_corners_for_every_session(tmp_path):
+    from pianovam_vision.metadata import load_r3_corners
+    root = make_tree(tmp_path / "r3", {k: v[:1] for k, v in TREE.items()})
+    official = load_recordings_r3(root, valid_frac=0)
+    sessions = sorted({r.session for r in official})
+    quad = [[1400.0, 700.0], [500.0, 701.5], [499.0, 601.0], [1401.0, 600.0]]
+    f = tmp_path / "corners.json"
+    f.write_text(json.dumps({"format": "r3_corners_v1", "corners": {s: quad for s in sessions}}))
+    recs = load_recordings_r3(root, valid_frac=0, corners=load_r3_corners(f))
+    assert [r.record_time for r in recs] == [r.record_time for r in official]
+    assert all(np.allclose(r.corners, quad) for r in recs)
+    # through the config, like training does
+    cfg = load_config(ROOT / "configs" / "r3.yaml",
+                      [f"data.root={root.as_posix()}", f"data.r3_corners={f.as_posix()}"])
+    from pianovam_vision.metadata import recordings_from_cfg
+    assert all(np.allclose(r.corners, quad) for r in recordings_from_cfg(cfg))
+    # one session missing -> error naming it (never a silent mix with official boxes)
+    f.write_text(json.dumps({"format": "r3_corners_v1", "corners": {s: quad for s in sessions[1:]}}))
+    with pytest.raises(KeyError, match=sessions[0]):
+        load_recordings_r3(root, valid_frac=0, corners=load_r3_corners(f))
+    f.write_text(json.dumps({"format": "r3_corners_v1", "corners": {sessions[0]: quad[:3]}}))
+    with pytest.raises(ValueError, match="4"):
+        load_r3_corners(f)
+
+
+def test_corner_export_writes_backgrounds_and_official_corners(tmp_path):
+    pytest.importorskip("cv2")
+    import cv2
+    from pianovam_vision.corners import export
+    root = _real_tree(tmp_path)
+    cfg = load_config(ROOT / "configs" / "r3.yaml",
+                      [f"data.root={root.as_posix()}", "data.frame_size=[320, 180]"])
+    cfg["data"]["root"] = str(root)
+    out = tmp_path / "frames_out"
+    rows = export(cfg, out, chunks_per_session=3, per_chunk=4,
+                  only=["rach3_2022-05-05_a01", "ls_2024-02-06_a02"])
+    meta = json.loads((out / "sessions.json").read_text())
+    assert meta["format"] == "r3_sessions_v1" and len(meta["sessions"]) == 2
+    by = {r["session"]: r for r in meta["sessions"]}
+    from pianovam_vision.metadata import recordings_from_cfg
+    rec = next(r for r in recordings_from_cfg(cfg) if r.session == "rach3_2022-05-05_a01")
+    assert np.allclose(by["rach3_2022-05-05_a01"]["official"], rec.corners, atol=0.01)
+    assert by["rach3_2022-05-05_a01"]["splits"] == ["test"]
+    assert {r["group"] for r in rows} == {0, 1}                      # the two subsets differ
+    img = cv2.imread(str(out / by["ls_2024-02-06_a02"]["image"]))
+    assert img.shape == (180, 320, 3)
+    assert by["ls_2024-02-06_a02"]["frame_size"] == [320, 180]
