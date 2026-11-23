@@ -2,7 +2,8 @@
 # 2026-11-20 on (runs r3c_full, _s2, _s3 = E1 on R3, and everything built on them).
 #
 # r3.yaml + data.r3_corners: every session gets the four corners of its keyboard
-# (configs/r3_corners.json, set with scripts/corner_tool.html) instead of R3's one
+# (configs/r3_corners.json: set by hand with scripts/corner_tool.html, then lined up
+# on the key pattern with `corners.py refine`; see corners.py) instead of R3's one
 # rotated box per session. The official boxes put the 88-key grid up to a key off,
 # and KeyWise reads key k from column k of the strip: the first run (r3_full, official
 # boxes) predicted one key too low on 56 of 74 R3s test chunks. r3.yaml stays as it

@@ -143,11 +143,12 @@ def test_r3_config_is_the_paper_recipe():
     assert len(ns) == 10 and all(x.startswith("ls_2024-02-06_a0") for x in ns)
 
 
-def test_r3_corners_file_is_complete_and_oriented():
-    """configs/r3_corners.json: 144 sessions, each a keyboard seen turned by 180 deg."""
+@pytest.mark.parametrize("name", ["r3_corners_hand.json", "r3_corners.json"])
+def test_r3_corners_file_is_complete_and_oriented(name):
+    """144 sessions, each a keyboard seen turned by 180 deg (hand-set and refined)."""
     from pianovam_vision.metadata import load_r3_corners
 
-    c = load_r3_corners(ROOT / "configs" / "r3_corners.json")
+    c = load_r3_corners(ROOT / "configs" / name)
     assert len(c) == 144
     assert sum(s.startswith("rach3_") for s in c) == 27       # R3s sessions
     for s, (a0b, c8b, c8f, a0f) in c.items():
@@ -156,6 +157,19 @@ def test_r3_corners_file_is_complete_and_oriented():
         assert a0b[0] > c8b[0] and a0f[0] > c8f[0], s          # rot180: A0 at the right
         assert a0b[1] > a0f[1] and c8b[1] > c8f[1], s          # key backs below the fronts
         assert 700 < a0b[0] - c8b[0] < 1350, s                 # 40-65 % of the width
+
+
+def test_refined_corners_stay_close_to_the_hand_set_ones():
+    from pianovam_vision.metadata import load_r3_corners
+
+    hand = load_r3_corners(ROOT / "configs" / "r3_corners_hand.json")
+    ref = load_r3_corners(ROOT / "configs" / "r3_corners.json")
+    kept = json.loads((ROOT / "configs" / "r3_corners.json").read_text())["refined"]["kept_as_set_by_hand"]
+    assert kept == ["rach3_2021-08-19_a01"] and set(hand) == set(ref)
+    moves = {s: np.abs(ref[s] - hand[s]).max() for s in hand}
+    assert all(moves[s] < 0.01 for s in kept)
+    assert max(moves.values()) <= 10.0 + 0.01                 # refine's bound
+    assert np.median(list(moves.values())) < 2.0
 
 
 def write_midi(path: Path, notes, pedal=True):
@@ -374,3 +388,56 @@ def test_corner_export_writes_backgrounds_and_official_corners(tmp_path):
     img = cv2.imread(str(out / by["ls_2024-02-06_a02"]["image"]))
     assert img.shape == (180, 320, 3)
     assert by["ls_2024-02-06_a02"]["frame_size"] == [320, 180]
+
+
+def _synthetic_keyboard(corners):
+    """1920x1080 image of a flat 88-key keyboard whose strip corners are ``corners``."""
+    cv2 = pytest.importorskip("cv2")
+    from pianovam_vision.corners import STRIP_H, STRIP_W, homography64
+    from pianovam_vision.keyboard import key_geometry
+
+    w, h = STRIP_W, STRIP_H
+    tex = np.full((h, w, 3), 210, np.uint8)
+    for j in range(1, 52):
+        x = int(round(j * w / 52))
+        tex[:, x - 1:x + 1] = 90                                  # white-key gaps
+    for kind, x0, y0, x1, y1 in key_geometry(w, h).values():
+        if kind == "black":
+            tex[y0:y1, x0:x1] = 30
+    inv = np.linalg.inv(homography64(corners))
+    return cv2.warpPerspective(tex, inv, (1920, 1080), flags=cv2.INTER_LINEAR,
+                               borderValue=(120, 120, 120))
+
+
+def test_refine_straightens_a_bowed_quad():
+    """A front corner 6 px off bows the key grid (ends right, middle off); refine pulls
+    that session in line with the others, leaves good and kept sessions alone."""
+    pytest.importorskip("scipy")
+    from pianovam_vision.corners import refine_sessions
+
+    true = np.array([[1500.0, 1000.0], [400.0, 1000.0], [420.0, 860.0], [1480.0, 860.0]])
+    img = _synthetic_keyboard(true)
+    bowed = true + [[0, 0], [0, 0], [0, 0], [0, -6]]
+    corners = {"s0": bowed, "s1": true, "s2": true, "s3": true, "s4": bowed}
+    new, rows = refine_sessions({s: img for s in corners}, corners, keep=["s0"])
+    by = {r["session"]: r for r in rows}
+    worst = lambda v: np.nanmax(np.abs(v))
+    assert worst(by["s4"]["before"]) > 0.15                      # the bow is there...
+    assert worst(by["s4"]["after"]) < 0.05                       # ...and gone
+    assert np.abs(new["s4"][:, 0] - true[:, 0]).max() < 2.0
+    assert np.array_equal(new["s0"], bowed) and by["s0"]["kept"]  # kept as set by hand
+    for s in ("s1", "s2", "s3"):
+        assert by[s]["move_px"] < 0.5 and worst(by[s]["after"]) < 0.05
+
+
+def test_save_corners_round_trip(tmp_path):
+    from pianovam_vision.corners import save_corners
+    from pianovam_vision.metadata import load_r3_corners
+
+    c = {"b_session": np.array([[1.234, 2], [3, 4], [5, 6], [7, 8.5]]),
+         "a_session": np.zeros((4, 2))}
+    save_corners(tmp_path / "c.json", c, about="test", refined={"kept_as_set_by_hand": []})
+    back = load_r3_corners(tmp_path / "c.json")
+    assert list(back) == ["a_session", "b_session"]
+    assert np.allclose(back["b_session"], [[1.23, 2], [3, 4], [5, 6], [7, 8.5]])
+    assert json.loads((tmp_path / "c.json").read_text())["about"] == "test"
